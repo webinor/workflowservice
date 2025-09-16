@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\WorkflowInstance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\WorkflowInstanceStep;
@@ -15,11 +16,29 @@ class WorkflowValidationController extends Controller
        $userId= $user_connected['id']; // récupéré du user-service
        $roleId= $user_connected['role_id']; // récupéré du user-service
 
-        // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
+        $isValidation = filter_var($request->query('isValidation'), FILTER_VALIDATE_BOOLEAN);
+
+
+       // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
+       if ($isValidation) {
+        
+       
            $steps = WorkflowInstanceStep::with('workflowInstance')
             ->where('role_id', $roleId)
             ->where('status', 'PENDING')
             ->get();
+       } else {
+
+        //si c'est juste le suivi
+        
+       
+           $steps = WorkflowInstanceStep::with('workflowInstance')
+          //  ->where('role_id', $roleId)
+           // ->where('status', 'PENDING')
+            ->get();
+       }
+       
+        
 
         // 2️⃣ Extraire les document_ids
           $documentIds = $steps->pluck('workflowInstance.document_id')->unique();
@@ -56,6 +75,41 @@ class WorkflowValidationController extends Controller
 
     // On indexe les permissions par documentId
       $permissionsByDocId = collect($documents_with_permissions)->keyBy('documentId');
+
+
+      // Récupérer les instances de workflow correspondantes
+   $workflowInstances = WorkflowInstance::whereIn('document_id', $documentIds)
+    ->get()
+    ->keyBy('document_id'); // clé = document_id pour accès rapide
+
+    // On filtre et on enrichit les documents
+$translations = [
+    'NOT_STARTED' => ['label' => 'Validation Non démarré', 'emoji' => '⏳', 'color' => 'info'],
+    'PENDING'     => ['label' => 'En cours de validation',     'emoji' => '🟡', 'color' => 'warning'],
+    'COMPLETE'    => ['label' => 'Validation Terminée',     'emoji' => '✅', 'color' => 'success'],
+];
+
+$filtered = collect($documents)->filter(function ($doc) use ($permissionsByDocId) {
+    return isset($permissionsByDocId[$doc['document_type_id']])
+        && $permissionsByDocId[$doc['document_type_id']]['permissions']['view'] === true;
+})->map(function ($doc) use ($workflowInstances, $translations) {
+    $instance = $workflowInstances[$doc['id']] ?? null;
+    $status = $instance ? $instance->status : null;
+
+    if ($status && isset($translations[$status])) {
+        $doc['workflow_status'] = [
+            'label' => $translations[$status]['label'],
+            'emoji' => $translations[$status]['emoji'],
+            'color' => $translations[$status]['color'],
+        ];
+    } else {
+        $doc['workflow_status'] = null;
+    }
+
+    return $doc;
+})->values()->toArray();
+
+return $filtered;
 
 // On filtre les documents
 $filtered = collect($documents)->filter(function ($doc) use ($permissionsByDocId) {

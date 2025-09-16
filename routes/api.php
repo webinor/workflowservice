@@ -58,6 +58,10 @@ Route::get('/documents/{documentId}/validation-history', [DocumentWorkflowContro
 Route::get('/documents/{documentId}/preview-history', [DocumentWorkflowController::class, 'previewHistory']);
 
 
+Route::post(
+    '/test-notify/{workflowInstanceStep}/{departmentId}',
+    [WorkflowInstanceController::class, 'testNotify']
+);
 
    Route::apiResource('/', WorkflowController::class);
 

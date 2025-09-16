@@ -78,4 +78,15 @@ public function resolveRoleValidator($position)
     throw new \Exception("Aucun responsable trouvé pour ce département");
 }
 
+
+   public function getRoleValidator($departmentId)
+    {
+
+        $department_position = $this->resolveDepartmentValidator($departmentId) ;
+      return  $role = $this->resolveRoleValidator($department_position['position']['name'])['results'] ;
+
+
+    }
+
+
 }

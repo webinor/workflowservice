@@ -15,11 +15,18 @@ use App\Services\ResolveDepartmentValidator;
 use App\Http\Requests\StoreWorkflowInstanceRequest;
 use App\Http\Requests\UpdateWorkflowInstanceRequest;
 use App\Models\WorkflowInstanceStepRoleDynamic;
+use App\Services\WorkflowInstanceService;
 
 class WorkflowInstanceController extends Controller
 {
 
     use ResolveDepartmentValidator;
+
+    protected $workflowInstanceService;
+
+    public function __construct(WorkflowInstanceService $workflowInstanceService) {
+        $this->workflowInstanceService = $workflowInstanceService;
+    }
     /**
      * Display a listing of the resource.
      *
@@ -313,16 +320,29 @@ class WorkflowInstanceController extends Controller
         ->filter(fn($stepInstance) => $stepInstance->status === $STATUS_NOT_STARTED)
         ->min(fn($stepInstance) => $stepInstance->position);
 
-        // Mettre en PENDING uniquement les étapes à cette position
-        foreach ($instanceSteps as $stepGroup) {
-        foreach ($stepGroup as $stepInstance) {
-            if ($stepInstance->status === $STATUS_NOT_STARTED && $stepInstance->position === $minPosition) {
-                $stepInstance->update(['status' => $STATUS_PENDING]);
-            }
+        
+// Mettre en PENDING uniquement les étapes à cette position
+$stepsToNotify = [];
+foreach ($instanceSteps as $stepGroup) {
+    foreach ($stepGroup as $stepInstance) {
+        if ($stepInstance->status === $STATUS_NOT_STARTED && $stepInstance->position === $minPosition) {
+            $stepInstance->update(['status' => $STATUS_PENDING]);
+            $stepsToNotify[] = $stepInstance; // stocker pour notification
         }
-        }
-    
-        DB::commit();
+    }
+}
+
+// 🔔 Ici : notifier les utilisateurs des étapes PENDING
+foreach ($stepsToNotify as $stepInstance) {
+    //$roleId = $stepInstance->role_id;
+    //$userId = $stepInstance->user_id;
+
+    // Soit tu récupères l'utilisateur associé au rôle
+    // soit tu envoies une notification au rôle directement
+    $this->workflowInstanceService->notifyNextValidator($stepInstance , $request , $validated["department_id"]);
+}
+
+    DB::commit();
     
         return response()->json($workflowInstance->load('instance_steps'), 201);
 
@@ -335,6 +355,42 @@ class WorkflowInstanceController extends Controller
     }
     
 }
+
+public function testNotify(Request $request, WorkflowInstanceStep $workflowInstanceStep , $departmentId)
+    {
+        // ✅ Voir ce que contient l'étape
+        //if ($request->has('debug')) {
+          //  return response()->json($workflowInstanceStep);
+        //}
+
+        // ✅ Appeler ton service
+      return
+      
+  
+      
+      $result = $this->workflowInstanceService->notifyNextValidator(
+            $workflowInstanceStep,
+            $request,$departmentId
+        );
+
+        if ($result && $result["success"]) {
+            
+            return $result;
+     
+            
+        }else{
+
+
+             return response()->json([
+            'success' => false,
+          //  'data' => $result
+        ]);
+            
+
+        }
+        
+    }
+
 
 public function store2(StoreWorkflowInstanceRequest $request)
 {
@@ -590,6 +646,9 @@ public function store2(StoreWorkflowInstanceRequest $request)
                         $instance->update([
                             'status' => 'PENDING'
                         ]);
+
+                    $this->workflowInstanceService->notifyNextValidator($nextStep , $request );
+
                     } else {
                         // Pas d’étape suivante → Workflow terminé
                         $instance->update([
@@ -907,14 +966,7 @@ protected function getNestedValue(array $data, string $path)
 
     
 
-    public function getRoleValidator($departmentId)
-    {
-
-        $department_position = $this->resolveDepartmentValidator($departmentId) ;
-      return  $role = $this->resolveRoleValidator($department_position['position']['name'])['results'] ;
-
-
-    }
+ 
 
     /**
      * Display the specified resource.
