@@ -15,10 +15,10 @@ class CreateWorkflowStatusHistoriesTable extends Migration
     {
         Schema::create('workflow_status_histories', function (Blueprint $table) {
             $table->id();
-            $table->morphs('model'); // étape concernée
+            $table->morphs('model'); //workflow_instance ou workflow_instance_step concernée ou 
             $table->unsignedBigInteger('changed_by'); // user qui a modifié
-            $table->enum('old_status', ['pending','in_progress','done','rejected'])->nullable();
-            $table->enum('new_status', ['pending','in_progress','done','rejected']);
+            $table->enum('old_status', ['PENDING','IN_PROGRESS','COMPLETED','REJECTED'])->nullable();
+            $table->enum('new_status', ['PENDING','IN_PROGRESS','COMPLETED','REJECTED']);
             $table->text('comment')->nullable(); // optionnel
             $table->timestamps();
         });

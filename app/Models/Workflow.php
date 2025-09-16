@@ -20,4 +20,11 @@ class Workflow extends Model
     {
         return $this->hasMany(WorkflowStep::class)->orderBy('position');
     }
+
+
+      // Relation vers les transitions
+      public function transitions()
+      {
+          return $this->hasMany(WorkflowTransition::class);
+      }
 }

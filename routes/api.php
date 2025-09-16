@@ -1,7 +1,12 @@
 <?php
 
+use App\Http\Controllers\DocumentWorkflowController;
+use App\Http\Controllers\WorkflowActionController;
+use App\Http\Controllers\WorkflowActionStepController;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkflowInstanceController;
+use App\Http\Controllers\WorkflowInstanceStepController;
+use App\Http\Controllers\WorkflowTransferController;
 use App\Http\Controllers\WorkflowValidationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -29,19 +34,31 @@ Route::get('/by-document-type/{documentTypeId}', [WorkflowController::class, 'ge
 
 Route::get('/documents-to-validate', [WorkflowValidationController::class, 'getDocumentsToValidateByRole']);
 
-Route::post('/workflow-instances/{documentId}/validate', [WorkflowInstanceController::class, 'validateStep']
-);
+Route::post('/workflow-instances/{documentId}/validate', [WorkflowInstanceController::class, 'validateStep']);
 
+Route::get('/document/{id}', [WorkflowInstanceController::class, 'history']);
+
+Route::post('/documents/transfer', [WorkflowTransferController::class, 'transferDocument']);
 
 
 Route::post('/workflow-instances', [WorkflowInstanceController::class, 'store']);
 
+Route::get('/documents/{documentId}/comments', [WorkflowInstanceStepController::class, 'getWorkflowComments']);
+
+Route::get('/{id}/steps', [WorkflowController::class, 'steps']);
+
+Route::post('/workflow-actions', [WorkflowActionController::class, 'store']);
+
+Route::get('workflow-steps/{stepId}/actions', [WorkflowActionStepController::class, 'getActionsByStep']);
+
+Route::get('/documents/{documentId}/current-step', [WorkflowInstanceController::class, 'getCurrentStepOfDocument']);
+
+Route::get('/documents/{documentId}/validation-history', [DocumentWorkflowController::class, 'validationHistory']);
+
+Route::get('/documents/{documentId}/preview-history', [DocumentWorkflowController::class, 'previewHistory']);
 
 
 
    Route::apiResource('/', WorkflowController::class);
-
-
-
 
 });
