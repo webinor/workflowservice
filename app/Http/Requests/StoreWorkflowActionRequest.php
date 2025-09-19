@@ -25,6 +25,7 @@ class StoreWorkflowActionRequest extends FormRequest
     {
         return [
             'actionName' => 'required|string|max:255',
+            'actionLabel' => 'required|string|max:255',
             'workflow_id' => 'required|exists:workflows,id',
             'workflow_step_id' => 'required|exists:workflow_steps,id',
             'permission_required' => 'nullable|string|max:255',

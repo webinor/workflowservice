@@ -28,6 +28,7 @@ class StoreWorkflowRequest extends FormRequest
             'document_type' => 'nullable|integer',
             'recipientMode' => 'nullable|string',
             'steps' => 'array',
+            //'existsTarget'=>'string'
         ];
     }
 }

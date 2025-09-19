@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -14,32 +13,40 @@ return [
     |
     */
 
-    'mailgun' => [
-        'domain' => env('MAILGUN_DOMAIN'),
-        'secret' => env('MAILGUN_SECRET'),
-        'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
-    ], 
-
-    'postmark' => [
-        'token' => env('POSTMARK_TOKEN'),
+    "mailgun" => [
+        "domain" => env("MAILGUN_DOMAIN"),
+        "secret" => env("MAILGUN_SECRET"),
+        "endpoint" => env("MAILGUN_ENDPOINT", "api.mailgun.net"),
     ],
 
-    'ses' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+    "postmark" => [
+        "token" => env("POSTMARK_TOKEN"),
     ],
 
-    'user_service' => [
-        'base_url' => env('USER_SERVICE_BASE_URL', 'http://localhost:8088/api/users'),
-    ],
-    
-    'department_service' => [
-        'base_url' => env('DEPARTMENT_SERVICE_BASE_URL', 'http://localhost:8089/api/departments'),
+    "ses" => [
+        "key" => env("AWS_ACCESS_KEY_ID"),
+        "secret" => env("AWS_SECRET_ACCESS_KEY"),
+        "region" => env("AWS_DEFAULT_REGION", "us-east-1"),
     ],
 
-    'document_service' => [
-        'base_url' => env('DOCUMENT_SERVICE_BASE_URL', 'http://localhost:8093/api/documents'),
+    "user_service" => [
+        "base_url" => env(
+            "USER_SERVICE_BASE_URL",
+            "http://localhost:8088/api/users"
+        ),
     ],
 
+    "department_service" => [
+        "base_url" => env(
+            "DEPARTMENT_SERVICE_BASE_URL",
+            "http://localhost:8089/api/departments"
+        ),
+    ],
+
+    "document_service" => [
+        "base_url" => env(
+            "DOCUMENT_SERVICE_BASE_URL",
+            "http://localhost:8093/api/documents"
+        ),
+    ],
 ];

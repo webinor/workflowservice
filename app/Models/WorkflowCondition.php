@@ -23,4 +23,9 @@ class WorkflowCondition extends Model
         'value',
         'next_step_id',
     ];
+
+
+    protected $casts = [
+    'required_id' => 'array',
+];
 }

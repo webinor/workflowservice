@@ -12,16 +12,15 @@ class WorkflowTransition extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
-        'workflow_id',
-                     'from_step_id' ,
-                     'to_step_id' ,
-                     'name' ,
-                     'type' ,
-                     'rules',
-                     'condition_id',
+        "name",
+        "workflow_id",
+        "from_step_id",
+        "to_step_id",
+        "name",
+        "type",
+        "rules",
+        "condition_id",
     ];
-
 
     /**
      * Get all of the hasMany for the WorkflowTransition
@@ -32,4 +31,15 @@ class WorkflowTransition extends Model
     {
         return $this->hasMany(WorkflowCondition::class);
     }
+
+    public function fromStep()
+{
+    return $this->belongsTo(WorkflowStep::class, 'from_step_id');
+}
+
+public function toStep()
+{
+    return $this->belongsTo(WorkflowStep::class, 'to_step_id');
+}
+
 }

@@ -9,6 +9,6 @@ class WorkflowAction extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name' , 'action_label'];
 
 }

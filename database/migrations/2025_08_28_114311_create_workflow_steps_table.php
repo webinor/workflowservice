@@ -17,7 +17,7 @@ class CreateWorkflowStepsTable extends Migration
             $table->id();
             $table->foreignId('workflow_id')->constrained('workflows')->onDelete('cascade');
             $table->string('name');
-            //$table->string('role_id'); // rôle responsable de l’étape
+            $table->enum('return_policy', ['ROLE', 'USER']);
             $table->unsignedInteger('position'); // ordre dans le workflow
             $table->boolean('is_start')->default(false);
             $table->boolean('is_end')->default(false);

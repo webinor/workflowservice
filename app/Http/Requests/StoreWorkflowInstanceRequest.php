@@ -32,7 +32,6 @@ class StoreWorkflowInstanceRequest extends FormRequest
             "current_step_id" => "nullable|integer",
             "status" => "required|string",
             "created_by" => "required",
-
         ];
     }
 }

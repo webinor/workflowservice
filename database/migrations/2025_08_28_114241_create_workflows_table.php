@@ -18,6 +18,7 @@ class CreateWorkflowsTable extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->enum('type', ['linear', 'conditional', 'parallel', 'tree'])->default('linear');
+            $table->enum('return_policy', ['ROLE', 'USER']);
             $table->boolean('active')->default(true);
             $table->timestamps();
         

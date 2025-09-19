@@ -36,6 +36,8 @@ Route::get('/documents-to-validate', [WorkflowValidationController::class, 'getD
 
 Route::post('/workflow-instances/{documentId}/validate', [WorkflowInstanceController::class, 'validateStep']);
 
+Route::post('/workflow-instances/{documentId}/check-for-blocker', [WorkflowInstanceController::class, 'checkIfHasBlocker']);
+
 Route::get('/document/{id}', [WorkflowInstanceController::class, 'history']);
 
 Route::post('/documents/transfer', [WorkflowTransferController::class, 'transferDocument']);
@@ -43,13 +45,16 @@ Route::post('/documents/transfer', [WorkflowTransferController::class, 'transfer
 
 Route::post('/workflow-instances', [WorkflowInstanceController::class, 'store']);
 
+Route::post('/check-if-inject-departments/{documentTypeId}', [WorkflowController::class, 'checkIfInjectDepartments']);
+
+
 Route::get('/documents/{documentId}/comments', [WorkflowInstanceStepController::class, 'getWorkflowComments']);
 
 Route::get('/{id}/steps', [WorkflowController::class, 'steps']);
 
 Route::post('/workflow-actions', [WorkflowActionController::class, 'store']);
 
-Route::get('workflow-steps/{stepId}/actions', [WorkflowActionStepController::class, 'getActionsByStep']);
+Route::get('workflow-steps/{instanceStep}/actions', [WorkflowActionStepController::class, 'getActionsByStep']);
 
 Route::get('/documents/{documentId}/current-step', [WorkflowInstanceController::class, 'getCurrentStepOfDocument']);
 
@@ -63,6 +68,14 @@ Route::post(
     [WorkflowInstanceController::class, 'testNotify']
 );
 
+Route::get(
+    '/test-remind',
+    [WorkflowInstanceController::class, 'testRemind']
+);
+
+
    Route::apiResource('/', WorkflowController::class);
 
 });
+
+

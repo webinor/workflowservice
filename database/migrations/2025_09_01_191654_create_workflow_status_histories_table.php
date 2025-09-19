@@ -17,8 +17,8 @@ class CreateWorkflowStatusHistoriesTable extends Migration
             $table->id();
             $table->morphs('model'); //workflow_instance ou workflow_instance_step concernée ou 
             $table->unsignedBigInteger('changed_by'); // user qui a modifié
-            $table->enum('old_status', ['PENDING','IN_PROGRESS','COMPLETED','REJECTED'])->nullable();
-            $table->enum('new_status', ['PENDING','IN_PROGRESS','COMPLETED','REJECTED']);
+            $table->enum('old_status', ['PENDING','IN_PROGRESS','NOT_STARTED','COMPLETE','COMPLETED','REJECTED'])->nullable();
+            $table->enum('new_status', ['PENDING','IN_PROGRESS','NOT_STARTED','COMPLETE','COMPLETED','REJECTED']);
             $table->text('comment')->nullable(); // optionnel
             $table->timestamps();
         });

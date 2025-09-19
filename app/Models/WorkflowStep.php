@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkflowStep extends Model
@@ -22,6 +23,21 @@ class WorkflowStep extends Model
     {
         return $this->belongsTo(Workflow::class);
     }
+
+      public function stepRoles()
+    {
+        return $this->hasMany(WorkflowStepRole::class,);
+    }
+
+    public function outgoingTransitions()
+{
+    return $this->hasMany(WorkflowTransition::class, 'from_step_id');
+}
+
+public function incomingTransitions()
+{
+    return $this->hasMany(WorkflowTransition::class, 'to_step_id');
+}
 
     /**
      * Get all of the workflowActionSteps for the WorkflowStep

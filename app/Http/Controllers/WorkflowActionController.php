@@ -73,8 +73,9 @@ class WorkflowActionController extends Controller
 
             DB::beginTransaction();
             // Créer l’action
-        $action = WorkflowAction::firstOrcreate([
+        $action = WorkflowAction::create([
             'name' => $validated['actionName'],
+            'action_label' => $validated['actionLabel'],
         ]);
 
         // Lier l’étape
