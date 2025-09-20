@@ -886,7 +886,7 @@ class WorkflowInstanceController extends Controller
             DB::commit();
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-            $stepData = $this->getNextStep(
+                $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
@@ -905,6 +905,7 @@ class WorkflowInstanceController extends Controller
             ]);
         } catch (\Throwable $th) {
             DB::rollBack();
+            throw $th;
             return response()->json(
                 [
                     "success" => false,
@@ -969,7 +970,7 @@ class WorkflowInstanceController extends Controller
             ]);
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-            $stepData = $this->getNextStep(
+                $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
@@ -1134,6 +1135,11 @@ $history = WorkflowStatusHistory::create($historyData);
         return ["isValid" => true, "data" => ["message" => ""]];
     }
 
+ 
+    /**
+     * Retourne l'étape suivante selon les transitions et conditions
+     */
+   
     protected function getNextStep(
         WorkflowInstance $instance,
         WorkflowInstanceStep $currentStep,
@@ -1193,203 +1199,8 @@ $history = WorkflowStatusHistory::create($historyData);
         return ["isDynamic" => $isDynamic, "next_step" => null];
     }
 
-    protected function old_getNextStep(
-        WorkflowInstance $instance,
-        WorkflowInstanceStep $currentStep,
-        array $documentData,
-        string $action
-    ) {
-        //: ?WorkflowInstanceStep
-        // return $action;
+  
 
-        $transitions = WorkflowTransition::with("conditions")
-            ->where("from_step_id", $currentStep->workflow_step_id)
-            ->whereType($action)
-            ->whereType("expression")
-            ->orderBy("id")
-            ->get();
-
-        foreach ($transitions as $transition) {
-            if (
-                $transition->condition &&
-                !$this->evaluateCondition($transition->condition, $documentData)
-            ) {
-                continue;
-            }
-
-            return WorkflowInstanceStep::where(
-                "workflow_instance_id",
-                $instance->id
-            )
-                ->where("workflow_step_id", $transition->to_step_id)
-                ->first();
-        }
-
-        return null; // Pas d'étape suivante
-    }
-    /**
-     * Retourne l'étape suivante selon les transitions et conditions
-     */
-    protected function getNexasdtStep(
-        WorkflowInstance $instance,
-        WorkflowInstanceStep $currentStep,
-        $request,
-        $action
-    ) {
-        try {
-            // 🔹 Récupérer les données du document depuis le microservice
-            $response = Http::withToken($request->bearerToken())
-                ->acceptJson()
-                ->get(
-                    config("services.document_service.base_url") .
-                        "/{$instance->document_id}"
-                );
-
-            if (!$response->successful()) {
-                throw new \Exception(
-                    "Impossible de récupérer le document : " .
-                        $response->status()
-                );
-            }
-
-            $documentData = $response->json();
-
-            // 🔹 Récupérer toutes les transitions possibles depuis l'étape courante
-            return $currentStep;
-
-            $transitions = WorkflowTransition::with("conditions")
-                ->where("from_step_id", $currentStep->workflow_step_id)
-                ->whereType($action)
-                ->orderBy("id")
-                ->get();
-
-            foreach ($transitions as $transition) {
-                $conditions = $transition->conditions;
-
-                // 1️⃣ Vérifier les BLOCKING rules
-                $blockingRules = $conditions->where(
-                    "condition_kind",
-                    "BLOCKING"
-                );
-                $blocked = false;
-                foreach ($blockingRules as $rule) {
-                    if (!$this->evaluateCondition($rule, $documentData)) {
-                        $blocked = true;
-                        break; // si une règle blocking n'est pas remplie, on bloque cette transition
-                    }
-                }
-                if ($blocked) {
-                    continue; // passer à la transition suivante
-                }
-
-                // 2️⃣ Vérifier les PATH rules pour déterminer l'étape suivante
-                $pathRules = $conditions->where("condition_kind", "PATH");
-
-                foreach ($pathRules as $rule) {
-                    if ($this->evaluateCondition($rule, $documentData)) {
-                        return WorkflowInstanceStep::where(
-                            "workflow_instance_id",
-                            $instance->id
-                        )
-                            ->where("workflow_step_id", $rule->next_step_id)
-                            ->first();
-                    }
-                }
-
-                // 3️⃣ Si aucune PATH rule n'est remplie, utiliser le to_step_id par défaut de la transition
-                if ($transition->to_step_id) {
-                    return WorkflowInstanceStep::where(
-                        "workflow_instance_id",
-                        $instance->id
-                    )
-                        ->where("workflow_step_id", $transition->to_step_id)
-                        ->first();
-                }
-            }
-
-            // 🔹 Pas d'étape suivante → workflow terminé
-            return null;
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            throw new \Exception(
-                "Erreur de communication avec le microservice Document : " .
-                    $e->getMessage()
-            );
-        } catch (\Throwable $e) {
-            throw new \Exception(
-                "Erreur lors de la récupération du document : " .
-                    $e->getMessage()
-            );
-        }
-    }
-
-    protected function old_getNepxtStep(
-        WorkflowInstance $instance,
-        WorkflowInstanceStep $currentStep,
-        $request,
-        $action
-    ) {
-        try {
-            $response = Http::withToken($request->bearerToken())
-                ->acceptJson()
-                ->get(
-                    config("services.document_service.base_url") .
-                        "/{$instance->document_id}"
-                );
-
-            if (!$response->successful()) {
-                // Erreur côté service Document
-                throw new \Exception(
-                    "Impossible de récupérer le document : " .
-                        $response->status()
-                );
-            }
-
-            /*if (empty($documentData)) {
-                            throw new \Exception("Document introuvable ou réponse vide du microservice");
-                        }*/
-
-            $documentData = $response->json();
-
-            $transitions = WorkflowTransition::with("conditions")
-                ->where("from_step_id", $currentStep->workflow_step_id)
-                ->whereType($action)
-                ->orderBy("id")
-                ->get();
-
-            foreach ($transitions as $transition) {
-                // Si la transition a une condition
-                if ($transition->condition) {
-                    $condition = $transition->condition;
-                    if (!$this->evaluateCondition($condition, $documentData)) {
-                        continue; // Condition non remplie → passer à la transition suivante
-                    }
-                }
-
-                // Retourner la step cible de la transition
-                return WorkflowInstanceStep::where(
-                    "workflow_instance_id",
-                    $instance->id
-                )
-                    ->where("workflow_step_id", $transition->to_step_id)
-                    ->first();
-            }
-
-            // Pas d'étape suivante
-            return null;
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            // Erreur réseau / timeout
-            throw new \Exception(
-                "Erreur de communication avec le microservice Document : " .
-                    $e->getMessage()
-            );
-        } catch (\Throwable $e) {
-            // Toute autre erreur
-            throw new \Exception(
-                "Erreur lors de la récupération du document : " .
-                    $e->getMessage()
-            );
-        }
-    }
 
     /**
      * Évalue une condition sur les données du document
@@ -1408,8 +1219,9 @@ $history = WorkflowStatusHistory::create($historyData);
 
 
 
-// Convertir les chaînes en entiers si nécessaire
-$haystack_int = array_map('intval', $condition->required_id);
+
+
+
 
 
             //throw new Exception(json_encode($fieldValue), 1);
@@ -1419,6 +1231,8 @@ $haystack_int = array_map('intval', $condition->required_id);
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
 
+            // Convertir les chaînes en entiers si nécessaire
+$haystack_int = array_map('intval', $condition->required_id);
 
             if (is_array($fieldValue)) {
 
@@ -1522,6 +1336,8 @@ $haystack_int = array_map('intval', $condition->required_id);
         $value = $data;
 
         
+          //  throw new Exception(json_encode($keys), 1);
+
 
         foreach ($keys as $key) {
             //return $value;
