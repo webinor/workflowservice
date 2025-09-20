@@ -239,9 +239,9 @@ return response()->json([
                             "workflow_transition_id" => $workflowTransion->id,
                             "condition_kind" => "BLOCKING",
                             "condition_type" => $rule["type"] ?? null,
-                            "required_type" => $rule["existsTarget"]=="attachment"? "attachment_type" : "ledger_code_type", // "App\Models\Misc\AttachmentType",
+                            "required_type" => $rule["existsTarget"],//=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
                             "required_id" =>  $rule["value"],
-                            "field" =>$rule["existsTarget"]=="attachment" ? "attachments.[].attachment_type_id" : "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
+                            "field" =>/*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id" ,//: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
                             "operator" => $rule["operator"] ?? null,
                             "next_step_id" => null,
                         ]);

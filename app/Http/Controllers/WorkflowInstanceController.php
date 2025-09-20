@@ -869,16 +869,17 @@ class WorkflowInstanceController extends Controller
             $documentData = $this->getDocumentData($instance, $request);
 
             // 🔹 Vérifier les règles de blocage avant validation
-                $blockingData = $this->checkBlockingRules(
+            // return  
+              $blockingData = $this->checkBlockingRules(
                 $instance,
                 $currentStep,
                 $documentData
             );
 
-            if (!$blockingData["isValid"] && false) {
+            if (!$blockingData["isValid"] /*&& false*/) {
                 return response()->json([
                     "success" => false,
-                    "message" => $blockingData["data"]["message"],
+                    "data" => $blockingData["data"],
                 ]);
             }
 
@@ -1108,14 +1109,19 @@ $history = WorkflowStatusHistory::create($historyData);
             ->get();
 
         foreach ($blockingRules as $rule) {
-            $test = $this->evaluateCondition($rule, $documentData);
-            if (!$test) {
+        //  return 
+
+          //  throw new Exception(json_encode($rule), 1);
+
+           $test = $this->evaluateCondition($rule, $documentData);
+            if (!$test) { 
                 //  $test;
                 return [
                     "isValid" => false,
                     "data" => [
                         "message" =>
                             "Étape bloquée : Vous devez joindre l'engagement de ce document",
+                        "required_type"=>$rule->required_type
                     ],
                 ];
 
@@ -1397,20 +1403,41 @@ $history = WorkflowStatusHistory::create($historyData);
     ) {
         //: bool
         // Récupérer la valeur du champ (supporte les chemins imbriqués)
-        $fieldValue = $this->getNestedValue($data, $condition->field);
+   //   return 
+       $fieldValue = $this->getNestedValue($data, $condition->field);
 
 
 
 // Convertir les chaînes en entiers si nécessaire
 $haystack_int = array_map('intval', $condition->required_id);
 
-         //   throw new Exception(json_encode($fieldValue), 1);
+
+            //throw new Exception(json_encode($fieldValue), 1);
+            //throw new Exception(json_encode($haystack_int), 1);
 
 
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
-            return !empty($fieldValue) &&
-                !empty(array_intersect($fieldValue, $haystack_int));
+
+
+            if (is_array($fieldValue)) {
+
+                return (!empty($fieldValue) &&
+                !empty(array_intersect($fieldValue, $haystack_int)));
+            } else {
+               
+            //throw new Exception(json_encode($fieldValue), 1);
+            //throw new Exception(json_encode($haystack_int), 1);
+           // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
+
+                return   ( in_array($fieldValue , $haystack_int) );
+
+            }
+            
+
+            
+
+
         }
 
         // Si le type de condition est 'userRole' (exemple : vérifier le rôle du soumissionnaire)
@@ -1494,6 +1521,8 @@ $haystack_int = array_map('intval', $condition->required_id);
         $keys = explode(".", $path);
         $value = $data;
 
+        
+
         foreach ($keys as $key) {
             //return $value;
             // Cas spécial : [] signifie "appliquer à tous les éléments du tableau"
@@ -1517,6 +1546,7 @@ $haystack_int = array_map('intval', $condition->required_id);
                 }
 
                 return is_array($results) ? $results : [$results];// $results; // ex: [4, 6, 9]
+                //return  $results; // ex: [4, 6, 9]
             }
 
            // return  array_key_exists($key, $value);
@@ -1530,8 +1560,10 @@ $haystack_int = array_map('intval', $condition->required_id);
 
         
 
+      //  return "ok";
 
-        return is_array($value) ? $value : [$value];
+      //  return is_array($value) ? $value : [$value];
+        return $value ;
     }
 
 
