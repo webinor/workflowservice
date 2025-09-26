@@ -64,8 +64,8 @@ class WorkflowInstanceController extends Controller
                     "data" => null,
                     "message" =>
                         "Aucune étape en cours trouvée pour ce document.",
-                ],
-             //   404
+                ]
+                //   404
             );
         }
 
@@ -197,33 +197,32 @@ class WorkflowInstanceController extends Controller
         }
 
         // --- 3. Construire la timeline ---
-        $steps = $workflow->instance_steps->map(function ($step) use (
-            $users,
-            $roles
-        ) {
-            $role = $roles[$step->role_id]["name"] ?? "Rôle inconnu";
+        $steps = $workflow->instance_steps
+            ->map(function ($step) use ($users, $roles) {
+                $role = $roles[$step->role_id]["name"] ?? "Rôle inconnu";
 
-            if (
-                in_array($step->status, ["COMPLETE", "REJECTED"]) &&
-                isset($users[$step->user_id])
-            ) {
-                $user = $users[$step->user_id];
-                $displayName = $role . " (" . $user["name"] . ")";
-            } else {
-                // PENDING → afficher uniquement le rôle
-                $displayName = $role;
-            }
+                if (
+                    in_array($step->status, ["COMPLETE", "REJECTED"]) &&
+                    isset($users[$step->user_id])
+                ) {
+                    $user = $users[$step->user_id];
+                    $displayName = $role . " (" . $user["name"] . ")";
+                } else {
+                    // PENDING → afficher uniquement le rôle
+                    $displayName = $role;
+                }
 
-            return [
-                "position" => $step->workflowStep->position,
-                "validator" => $displayName,
-                "status" => $step->status,
-                "comment" => $step->comment,
-                "acted_at" => $step->executed_at,
-            ];
-        })->sortBy('position')->values()->toArray();
-
-        
+                return [
+                    "position" => $step->workflowStep->position,
+                    "validator" => $displayName,
+                    "status" => $step->status,
+                    "comment" => $step->comment,
+                    "acted_at" => $step->executed_at,
+                ];
+            })
+            ->sortBy("position")
+            ->values()
+            ->toArray();
 
         return response()->json([
             "document_id" => $documentId,
@@ -302,20 +301,17 @@ class WorkflowInstanceController extends Controller
                 } else {
                     if ($validated["department_id"]) {
                         # code...
-                    
-                    // récupération dynamique du rôle selon le département
-                    $validatorRole = $this->getRoleValidator(
-                        $validated["department_id"]
-                    );
-                    if ($validatorRole) {
-                        $stepRoles = [$validatorRole["id"]];
- 
-                    }/**/
-                        }else{
 
-                            $stepRoles = [];
-
-                        }
+                        // récupération dynamique du rôle selon le département
+                        $validatorRole = $this->getRoleValidator(
+                            $validated["department_id"]
+                        );
+                        if ($validatorRole) {
+                            $stepRoles = [$validatorRole["id"]];
+                        } /**/
+                    } else {
+                        $stepRoles = [];
+                    }
                 }
 
                 foreach ($stepRoles as $roleId) {
@@ -869,8 +865,8 @@ class WorkflowInstanceController extends Controller
             $documentData = $this->getDocumentData($instance, $request);
 
             // 🔹 Vérifier les règles de blocage avant validation
-            // return  
-              $blockingData = $this->checkBlockingRules(
+            // return
+            $blockingData = $this->checkBlockingRules(
                 $instance,
                 $currentStep,
                 $documentData
@@ -886,7 +882,7 @@ class WorkflowInstanceController extends Controller
             DB::commit();
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-                $stepData = $this->getNextStep(
+            $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
@@ -970,7 +966,7 @@ class WorkflowInstanceController extends Controller
             ]);
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-                $stepData = $this->getNextStep(
+            $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
@@ -1057,23 +1053,23 @@ class WorkflowInstanceController extends Controller
             }
 
             // 🔹 Historisation
-           
 
             $historyData = [
-    "model_id"   => $currentStep->id,
-    "model_type" => get_class($currentStep),
-    "changed_by" => $user["id"],
-    "old_status" => $oldStatus,
-    "new_status" => $currentStep->status == "COMPLETE"
-        ? "COMPLETED"
-        : $currentStep->status,
-    "comment"    => $request->get("comment"),
-];
+                "model_id" => $currentStep->id,
+                "model_type" => get_class($currentStep),
+                "changed_by" => $user["id"],
+                "old_status" => $oldStatus,
+                "new_status" =>
+                    $currentStep->status == "COMPLETE"
+                        ? "COMPLETED"
+                        : $currentStep->status,
+                "comment" => $request->get("comment"),
+            ];
 
-// Supprimer les clés avec valeur null
-$historyData = array_filter($historyData, fn($v) => !is_null($v));
+            // Supprimer les clés avec valeur null
+            $historyData = array_filter($historyData, fn($v) => !is_null($v));
 
-$history = WorkflowStatusHistory::create($historyData);
+            $history = WorkflowStatusHistory::create($historyData);
 
             DB::commit();
 
@@ -1110,19 +1106,19 @@ $history = WorkflowStatusHistory::create($historyData);
             ->get();
 
         foreach ($blockingRules as $rule) {
-        //  return 
+            //  return
 
-          //  throw new Exception(json_encode($rule), 1);
+            //  throw new Exception(json_encode($rule), 1);
 
-           $test = $this->evaluateCondition($rule, $documentData);
-            if (!$test) { 
+            $test = $this->evaluateCondition($rule, $documentData);
+            if (!$test) {
                 //  $test;
                 return [
                     "isValid" => false,
                     "data" => [
                         "message" =>
                             "Étape bloquée : Vous devez joindre l'engagement de ce document",
-                        "required_type"=>$rule->required_type
+                        "required_type" => $rule->required_type,
                     ],
                 ];
 
@@ -1135,11 +1131,10 @@ $history = WorkflowStatusHistory::create($historyData);
         return ["isValid" => true, "data" => ["message" => ""]];
     }
 
- 
     /**
      * Retourne l'étape suivante selon les transitions et conditions
      */
-   
+
     protected function getNextStep(
         WorkflowInstance $instance,
         WorkflowInstanceStep $currentStep,
@@ -1199,9 +1194,6 @@ $history = WorkflowStatusHistory::create($historyData);
         return ["isDynamic" => $isDynamic, "next_step" => null];
     }
 
-  
-
-
     /**
      * Évalue une condition sur les données du document
      */
@@ -1214,44 +1206,27 @@ $history = WorkflowStatusHistory::create($historyData);
     ) {
         //: bool
         // Récupérer la valeur du champ (supporte les chemins imbriqués)
-   //   return 
-       $fieldValue = $this->getNestedValue($data, $condition->field);
+        //   return
+        $fieldValue = $this->getNestedValue($data, $condition->field);
 
-
-
-
-
-
-
-
-            //throw new Exception(json_encode($fieldValue), 1);
-            //throw new Exception(json_encode($haystack_int), 1);
-
+        //throw new Exception(json_encode($fieldValue), 1);
+        //throw new Exception(json_encode($haystack_int), 1);
 
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
-
             // Convertir les chaînes en entiers si nécessaire
-$haystack_int = array_map('intval', $condition->required_id);
+            $haystack_int = array_map("intval", $condition->required_id);
 
             if (is_array($fieldValue)) {
-
-                return (!empty($fieldValue) &&
-                !empty(array_intersect($fieldValue, $haystack_int)));
+                return !empty($fieldValue) &&
+                    !empty(array_intersect($fieldValue, $haystack_int));
             } else {
-               
-            //throw new Exception(json_encode($fieldValue), 1);
-            //throw new Exception(json_encode($haystack_int), 1);
-           // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
+                //throw new Exception(json_encode($fieldValue), 1);
+                //throw new Exception(json_encode($haystack_int), 1);
+                // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
 
-                return   ( in_array($fieldValue , $haystack_int) );
-
+                return in_array($fieldValue, $haystack_int);
             }
-            
-
-            
-
-
         }
 
         // Si le type de condition est 'userRole' (exemple : vérifier le rôle du soumissionnaire)
@@ -1335,9 +1310,7 @@ $haystack_int = array_map('intval', $condition->required_id);
         $keys = explode(".", $path);
         $value = $data;
 
-        
-          //  throw new Exception(json_encode($keys), 1);
-
+        //  throw new Exception(json_encode($keys), 1);
 
         foreach ($keys as $key) {
             //return $value;
@@ -1361,11 +1334,11 @@ $haystack_int = array_map('intval', $condition->required_id);
                     }
                 }
 
-                return is_array($results) ? $results : [$results];// $results; // ex: [4, 6, 9]
+                return is_array($results) ? $results : [$results]; // $results; // ex: [4, 6, 9]
                 //return  $results; // ex: [4, 6, 9]
             }
 
-           // return  array_key_exists($key, $value);
+            // return  array_key_exists($key, $value);
             // Cas normal
             if (is_array($value) && array_key_exists($key, $value)) {
                 $value = $value[$key];
@@ -1374,15 +1347,11 @@ $haystack_int = array_map('intval', $condition->required_id);
             }
         }
 
-        
+        //  return "ok";
 
-      //  return "ok";
-
-      //  return is_array($value) ? $value : [$value];
-        return $value ;
+        //  return is_array($value) ? $value : [$value];
+        return $value;
     }
-
-
 
     /**
      * Display the specified resource.

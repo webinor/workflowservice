@@ -40,6 +40,14 @@ public function incomingTransitions()
 }
 
     /**
+     * Relation pivot : une étape peut avoir plusieurs attachment_types
+     */
+    public function attachmentTypes()
+    {
+        return $this->hasMany(WorkflowStepAttachmentType::class);
+    }
+
+    /**
      * Get all of the workflowActionSteps for the WorkflowStep
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany

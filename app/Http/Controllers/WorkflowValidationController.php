@@ -21,6 +21,9 @@ class WorkflowValidationController extends Controller
             FILTER_VALIDATE_BOOLEAN
         );
 
+        $documentTypes = $request->query("documentTypes");
+        $filters = $request->query("filters");
+
         // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
         if ($isValidation) {
             $steps = WorkflowInstanceStep::with("workflowInstance")
@@ -44,14 +47,19 @@ class WorkflowValidationController extends Controller
         // 3️⃣ Appeler le microservice Document pour récupérer les détails
         $documents = [];
         if ($documentIds->isNotEmpty()) {
+
+        //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
+
             // config('services.document_service.base_url');
             $response = Http::withToken($request->bearerToken())
                 ->acceptJson()
                 ->get(
-                    config("services.document_service.base_url") . "/by-ids",
-                    [
+                    config("services.document_service.base_url") . "/by-ids",//$queryParams
+                    /**/[
                         "ids" => $documentIds->toArray(),
-                    ]
+                        "documentTypes"=>$documentTypes,
+                        "filters"=>$filters
+                    ]/**/
                 );
 
             if ($response->ok()) {
@@ -62,6 +70,8 @@ class WorkflowValidationController extends Controller
         if (count($documents) == 0) {
             return [];
         }
+
+     //   return $documents;
 
         $data = [
             "user_id" => $userId,
@@ -147,6 +157,42 @@ class WorkflowValidationController extends Controller
 
         // return response()->json();
     }
+
+    /**
+ * Prépare les paramètres pour l'appel HTTP au service document.
+ *
+ * @param Collection|array $documentIds
+ * @param array $documentTypes
+ * @param array $filters
+ * @return array
+ */
+function prepareDocumentQueryParams($documentIds, array $documentTypes = [], array $filters = []): array
+{
+    $params = [];
+
+    // Encodage des IDs comme tableau ou CSV
+    $params['ids'] = $documentIds instanceof \Illuminate\Support\Collection
+        ? $documentIds->toArray()
+        : $documentIds;
+
+    // Document types
+    if (!empty($documentTypes)) {
+        $params['documentTypes'] = $documentTypes;
+    }
+
+    // Filtres dynamiques
+    foreach ($filters as $key => $value) {
+        if (is_array($value)) {
+            // si c'est un tableau (ex: plusieurs statuts), on peut envoyer en CSV
+            $params[$key] = implode(',', $value);
+        } else {
+            $params[$key] = $value;
+        }
+    }
+
+    return $params;
+}
+
 
     public function checkPermissions(array $rawDocuments, $request)
     {

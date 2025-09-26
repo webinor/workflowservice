@@ -6,6 +6,7 @@ use App\Http\Controllers\WorkflowActionStepController;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkflowInstanceController;
 use App\Http\Controllers\WorkflowInstanceStepController;
+use App\Http\Controllers\WorkflowStepController;
 use App\Http\Controllers\WorkflowTransferController;
 use App\Http\Controllers\WorkflowValidationController;
 use Illuminate\Http\Request;
@@ -21,61 +22,53 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+Route::middleware("jwt.check")
+    ->prefix("workflows")
+    ->group(function () {
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+        // WorkflowController
+        Route::controller(WorkflowController::class)->group(function () {
+            Route::get("/by-document-type/{documentTypeId}", "getByDocumentType");
+            Route::post("/check-if-inject-departments/{documentTypeId}", "checkIfInjectDepartments");
+            Route::get("/{id}/steps", "steps");
+            Route::apiResource("/", WorkflowController::class);
+        });
 
-
-Route::middleware('jwt.check')->prefix("workflows")->group(function () {//middleware('jwt.check')->
-
-    // routes/api.php (microservice workflow)
-Route::get('/by-document-type/{documentTypeId}', [WorkflowController::class, 'getByDocumentType']);
-
-Route::get('/documents-to-validate', [WorkflowValidationController::class, 'getDocumentsToValidateByRole']);
-
-Route::post('/workflow-instances/{documentId}/validate', [WorkflowInstanceController::class, 'validateStep']);
-
-Route::post('/workflow-instances/{documentId}/check-for-blocker', [WorkflowInstanceController::class, 'checkIfHasBlocker']);
-
-Route::get('/document/{id}', [WorkflowInstanceController::class, 'history']);
-
-Route::post('/documents/transfer', [WorkflowTransferController::class, 'transferDocument']);
+                // WorkflowController
+        Route::controller(WorkflowController::class)->group(function () {
+            Route::get('/workflow-steps/{stepId}/attachment-types', [WorkflowStepController::class, 'attachmentTypes']);
+        });
 
 
-Route::post('/workflow-instances', [WorkflowInstanceController::class, 'store']);
-
-Route::post('/check-if-inject-departments/{documentTypeId}', [WorkflowController::class, 'checkIfInjectDepartments']);
 
 
-Route::get('/documents/{documentId}/comments', [WorkflowInstanceStepController::class, 'getWorkflowComments']);
+        // WorkflowInstanceController
+        Route::controller(WorkflowInstanceController::class)->group(function () {
+            Route::post("/workflow-instances", "store");
+            Route::post("/workflow-instances/{documentId}/validate", "validateStep");
+            Route::post("/workflow-instances/{documentId}/check-for-blocker", "checkIfHasBlocker");
+            Route::get("/document/{id}", "history");
+            Route::get("/documents/{documentId}/current-step", "getCurrentStepOfDocument");
+            Route::post("/test-notify/{workflowInstanceStep}/{departmentId}", "testNotify");
+            Route::get("/test-remind", "testRemind");
+        });
 
-Route::get('/{id}/steps', [WorkflowController::class, 'steps']);
+        // WorkflowValidationController
+        Route::get("/documents-to-validate", [WorkflowValidationController::class, "getDocumentsToValidateByRole"]);
 
-Route::post('/workflow-actions', [WorkflowActionController::class, 'store']);
+        // WorkflowTransferController
+        Route::post("/documents/transfer", [WorkflowTransferController::class, "transferDocument"]);
 
-Route::get('workflow-steps/{instanceStep}/actions', [WorkflowActionStepController::class, 'getActionsByStep']);
+        // WorkflowInstanceStepController
+        Route::get("/documents/{documentId}/comments", [WorkflowInstanceStepController::class, "getWorkflowComments"]);
 
-Route::get('/documents/{documentId}/current-step', [WorkflowInstanceController::class, 'getCurrentStepOfDocument']);
+        // WorkflowActionController & WorkflowActionStepController
+        Route::post("/workflow-actions", [WorkflowActionController::class, "store"]);
+        Route::get("workflow-steps/{instanceStep}/actions", [WorkflowActionStepController::class, "getActionsByStep"]);
 
-Route::get('/documents/{documentId}/validation-history', [DocumentWorkflowController::class, 'validationHistory']);
-
-Route::get('/documents/{documentId}/preview-history', [DocumentWorkflowController::class, 'previewHistory']);
-
-
-Route::post(
-    '/test-notify/{workflowInstanceStep}/{departmentId}',
-    [WorkflowInstanceController::class, 'testNotify']
-);
-
-Route::get(
-    '/test-remind',
-    [WorkflowInstanceController::class, 'testRemind']
-);
-
-
-   Route::apiResource('/', WorkflowController::class);
-
-});
-
-
+        // DocumentWorkflowController
+        Route::controller(DocumentWorkflowController::class)->group(function () {
+            Route::get("/documents/{documentId}/validation-history", "validationHistory");
+            Route::get("/documents/{documentId}/preview-history", "previewHistory");
+        });
+    });

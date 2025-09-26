@@ -13,6 +13,7 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStep;
 use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
+use App\Models\WorkflowStepAttachmentType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -34,44 +35,51 @@ class WorkflowController extends Controller
         }
     }
 
-    public function checkIfInjectDepartments(Request $request , $documentTypeId){
-
+    public function checkIfInjectDepartments(Request $request, $documentTypeId)
+    {
         // On récupère l'ID du workflow actif lié via la table pivot
- $workflowIds = DocumentTypeWorkflow::
-    where('document_type_id', $documentTypeId)
-    ->get()
-    ->pluck('workflow_id')
-    ;
+        $workflowIds = DocumentTypeWorkflow::where(
+            "document_type_id",
+            $documentTypeId
+        )
+            ->get()
+            ->pluck("workflow_id");
 
-if ($workflowIds) {
-    $workflow = Workflow::with(['steps', 'steps.workflowActionSteps.workflowAction'])
-        ->whereIN('id', $workflowIds)
-        ->where('active', true)
-        ->first();
+        if ($workflowIds) {
+            $workflow = Workflow::with([
+                "steps",
+                "steps.workflowActionSteps.workflowAction",
+            ])
+                ->whereIN("id", $workflowIds)
+                ->where("active", true)
+                ->first();
 
-        $workflow = Workflow::with(['steps' => function($query) {
-        $query->where('position', 1)
-              ->with('workflowActionSteps.workflowAction');
-    }])
-    ->whereIn('id', $workflowIds)
-    ->where('active', true)
-    ->first();
+            $workflow = Workflow::with([
+                "steps" => function ($query) {
+                    $query
+                        ->where("position", 1)
+                        ->with("workflowActionSteps.workflowAction");
+                },
+            ])
+                ->whereIn("id", $workflowIds)
+                ->where("active", true)
+                ->first();
 
-$secondStep = $workflow && $workflow->steps->count() ? $workflow->steps->first() : null;
+            $secondStep =
+                $workflow && $workflow->steps->count()
+                    ? $workflow->steps->first()
+                    : null;
 
-return response()->json([
-    'success' => true,
-    'step' => $secondStep
-]);
-    
-        
-} else {
-    return response()->json([
-        'success' => false,
-        'message' => 'Aucun workflow actif pour ce type de document'
-    ]);
-}
-
+            return response()->json([
+                "success" => true,
+                "step" => $secondStep,
+            ]);
+        } else {
+            return response()->json([
+                "success" => false,
+                "message" => "Aucun workflow actif pour ce type de document",
+            ]);
+        }
     }
 
     // Récupérer les étapes d’un workflow donné
@@ -146,6 +154,8 @@ return response()->json([
     {
         DB::beginTransaction();
 
+      //  return $request;
+
         try {
             // Désactiver les workflows existants pour ce type de document
             // Récupérer les workflow_id liés au type de document
@@ -199,6 +209,17 @@ return response()->json([
                         ]);
                     }
                 }
+
+
+                    // Sauvegarder les types de pièces jointes requis (table pivot)
+    if (!empty($stepData["attachmentTypeRequired"]) && is_array($stepData["attachmentTypeRequired"])) {
+        foreach ($stepData["attachmentTypeRequired"] as $attachmentTypeId) {
+            WorkflowStepAttachmentType::create([
+                "workflow_step_id"    => $step->id,
+                "attachment_type_id"  => $attachmentTypeId,
+            ]);
+        }
+    }
             }
 
             // 4️⃣ Créer les transitions envoyées par le frontend
@@ -239,9 +260,9 @@ return response()->json([
                             "workflow_transition_id" => $workflowTransion->id,
                             "condition_kind" => "BLOCKING",
                             "condition_type" => $rule["type"] ?? null,
-                            "required_type" => $rule["existsTarget"],//=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
-                            "required_id" =>  $rule["value"],
-                            "field" =>/*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id" ,//: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
+                            "required_type" => $rule["existsTarget"], //=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
+                            "required_id" => $rule["value"],
+                            "field" =>/*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
                             "operator" => $rule["operator"] ?? null,
                             "next_step_id" => null,
                         ]);
@@ -272,7 +293,7 @@ return response()->json([
                 [
                     "success" => true,
                     "data" => [
-                        "workflow" => $workflow->load(
+                            "workflow" => $workflow->load(
                             "steps",
                             "transitions.conditions"
                         ),
@@ -280,141 +301,6 @@ return response()->json([
                 ],
                 201
             );
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
-    }
-
-    public function old_store_2(StoreWorkflowRequest $request)
-    {
-        DB::beginTransaction();
-
-        try {
-            // 1️⃣ Créer le workflow
-            return $workflow = Workflow::create([
-                "name" => $request->name,
-            ]);
-
-            // 2️⃣ Associer le workflow au document type
-            if ($request->document_type) {
-                DocumentTypeWorkflow::create([
-                    "workflow_id" => $workflow->id,
-                    "document_type_id" => $request->document_type,
-                ]);
-            }
-
-            $steps = [];
-            // 3️⃣ Créer les étapes
-            foreach ($request->steps as $index => $stepData) {
-                $step = WorkflowStep::create([
-                    "workflow_id" => $workflow->id,
-                    "name" => $stepData["stepName"],
-                    "assignment_mode" => $stepData["assignationMode"],
-                    "role_id" => $stepData["roleId"] ?? null,
-                    "position" => $index,
-                ]);
-                $steps[] = $step;
-            }
-
-            // 4️⃣ Créer les transitions linéaires par défaut
-            for ($i = 0; $i < count($steps) - 1; $i++) {
-                $fromStep = $steps[$i];
-                $toStep = $steps[$i + 1];
-                $originalStepData = $request->steps[$i]; // ← ici on récupère le step original
-
-                $transitionData = [
-                    "workflow_id" => $workflow->id,
-                    "from_step_id" => $fromStep->id,
-                    "to_step_id" => $toStep->id,
-                    "name" => "Valider",
-                    "type" => "linear",
-                    "rules" => null,
-                    "condition_id" => null,
-                ];
-
-                // Exemple : créer une condition si stepData a un champ conditionnel
-                if (!empty($stepData["condition"])) {
-                    // condData : ['field'=>'montant','operator'=>'>','value'=>1500000,'next_step_index'=>...]
-                    $condData = $originalStepData["condition"];
-
-                    $condition = WorkflowCondition::create([
-                        "workflow_step_id" => $fromStep->id,
-                        "next_step_id" =>
-                            $steps[$condData["next_step_index"]]->id,
-                        "condition_type" => "field",
-                        "field" => $condData["field"],
-                        "operator" => $condData["operator"],
-                        "value" => $condData["value"],
-                    ]);
-
-                    $transitionData["type"] = "conditional";
-                    $transitionData["condition_id"] = $condition->id;
-                    $transitionData["to_step_id"] =
-                        $steps[$condData["next_step_index"]]->id;
-                }
-
-                WorkflowTransition::create($transitionData);
-            }
-
-            DB::commit();
-
-            return response()->json(
-                [
-                    "success" => true,
-                    "data" => [
-                        "workflow" => $workflow->load("steps", "transitions"),
-                    ],
-                ],
-                201
-            );
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
-    }
-
-    public function old_store(StoreWorkflowRequest $request)
-    {
-        try {
-            DB::beginTransaction();
-
-            /* $request->validate([
-            'name' => 'required|string',
-            'document_type' => 'nullable|integer|exists:document_types,id',
-            'recipientMode' => 'nullable|string',
-            'steps' => 'array',
-        ]);*/
-
-            // Créer le workflow
-            $workflow = Workflow::create([
-                "name" => $request->name,
-                // 'document_type_id' => $request->document_type,
-                // 'recipient_mode' => $request->recipientMode,
-            ]);
-
-            // 2️⃣ Associer le workflow au document type
-            if ($request->document_type) {
-                DocumentTypeWorkflow::create([
-                    "workflow_id" => $workflow->id,
-                    "document_type_id" => $request->document_type,
-                ]);
-            }
-
-            // Enregistrer les étapes
-            foreach ($request->steps as $index => $step) {
-                WorkflowStep::create([
-                    "workflow_id" => $workflow->id,
-                    "name" => $step["stepName"],
-                    "assignment_mode" => $step["assignationMode"],
-                    "role_id" => $step["roleId"] ?? null,
-                    "position" => $index,
-                ]);
-            }
-
-            DB::commit();
-
-            return response()->json($workflow->load("steps"), 201);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;
