@@ -1025,7 +1025,10 @@ class WorkflowInstanceController extends Controller
                 }
             }
 
-            if ($nextStep) {
+            if ($nextStep) {////il y'a encore une autre etape
+
+
+                //verifions si la prchaine 
                 // Activer la prochaine étape
                 $nextStep->update([
                     "status" => "PENDING",
@@ -1210,7 +1213,7 @@ class WorkflowInstanceController extends Controller
         $fieldValue = $this->getNestedValue($data, $condition->field);
 
         //throw new Exception(json_encode($fieldValue), 1);
-        //throw new Exception(json_encode($haystack_int), 1);
+        //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
 
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
@@ -1218,8 +1221,12 @@ class WorkflowInstanceController extends Controller
             $haystack_int = array_map("intval", $condition->required_id);
 
             if (is_array($fieldValue)) {
+
+               // throw new Exception(json_encode(array_diff($haystack_int, $fieldValue)), 1);
+
                 return !empty($fieldValue) &&
-                    !empty(array_intersect($fieldValue, $haystack_int));
+                    //!empty(array_intersect($fieldValue, $haystack_int));
+                    empty(array_diff($haystack_int, $fieldValue));
             } else {
                 //throw new Exception(json_encode($fieldValue), 1);
                 //throw new Exception(json_encode($haystack_int), 1);

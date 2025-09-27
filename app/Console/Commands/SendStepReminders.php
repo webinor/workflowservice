@@ -47,7 +47,8 @@ class SendStepReminders extends Command
         
         // Récupère les étapes PENDING dont la date limite est dépassée
         $instanceSteps = WorkflowInstanceStep:://with('roles.user') // ou avec workflow_step_roles si statique
-            where('status', 'PENDING')
+            with(['workflowInstance', 'workflowStep.stepRoles'])
+            ->where('status', 'PENDING')
             ->where('due_date', '<', Carbon::now())
             ->get();
 
@@ -61,7 +62,7 @@ class SendStepReminders extends Command
 
                 if ($instanceStep->workflowStep->assignment_mode === 'STATIC') {
                     // étape statique : on a les role_ids dans workflow_step_roles
-                    $roleIds = $instanceStep->stepRoles->pluck('role_id'); // IDs des rôles depuis workflow
+                    $roleIds = $instanceStep->workflowStep->stepRoles->pluck('role_id'); // IDs des rôles depuis workflow
                 } elseif ($instanceStep->workflowStep->assignment_mode === 'DYNAMIC') {
                     // étape dynamique
                     if ($instanceStep->user_id) {
@@ -97,6 +98,7 @@ class SendStepReminders extends Command
 
             $payload = [
     'instance_step_id' => $instanceStep->id,
+    'document_id' => $instanceStep->workflowInstance->document_id,
     'workflow_instance_id' => $instanceStep->workflow_instance_id,
     'workflow_step_name' => $instanceStep->workflowStep->name,
     'role_ids' => $roleIds->toArray(),        // pour les étapes statiques ou dynamiques
