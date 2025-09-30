@@ -17,6 +17,11 @@ class WorkflowStep extends Model
         'assignment_mode',
         'role_id',
         'position',
+        'is_archived_step',
+    ];
+
+        protected $casts = [
+        'is_archived_step' => 'boolean',
     ];
 
     public function workflow()

@@ -17,6 +17,7 @@ use App\Http\Requests\UpdateWorkflowInstanceRequest;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStepRoleDynamic;
 use App\Models\WorkflowStatusHistory;
+use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
 use App\Services\WorkflowInstanceService;
 use Carbon\Carbon;
@@ -80,6 +81,7 @@ class WorkflowInstanceController extends Controller
     ): ?WorkflowInstanceStep {
         return $instance
             ->instance_steps()
+            ->with("workflowStep")
             ->where("status", "PENDING")
             ->orderBy("position", "asc")
             ->first();
@@ -873,9 +875,20 @@ class WorkflowInstanceController extends Controller
             );
 
             if (!$blockingData["isValid"] /*&& false*/) {
+
+                $step = WorkflowStep::with('attachmentTypes')->find($currentStep->workflowStep->id);
+
+                // Récupérer les IDs des attachment_types requis
+ $attachmentTypeRequired = $step->attachmentTypes->pluck('attachment_type_id')->toArray();
+
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()->post(config('services.document_service.base_url') . "/{$documentId}/missing-attachment-types", [
+    'attachment_type_required' => $attachmentTypeRequired
+]);
                 return response()->json([
                     "success" => false,
                     "data" => $blockingData["data"],
+                    "required_attachments" => $response->successful() ? $response->json() : []
                 ]);
             }
 
@@ -928,6 +941,8 @@ class WorkflowInstanceController extends Controller
             // 2️⃣ Récupérer l'étape en cours
             $currentStep = $this->getCurrentStep($instance);
             $oldStatus = $currentStep->status;
+            $histories = [];
+            $historyDataArray = [];
 
             if (!$currentStep) {
                 return response()->json(
@@ -1027,25 +1042,70 @@ class WorkflowInstanceController extends Controller
 
             if ($nextStep) {////il y'a encore une autre etape
 
+              //  return $nextStep;
 
                 //verifions si la prchaine 
                 // Activer la prochaine étape
-                $nextStep->update([
+
+                if ($nextStep->workflowStep->is_archived_step) {
+                   
+                       $nextStep->update([
+                    "status" => "COMPLETE",
+                "user_id" => $user["id"],
+                "executed_at" => now(),
+                "validated_at" => now(),
+                ]);
+
+
+
+                // Mettre à jour l'instance comme "toujours en cours"
+                $instance->update([
+                    "status" => "COMPLETE",
+                ]);
+
+
+                    $historyDataArray[] = [
+                "model_id" => $currentStep->id,
+                "model_type" => get_class($currentStep),
+                "changed_by" => $user["id"],
+                "old_status" => $oldStatus,
+                "new_status" =>
+                    $currentStep->status == "COMPLETE"
+                        ? "COMPLETED"
+                        : $currentStep->status,
+                "comment" => $request->get("comment"),
+            ];
+
+                
+                    
+                }
+                else{
+
+                    $nextStep->update([
                     "status" => "PENDING",
                 ]);
 
-                //$newStatus = "PENDING";
+
 
                 // Mettre à jour l'instance comme "toujours en cours"
                 $instance->update([
                     "status" => "PENDING",
                 ]);
 
+
                 $this->workflowInstanceService->notifyNextValidator(
                     $nextStep,
                     $request,
                     $request->get("department_id")
                 );
+
+                }
+                
+
+                //$newStatus = "PENDING";
+
+
+                
             } else {
                 // Pas d’étape suivante → Workflow terminé
                 $instance->update([
@@ -1057,7 +1117,19 @@ class WorkflowInstanceController extends Controller
 
             // 🔹 Historisation
 
-            $historyData = [
+           /* $historyData = [
+                "model_id" => $currentStep->id,
+                "model_type" => get_class($currentStep),
+                "changed_by" => $user["id"],
+                "old_status" => $oldStatus,
+                "new_status" =>
+                    $currentStep->status == "COMPLETE"
+                        ? "COMPLETED"
+                        : $currentStep->status,
+                "comment" => $request->get("comment"),
+            ];*/
+
+                $historyDataArray[] = [
                 "model_id" => $currentStep->id,
                 "model_type" => get_class($currentStep),
                 "changed_by" => $user["id"],
@@ -1070,18 +1142,26 @@ class WorkflowInstanceController extends Controller
             ];
 
             // Supprimer les clés avec valeur null
-            $historyData = array_filter($historyData, fn($v) => !is_null($v));
+            //$historyData = array_filter($historyData, fn($v) => !is_null($v));
+            //$history = WorkflowStatusHistory::create($historyData);
 
-            $history = WorkflowStatusHistory::create($historyData);
+            // Supprimer les clés nulles pour chaque entrée
+            $historyDataArray = array_map(fn($data) => array_filter($data, fn($v) => !is_null($v)), $historyDataArray);
 
-            DB::commit();
+                        // Boucler pour créer les historiques
+            foreach ($historyDataArray as $historyData) {
+                WorkflowStatusHistory::create($historyData);
+            }
+
+
+                DB::commit();
 
             return response()->json([
                 "success" => true,
                 "message" => "Étape validée avec succès",
                 "currentStep" => $currentStep,
                 "nextStep" => $nextStep,
-                "history" => $history,
+               // "history" => $history,
             ]);
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -1178,6 +1258,7 @@ class WorkflowInstanceController extends Controller
                 "workflow_instance_id",
                 $instance->id
             )
+            ->with("workflowStep")
                 ->where("workflow_step_id", $transition->to_step_id)
                 ->first();
 

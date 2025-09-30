@@ -63,7 +63,8 @@ class WorkflowStepController extends Controller
 
         $missingAttachmentTypes = $response->successful() ? $response->json() : [];
 
-        return response()->json($missingAttachmentTypes);    }
+        return response()->json($missingAttachmentTypes);    
+    }
 
     /**
      * Show the form for creating a new resource.
