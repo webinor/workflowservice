@@ -87,7 +87,7 @@ class WorkflowInstanceController extends Controller
             ->first();
     }
 
-    public function old_validateStep(Request $request, $documentId)
+    public function old_valida_old_teStep(Request $request, $documentId)
     {
         DB::beginTransaction();
 
@@ -229,6 +229,7 @@ class WorkflowInstanceController extends Controller
         return response()->json([
             "document_id" => $documentId,
             "steps" => $steps,
+            "workflow_status"=>$workflow->status
         ]);
     }
 
@@ -981,7 +982,7 @@ class WorkflowInstanceController extends Controller
             ]);
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-            $stepData = $this->getNextStep(
+                $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
@@ -1242,6 +1243,7 @@ class WorkflowInstanceController extends Controller
             $allSatisfied = true;
 
             foreach ($pathConditions as $condition) {
+                //return $this->evaluateCondition($condition, $documentData);
                 if (!$this->evaluateCondition($condition, $documentData)) {
                     $allSatisfied = false;
                     break; // une seule condition PATH non remplie → on ignore cette transition
@@ -1292,6 +1294,7 @@ class WorkflowInstanceController extends Controller
         // Récupérer la valeur du champ (supporte les chemins imbriqués)
         //   return
         $fieldValue = $this->getNestedValue($data, $condition->field);
+      //return $condition->value;
 
         //throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);

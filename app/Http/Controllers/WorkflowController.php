@@ -27,7 +27,7 @@ class WorkflowController extends Controller
     public function index()
     {
         try {
-            $workflows = Workflow::get();
+            $workflows = Workflow::whereActive(1)->get();
 
             return response()->json(["success" => true, "data" => $workflows]);
         } catch (\Throwable $th) {
@@ -154,7 +154,7 @@ class WorkflowController extends Controller
     {
         DB::beginTransaction();
 
-      //  return $request;
+        //return $request;
 
         try {
             // Désactiver les workflows existants pour ce type de document
@@ -210,16 +210,21 @@ class WorkflowController extends Controller
                     }
                 }
 
-
-                    // Sauvegarder les types de pièces jointes requis (table pivot)
-    if (!empty($stepData["attachmentTypeRequired"]) && is_array($stepData["attachmentTypeRequired"])) {
-        foreach ($stepData["attachmentTypeRequired"] as $attachmentTypeId) {
-            WorkflowStepAttachmentType::create([
-                "workflow_step_id"    => $step->id,
-                "attachment_type_id"  => $attachmentTypeId,
-            ]);
-        }
-    }
+                // Sauvegarder les types de pièces jointes requis (table pivot)
+                if (
+                    !empty($stepData["attachmentTypeRequired"]) &&
+                    is_array($stepData["attachmentTypeRequired"])
+                ) {
+                    foreach (
+                        $stepData["attachmentTypeRequired"]
+                        as $attachmentTypeId
+                    ) {
+                        WorkflowStepAttachmentType::create([
+                            "workflow_step_id" => $step->id,
+                            "attachment_type_id" => $attachmentTypeId,
+                        ]);
+                    }
+                }
             }
 
             // 4️⃣ Créer les transitions envoyées par le frontend
@@ -262,7 +267,8 @@ class WorkflowController extends Controller
                             "condition_type" => $rule["type"] ?? null,
                             "required_type" => $rule["existsTarget"], //=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
                             "required_id" => $rule["value"],
-                            "field" =>/*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
+                            "field" =>
+                                /*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
                             "operator" => $rule["operator"] ?? null,
                             "next_step_id" => null,
                         ]);
@@ -293,7 +299,7 @@ class WorkflowController extends Controller
                 [
                     "success" => true,
                     "data" => [
-                            "workflow" => $workflow->load(
+                        "workflow" => $workflow->load(
                             "steps",
                             "transitions.conditions"
                         ),

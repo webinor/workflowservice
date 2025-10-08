@@ -51,7 +51,8 @@ class WorkflowValidationController extends Controller
         //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
 
             // config('services.document_service.base_url');
-            $response = Http::withToken($request->bearerToken())
+          //return 
+           $response = Http::withToken($request->bearerToken())
                 ->acceptJson()
                 ->get(
                     config("services.document_service.base_url") . "/by-ids",//$queryParams
