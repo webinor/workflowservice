@@ -12,27 +12,34 @@ class HttpClientService
     protected ?string $token;
 
     protected static array $serviceMap = [
-        'document' => 'services.document_service.base_url',
-        'workflow' => 'services.workflow_service.base_url',
-        'user'     => 'services.user_service.base_url',
+        "document" => "services.document_service.base_url",
+        "workflow" => "services.workflow_service.base_url",
+        "user" => "services.user_service.base_url",
     ];
 
-    protected static string $defaultBaseUrl = '';
+    protected static string $defaultBaseUrl = "";
 
     public function __construct(string $baseUrl, ?string $token = null)
     {
-        $this->baseUrl = rtrim($baseUrl, '/');
-        $this->token   = $token ?? $this->resolveToken();
+        $this->baseUrl = rtrim($baseUrl, "/");
+        $this->token = $token ?? $this->resolveToken();
     }
 
     protected function resolveToken(): ?string
     {
-        if (!app()->runningInConsole() && request() && request()->bearerToken()) {
+        if (
+            !app()->runningInConsole() &&
+            request() &&
+            request()->bearerToken()
+        ) {
             return request()->bearerToken();
         }
 
-        if (auth()->check() && method_exists(auth()->user(), 'currentAccessToken')) {
-           // return auth()->user()?->currentAccessToken()?->token;
+        if (
+            auth()->check() &&
+            method_exists(auth()->user(), "currentAccessToken")
+        ) {
+            // return auth()->user()?->currentAccessToken()?->token;
         }
 
         return null;
@@ -40,10 +47,14 @@ class HttpClientService
 
     public static function service(string $key, ?string $token = null): self
     {
-        $baseUrl = self::$serviceMap[$key] ? config(self::$serviceMap[$key]) : null;
+        $baseUrl = self::$serviceMap[$key]
+            ? config(self::$serviceMap[$key])
+            : null;
 
         if (!$baseUrl) {
-            $baseUrl = self::$defaultBaseUrl ?: env('API_BASE_URL', 'http://localhost:8000/api');
+            $baseUrl =
+                self::$defaultBaseUrl ?:
+                env("API_BASE_URL", "http://localhost:8000/api");
         }
 
         return new static($baseUrl, $token);
@@ -60,45 +71,45 @@ class HttpClientService
             $response->throw();
 
             return [
-                'success' => true,
-                'status'  => $response->status(),
-                'data'    => $response->json(),
+                "success" => true,
+                "status" => $response->status(),
+                "data" => $response->json(),
             ];
         } catch (RequestException $e) {
             // Log centralisé
-            Log::error('HttpClientService Error', [
-                'url'     => "{$this->baseUrl}/{$uri}",
-                'method'  => strtoupper($method),
-                'message' => $e->getMessage(),
-                'body'    => $e->response ? $e->response->body() : null,
+            Log::error("HttpClientService Error", [
+                "url" => "{$this->baseUrl}/{$uri}",
+                "method" => strtoupper($method),
+                "message" => $e->getMessage(),
+                "body" => $e->response ? $e->response->body() : null,
             ]);
 
             return [
-                'success' => false,
-                'status'  => $e->response?$e->response->status() : 500,
-                'error'   => $e->getMessage(),
-                'body'    => $e->response?$e->response->json() : null,
+                "success" => false,
+                "status" => $e->response ? $e->response->status() : 500,
+                "error" => $e->getMessage(),
+                "body" => $e->response ? $e->response->json() : null,
             ];
         }
     }
 
     public function get(string $uri, array $params = [])
     {
-        return $this->request('get', $uri, $params);
+        return $this->request("get", $uri, $params);
     }
 
     public function post(string $uri, array $data = [])
     {
-        return $this->request('post', $uri, $data);
+        return $this->request("post", $uri, $data);
     }
 
     public function put(string $uri, array $data = [])
     {
-        return $this->request('put', $uri, $data);
+        return $this->request("put", $uri, $data);
     }
 
     public function delete(string $uri, array $data = [])
     {
-        return $this->request('delete', $uri, $data);
+        return $this->request("delete", $uri, $data);
     }
 }

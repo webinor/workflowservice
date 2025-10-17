@@ -12,16 +12,16 @@ class WorkflowStep extends Model
     use HasFactory;
 
     protected $fillable = [
-        'workflow_id',
-        'name',
-        'assignment_mode',
-        'role_id',
-        'position',
-        'is_archived_step',
+        "workflow_id",
+        "name",
+        "assignment_mode",
+        "role_id",
+        "position",
+        "is_archived_step",
     ];
 
-        protected $casts = [
-        'is_archived_step' => 'boolean',
+    protected $casts = [
+        "is_archived_step" => "boolean",
     ];
 
     public function workflow()
@@ -29,20 +29,20 @@ class WorkflowStep extends Model
         return $this->belongsTo(Workflow::class);
     }
 
-      public function stepRoles()
+    public function stepRoles()
     {
-        return $this->hasMany(WorkflowStepRole::class,);
+        return $this->hasMany(WorkflowStepRole::class);
     }
 
     public function outgoingTransitions()
-{
-    return $this->hasMany(WorkflowTransition::class, 'from_step_id');
-}
+    {
+        return $this->hasMany(WorkflowTransition::class, "from_step_id");
+    }
 
-public function incomingTransitions()
-{
-    return $this->hasMany(WorkflowTransition::class, 'to_step_id');
-}
+    public function incomingTransitions()
+    {
+        return $this->hasMany(WorkflowTransition::class, "to_step_id");
+    }
 
     /**
      * Relation pivot : une étape peut avoir plusieurs attachment_types
@@ -63,7 +63,7 @@ public function incomingTransitions()
     }
 
     public function instanceSteps()
-{
-    return $this->hasMany(WorkflowInstanceStep::class, 'workflow_step_id');
-}
+    {
+        return $this->hasMany(WorkflowInstanceStep::class, "workflow_step_id");
+    }
 }

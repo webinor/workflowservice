@@ -23,34 +23,44 @@ class WorkflowStepController extends Controller
     /**
      * Récupérer les attachment types requis pour une étape donnée
      */
-    public function attachmentTypes(Request $request ,  $stepId)
+    public function attachmentTypes(Request $request, $stepId)
     {
-
-          $documentId = $request->input('documentId');
+        $documentId = $request->input("documentId");
 
         if (!$documentId) {
-            return response()->json([
-                'message' => 'document_id is required'
-            ], 400);
+            return response()->json(
+                [
+                    "message" => "document_id is required",
+                ],
+                400
+            );
         }
 
-        $step = WorkflowStep::with('attachmentTypes')->find($stepId);
-
+        $step = WorkflowStep::with("attachmentTypes")->find($stepId);
 
         if (!$step) {
-            return response()->json([
-                'message' => 'Workflow step not found'
-            ], 404);
+            return response()->json(
+                [
+                    "message" => "Workflow step not found",
+                ],
+                404
+            );
         }
 
-// Récupérer les IDs des attachment_types requis
- $attachmentTypeRequired = $step->attachmentTypes->pluck('attachment_type_id')->toArray();
+        // Récupérer les IDs des attachment_types requis
+        $attachmentTypeRequired = $step->attachmentTypes
+            ->pluck("attachment_type_id")
+            ->toArray();
 
         $response = Http::withToken(request()->bearerToken())
-            ->acceptJson()->post(config('services.document_service.base_url') . "/{$documentId}/missing-attachment-types", [
-    'attachment_type_required' => $attachmentTypeRequired
-]);
-
+            ->acceptJson()
+            ->post(
+                config("services.document_service.base_url") .
+                    "/{$documentId}/missing-attachment-types",
+                [
+                    "attachment_type_required" => $attachmentTypeRequired,
+                ]
+            );
 
         /*
         // On mappe pour retourner les IDs et éventuellement les infos détaillées
@@ -60,10 +70,11 @@ class WorkflowStepController extends Controller
         })->filter(); // supprime les null si l'API échoue
         */
 
+        $missingAttachmentTypes = $response->successful()
+            ? $response->json()
+            : [];
 
-        $missingAttachmentTypes = $response->successful() ? $response->json() : [];
-
-        return response()->json($missingAttachmentTypes);    
+        return response()->json($missingAttachmentTypes);
     }
 
     /**
@@ -116,8 +127,10 @@ class WorkflowStepController extends Controller
      * @param  \App\Models\WorkflowStep  $workflowStep
      * @return \Illuminate\Http\Response
      */
-    public function update(UpdateWorkflowStepRequest $request, WorkflowStep $workflowStep)
-    {
+    public function update(
+        UpdateWorkflowStepRequest $request,
+        WorkflowStep $workflowStep
+    ) {
         //
     }
 

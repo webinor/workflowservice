@@ -26,18 +26,13 @@ class WorkflowInstanceService
                 ->pluck("role_id")
                 ->toArray();
         } else {
-
-            if ($departmentId!="") {
-                
-                    // récupération dynamique du rôle selon le département
-                    $validatorRole = $this->getRoleValidator($departmentId);
-                    if ($validatorRole) {
-                        $stepRoles = [$validatorRole["id"]];
-                    }
-                
+            if ($departmentId != "") {
+                // récupération dynamique du rôle selon le département
+                $validatorRole = $this->getRoleValidator($departmentId);
+                if ($validatorRole) {
+                    $stepRoles = [$validatorRole["id"]];
+                }
             }
-           
-
         }
 
         // Vérifier si l'étape est PENDING
@@ -48,7 +43,6 @@ class WorkflowInstanceService
         $workflowInstance = $stepInstance->workflowInstance;
         $documentId = $workflowInstance->document_id;
         $stepName = $stepInstance->workflowStep->name;
-
 
         $workflowId = $workflowInstance->workflow_id;
 

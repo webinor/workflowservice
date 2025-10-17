@@ -33,13 +33,12 @@ class WorkflowTransition extends Model
     }
 
     public function fromStep()
-{
-    return $this->belongsTo(WorkflowStep::class, 'from_step_id');
-}
+    {
+        return $this->belongsTo(WorkflowStep::class, "from_step_id");
+    }
 
-public function toStep()
-{
-    return $this->belongsTo(WorkflowStep::class, 'to_step_id');
-}
-
+    public function toStep()
+    {
+        return $this->belongsTo(WorkflowStep::class, "to_step_id");
+    }
 }

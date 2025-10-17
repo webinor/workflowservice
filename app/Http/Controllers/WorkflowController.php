@@ -38,7 +38,7 @@ class WorkflowController extends Controller
     public function checkIfInjectDepartments(Request $request, $documentTypeId)
     {
         // On récupère l'ID du workflow actif lié via la table pivot
-       $workflowIds = DocumentTypeWorkflow::where(
+        $workflowIds = DocumentTypeWorkflow::where(
             "document_type_id",
             $documentTypeId
         )

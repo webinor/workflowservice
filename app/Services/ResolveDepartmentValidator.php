@@ -9,17 +9,17 @@ trait ResolveDepartmentValidator
     {
         $departmentServiceUrl = config("services.department_service.base_url"); // ex: http://workflow-service/api
 
-        $response = Http::acceptJson()-> get(
+        $response = Http::acceptJson()->get(
             "$departmentServiceUrl/{$departmentId}/hierarchie"
         );
 
         if (!$response->successful()) {
-
             //   throw new \Exception($response->body());
 
-             throw new \Exception(
-        "Impossible de récupérer la hiérarchie du département. " .
-        "Status: {$response->status()}, Response: {$response->body()}");
+            throw new \Exception(
+                "Impossible de récupérer la hiérarchie du département. " .
+                    "Status: {$response->status()}, Response: {$response->body()}"
+            );
         }
 
         return $hierarchie = $response->json();

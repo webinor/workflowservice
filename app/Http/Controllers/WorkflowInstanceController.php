@@ -1228,9 +1228,9 @@ class WorkflowInstanceController extends Controller
                 "validated_at" => now(),
             ]);
 
-             $instance->update([
-                    "status" => "REJECT",
-                ]);
+            $instance->update([
+                "status" => "REJECT",
+            ]);
 
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
             /*$stepData = $this->getNextStep(
@@ -1375,7 +1375,9 @@ class WorkflowInstanceController extends Controller
                 "new_status" =>
                     $currentStep->status == "COMPLETE"
                         ? "COMPLETED"
-                        : ( $currentStep->status == "REJECT" ? "REJECTED" : $currentStep->status ),
+                        : ($currentStep->status == "REJECT"
+                            ? "REJECTED"
+                            : $currentStep->status),
                 "comment" => $request->get("comment"),
             ];
 

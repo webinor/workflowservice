@@ -47,20 +47,19 @@ class WorkflowValidationController extends Controller
         // 3️⃣ Appeler le microservice Document pour récupérer les détails
         $documents = [];
         if ($documentIds->isNotEmpty()) {
-
-        //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
+            //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
 
             // config('services.document_service.base_url');
-          //return 
-           $response = Http::withToken($request->bearerToken())
+            //return
+            $response = Http::withToken($request->bearerToken())
                 ->acceptJson()
                 ->get(
-                    config("services.document_service.base_url") . "/by-ids",//$queryParams
-                    /**/[
+                    config("services.document_service.base_url") . "/by-ids", //$queryParams
+                    /**/ [
                         "ids" => $documentIds->toArray(),
-                        "documentTypes"=>$documentTypes,
-                        "filters"=>$filters
-                    ]/**/
+                        "documentTypes" => $documentTypes,
+                        "filters" => $filters,
+                    ] /**/
                 );
 
             if ($response->ok()) {
@@ -72,7 +71,7 @@ class WorkflowValidationController extends Controller
             return [];
         }
 
-     //   return $documents;
+        //   return $documents;
 
         $data = [
             "user_id" => $userId,
@@ -98,37 +97,37 @@ class WorkflowValidationController extends Controller
 
         // On filtre et on enrichit les documents
         $translations = [
-    "NOT_STARTED" => [
-        "label" => "Validation non démarrée",
-        "emoji" => "⏳",
-        "color" => "info",
-    ],
-    "PENDING" => [
-        "label" => "En cours de validation",
-        "emoji" => "🟡",
-        "color" => "warning",
-    ],
-    "COMPLETE" => [
-        "label" => "Validation terminée",
-        "emoji" => "✅",
-        "color" => "success",
-    ],
-    "REJECT" => [
-        "label" => "Rejetée",
-        "emoji" => "❌",
-        "color" => "error",
-    ],
-];
-
+            "NOT_STARTED" => [
+                "label" => "Validation non démarrée",
+                "emoji" => "⏳",
+                "color" => "info",
+            ],
+            "PENDING" => [
+                "label" => "En cours de validation",
+                "emoji" => "🟡",
+                "color" => "warning",
+            ],
+            "COMPLETE" => [
+                "label" => "Validation terminée",
+                "emoji" => "✅",
+                "color" => "success",
+            ],
+            "REJECT" => [
+                "label" => "Rejetée",
+                "emoji" => "❌",
+                "color" => "error",
+            ],
+        ];
 
         $filtered = collect($documents)
             ->filter(function ($doc) use ($permissionsByDocId) {
                 return isset($permissionsByDocId[$doc["document_type_id"]]) &&
                     ($permissionsByDocId[$doc["document_type_id"]][
                         "permissions"
-                    ]["view_own"] === true || $permissionsByDocId[$doc["document_type_id"]][
-                        "permissions"
-                    ]["view_all"] === true);
+                    ]["view_own"] === true ||
+                        $permissionsByDocId[$doc["document_type_id"]][
+                            "permissions"
+                        ]["view_all"] === true);
             })
             ->map(function ($doc) use ($workflowInstances, $translations) {
                 $instance = $workflowInstances[$doc["id"]] ?? null;
@@ -168,40 +167,43 @@ class WorkflowValidationController extends Controller
     }
 
     /**
- * Prépare les paramètres pour l'appel HTTP au service document.
- *
- * @param Collection|array $documentIds
- * @param array $documentTypes
- * @param array $filters
- * @return array
- */
-function prepareDocumentQueryParams($documentIds, array $documentTypes = [], array $filters = []): array
-{
-    $params = [];
+     * Prépare les paramètres pour l'appel HTTP au service document.
+     *
+     * @param Collection|array $documentIds
+     * @param array $documentTypes
+     * @param array $filters
+     * @return array
+     */
+    function prepareDocumentQueryParams(
+        $documentIds,
+        array $documentTypes = [],
+        array $filters = []
+    ): array {
+        $params = [];
 
-    // Encodage des IDs comme tableau ou CSV
-    $params['ids'] = $documentIds instanceof \Illuminate\Support\Collection
-        ? $documentIds->toArray()
-        : $documentIds;
+        // Encodage des IDs comme tableau ou CSV
+        $params["ids"] =
+            $documentIds instanceof \Illuminate\Support\Collection
+                ? $documentIds->toArray()
+                : $documentIds;
 
-    // Document types
-    if (!empty($documentTypes)) {
-        $params['documentTypes'] = $documentTypes;
-    }
-
-    // Filtres dynamiques
-    foreach ($filters as $key => $value) {
-        if (is_array($value)) {
-            // si c'est un tableau (ex: plusieurs statuts), on peut envoyer en CSV
-            $params[$key] = implode(',', $value);
-        } else {
-            $params[$key] = $value;
+        // Document types
+        if (!empty($documentTypes)) {
+            $params["documentTypes"] = $documentTypes;
         }
+
+        // Filtres dynamiques
+        foreach ($filters as $key => $value) {
+            if (is_array($value)) {
+                // si c'est un tableau (ex: plusieurs statuts), on peut envoyer en CSV
+                $params[$key] = implode(",", $value);
+            } else {
+                $params[$key] = $value;
+            }
+        }
+
+        return $params;
     }
-
-    return $params;
-}
-
 
     public function checkPermissions(array $rawDocuments, $request)
     {
@@ -246,7 +248,7 @@ function prepareDocumentQueryParams($documentIds, array $documentTypes = [], arr
         $payload = $this->transformToPayload2(
             $rawDocuments,
             $rawDocuments["user_id"],
-            ["view_own","view_all"]//, "validate"]
+            ["view_own", "view_all"] //, "validate"]
         );
 
         // Appel vers userservice

@@ -11,10 +11,7 @@ class WorkflowStepAttachmentType extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'workflow_step_id',
-        'attachment_type_id',
-    ];
+    protected $fillable = ["workflow_step_id", "attachment_type_id"];
 
     /**
      * Relation avec WorkflowStep
@@ -25,17 +22,22 @@ class WorkflowStepAttachmentType extends Model
     }
 
     public function getAttachmentType()
-{
-    $response = Http::withToken(request()->bearerToken())
-            ->acceptJson()->get(config('services.document_service.base_url').'/attachment-types/by-id/'.$this->attachment_type_id);
+    {
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()
+            ->get(
+                config("services.document_service.base_url") .
+                    "/attachment-types/by-id/" .
+                    $this->attachment_type_id
+            );
 
-    if ($response->successful()) {
-        //return $response->json();
-        return new AttachmentTypeProxy($response->json());
+        if ($response->successful()) {
+            //return $response->json();
+            return new AttachmentTypeProxy($response->json());
+        }
+
+        return $response->body();
+
+        return "null";
     }
-
-    return $response->body();
-
-    return 'null';
-}
 }
