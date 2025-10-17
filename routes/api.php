@@ -46,6 +46,7 @@ Route::middleware("jwt.check")
         Route::controller(WorkflowInstanceController::class)->group(function () {
             Route::post("/workflow-instances", "store");
             Route::post("/workflow-instances/{documentId}/validate", "validateStep");
+            Route::post("/workflow-instances/{documentId}/reject", "rejectStep");
             Route::post("/workflow-instances/{documentId}/check-for-blocker", "checkIfHasBlocker");
             Route::get("/document/{id}", "history");
             Route::get("/documents/{documentId}/current-step", "getCurrentStepOfDocument");

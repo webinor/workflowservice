@@ -98,29 +98,37 @@ class WorkflowValidationController extends Controller
 
         // On filtre et on enrichit les documents
         $translations = [
-            "NOT_STARTED" => [
-                "label" => "Validation Non démarré",
-                "emoji" => "⏳",
-                "color" => "info",
-            ],
-            "PENDING" => [
-                "label" => "En cours de validation",
-                "emoji" => "🟡",
-                "color" => "warning",
-            ],
-            "COMPLETE" => [
-                "label" => "Validation Terminée",
-                "emoji" => "✅",
-                "color" => "success",
-            ],
-        ];
+    "NOT_STARTED" => [
+        "label" => "Validation non démarrée",
+        "emoji" => "⏳",
+        "color" => "info",
+    ],
+    "PENDING" => [
+        "label" => "En cours de validation",
+        "emoji" => "🟡",
+        "color" => "warning",
+    ],
+    "COMPLETE" => [
+        "label" => "Validation terminée",
+        "emoji" => "✅",
+        "color" => "success",
+    ],
+    "REJECT" => [
+        "label" => "Rejetée",
+        "emoji" => "❌",
+        "color" => "error",
+    ],
+];
+
 
         $filtered = collect($documents)
             ->filter(function ($doc) use ($permissionsByDocId) {
                 return isset($permissionsByDocId[$doc["document_type_id"]]) &&
-                    $permissionsByDocId[$doc["document_type_id"]][
+                    ($permissionsByDocId[$doc["document_type_id"]][
                         "permissions"
-                    ]["view"] === true;
+                    ]["view_own"] === true || $permissionsByDocId[$doc["document_type_id"]][
+                        "permissions"
+                    ]["view_all"] === true);
             })
             ->map(function ($doc) use ($workflowInstances, $translations) {
                 $instance = $workflowInstances[$doc["id"]] ?? null;
@@ -238,7 +246,7 @@ function prepareDocumentQueryParams($documentIds, array $documentTypes = [], arr
         $payload = $this->transformToPayload2(
             $rawDocuments,
             $rawDocuments["user_id"],
-            ["view", "validate"]
+            ["view_own","view_all"]//, "validate"]
         );
 
         // Appel vers userservice
