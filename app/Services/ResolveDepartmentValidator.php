@@ -5,6 +5,30 @@ use Illuminate\Support\Facades\Http;
 
 trait ResolveDepartmentValidator
 {
+
+    public function getDepartmentByUsers($userIds)
+{
+    $departmentServiceUrl = config("services.department_service.base_url");
+
+    // Exemple d'URL finale : http://department-service/api/roles/5/department
+    $url = "{$departmentServiceUrl}/by-users/";
+
+    $response = Http::acceptJson()->post($url,[
+            "user_ids" => $userIds
+        ]);
+
+    if (!$response->successful()) {
+        $userIdsString = implode(', ', $userIds);
+
+        throw new \Exception(
+            "Impossible de récupérer le département pour les utilisateurs suivants : {$userIdsString}. " .
+            "Status: {$response->status()}, Response: {$response->body()}"
+        );
+    }
+
+    return $response->json()[0];
+}
+
     public function resolveDepartmentValidator($departmentId)
     {
         $departmentServiceUrl = config("services.department_service.base_url"); // ex: http://workflow-service/api

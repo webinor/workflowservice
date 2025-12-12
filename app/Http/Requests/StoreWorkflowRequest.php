@@ -31,4 +31,29 @@ class StoreWorkflowRequest extends FormRequest
             //'existsTarget'=>'string'
         ];
     }
+
+
+    public function withValidator($validator)
+{
+    $validator->after(function ($validator) {
+
+        $steps = $this->input('steps', []);
+
+        foreach ($steps as $index => $step) {
+
+            if (
+                isset($step['assignationMode']) &&
+                $step['assignationMode'] === 'DYNAMIC'
+            ) {
+                if (empty($step['assignmentRule'])) {
+                    $validator->errors()->add(
+                        "steps.$index.assignmentRule",
+                        "The assignmentRule field is required when assignationMode is dynamic."
+                    );
+                }
+            }
+        }
+    });
+}
+
 }

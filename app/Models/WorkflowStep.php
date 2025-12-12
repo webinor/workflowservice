@@ -15,6 +15,7 @@ class WorkflowStep extends Model
         "workflow_id",
         "name",
         "assignment_mode",
+        "assignment_rule",
         "role_id",
         "position",
         "is_archived_step",

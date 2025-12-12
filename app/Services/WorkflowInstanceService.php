@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStepRole;
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class WorkflowInstanceService
@@ -17,8 +18,12 @@ class WorkflowInstanceService
         $userIdsToNotify = []
     ) {
         $step = $stepInstance->load("workflowStep")->workflowStep;
+        $stepRoles = [];
 
         if ($step["assignment_mode"] === "STATIC") {
+
+             //   throw new Exception(json_encode($step), 1);
+
             $stepRoles = WorkflowStepRole::where(
                 "workflow_step_id",
                 $step["id"]
@@ -26,13 +31,48 @@ class WorkflowInstanceService
                 ->pluck("role_id")
                 ->toArray();
         } else {
-            if ($departmentId != "") {
+
+             // throw new Exception(json_encode($step), 1);
+
+
+                //throw new Exception(json_encode($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR"), 1);
+
+
+            if ($step["assignment_rule"] === null || $step["assignment_rule"] === "CUSTOM") {
+
+
+              //  throw new Exception(json_encode("ouiiiiiiiiii"), 1);
+
+                
+                if ($departmentId != "") {
                 // récupération dynamique du rôle selon le département
                 $validatorRole = $this->getRoleValidator($departmentId);
                 if ($validatorRole) {
                     $stepRoles = [$validatorRole["id"]];
                 }
             }
+                
+            } elseif($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR") {
+                
+             
+                // récupération dynamique du rôle selon le département de l'utilisateur afin de recuperer le superieur hierachique
+                $validatorRole = $this->getRoleValidator($departmentId);
+                if ($validatorRole) {
+                    $stepRoles = [$validatorRole["id"]];
+                }
+            
+              //  throw new Exception(json_encode($stepRoles), 1);
+
+                
+            }
+            else{
+
+                throw new Exception(json_encode("une erreur est survenue lors de la notification du validateur"), 1);
+
+
+            }
+            
+            
         }
 
         // Vérifier si l'étape est PENDING
@@ -66,6 +106,11 @@ class WorkflowInstanceService
             ->get(
                 config("services.document_service.base_url") . "/{$documentId}"
             );
+
+                
+        //throw new Exception(json_encode($response->successful()), 1);
+
+            
 
         if ($response->successful()) {
             $documentData = $response->json();
@@ -111,8 +156,12 @@ class WorkflowInstanceService
                     ]
                 );
 
+       // throw new Exception(json_encode($response->successful()), 1);
+
             if ($response->successful()) {
                 $users = $response->json()["data"];
+
+       // throw new Exception(json_encode($response->successful()), 1);
 
                 // Récupérer juste les IDs
                 $userIds = collect($users)->pluck("id")->toArray();

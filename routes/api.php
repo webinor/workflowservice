@@ -82,6 +82,36 @@ Route::middleware("jwt.check")
             "getDocumentsToValidateByRole",
         ]);
 
+        Route::get("/my-taxi-papers", [
+            WorkflowValidationController::class,
+            "getMyTaxiPapersToValidateByRole",
+        ]);
+
+        Route::get("/taxi-papers-to-validate", [
+            WorkflowValidationController::class,
+            "getTaxiPapersToValidateByRole",
+        ]);
+
+
+                Route::get("/my-fee-notes", [
+            WorkflowValidationController::class,
+            "getMySumitedFeeNotes",
+        ]);
+
+
+           Route::get("/my-absence-requests", [
+            WorkflowValidationController::class,
+            "getMySumitedAbsenceRequests",
+        ]);
+
+
+        
+
+        Route::get("/fee-notes-to-validate", [
+            WorkflowValidationController::class,
+            "getFeeNotesToValidateByRole",
+        ]);
+
         // WorkflowTransferController
         Route::post("/documents/transfer", [
             WorkflowTransferController::class,
