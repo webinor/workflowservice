@@ -41,10 +41,11 @@ Route::middleware("jwt.check")
 
         // WorkflowController
         Route::controller(WorkflowController::class)->group(function () {
-            Route::get("/workflow-steps/{stepId}/attachment-types", [
-                WorkflowStepController::class,
-                "attachmentTypes",
-            ]);
+            //Route::get("/workflow-steps/{stepId}/attachment-types", [
+            Route::get(
+                "documents/{docId}/workflow-steps/{stepId}/attachment-types",
+                [WorkflowStepController::class, "attachmentTypes"]
+            );
         });
 
         // WorkflowInstanceController
@@ -63,7 +64,9 @@ Route::middleware("jwt.check")
                     "/workflow-instances/{documentId}/check-for-blocker",
                     "checkIfHasBlocker"
                 );
-                Route::get("/document/{id}", "history");
+                //Route::get("/document/{id}", "history");
+                Route::get("/documents/{id}/timeline", "history");
+
                 Route::get(
                     "/documents/{documentId}/current-step",
                     "getCurrentStepOfDocument"
@@ -73,8 +76,12 @@ Route::middleware("jwt.check")
                     "testNotify"
                 );
                 Route::get("/test-remind", "testRemind");
+
+                 Route::get('/documents/{documentId}/current-step/validators', 'getCurrentStepValidators');
             }
         );
+
+        
 
         // WorkflowValidationController
         Route::get("/documents-to-validate", [
@@ -92,20 +99,15 @@ Route::middleware("jwt.check")
             "getTaxiPapersToValidateByRole",
         ]);
 
-
-                Route::get("/my-fee-notes", [
+        Route::get("/fee-notes", [
             WorkflowValidationController::class,
-            "getMySumitedFeeNotes",
+            "getFeeNotes",
         ]);
 
-
-           Route::get("/my-absence-requests", [
+        Route::get("/my-absence-requests", [
             WorkflowValidationController::class,
             "getMySumitedAbsenceRequests",
         ]);
-
-
-        
 
         Route::get("/fee-notes-to-validate", [
             WorkflowValidationController::class,
@@ -129,10 +131,11 @@ Route::middleware("jwt.check")
             WorkflowActionController::class,
             "store",
         ]);
-        Route::get("workflow-steps/{instanceStep}/actions", [
-            WorkflowActionStepController::class,
-            "getActionsByStep",
-        ]);
+        //Route::get("workflow-steps/{instanceStep}/actions", [
+        Route::get(
+            "/documents/{documentId}/workflow-steps/{instanceStep}/actions",
+            [WorkflowActionStepController::class, "getActionsByStep"]
+        );
 
         // DocumentWorkflowController
         Route::controller(DocumentWorkflowController::class)->group(

@@ -24,7 +24,7 @@ class WorkflowActionStepController extends Controller
      *
      * @param int $instanceStepId
      */
-    public function getActionsByStep(WorkflowInstanceStep $instanceStep)
+    public function getActionsByStep(int $documentId , WorkflowInstanceStep $instanceStep)
     {
         $result = [];
 

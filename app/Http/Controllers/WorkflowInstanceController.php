@@ -87,65 +87,48 @@ class WorkflowInstanceController extends Controller
             ->first();
     }
 
-    public function old_valida_old_teStep(Request $request, $documentId)
-    {
-        DB::beginTransaction();
+        public function getCurrentStepValidators($documentId) {
 
-        $user = $request->get("user");
+                   // 1️⃣ Récupérer l'instance de workflow
+            $instance = $this->getCurrentWorkflowInstance($documentId);
 
-        // 3️⃣ Récupérer l'instance globale
-        $instance = WorkflowInstance::whereDocumentId($documentId)->first();
+            // 2️⃣ Récupérer l'étape en cours
+            $currentInstanceStep = $this->getCurrentStep($instance);
 
-        // 1️⃣ Récupérer l'étape en cours
-        $currentStep = $this->getCurrentStep($instance);
+        $workflowStep = $currentInstanceStep->workflowStep;
 
-        // 2️⃣ Marquer l’étape comme validée
-        $currentStep->update([
-            "status" => "COMPLETE",
-            "user_id" => $user["id"],
-            "validated_at" => now(),
-        ]);
+        if ($workflowStep->assignment_mode == "STATIC") {
+            
+            $stepRoles = $workflowStep->stepRoles()->pluck('role_id')->toArray();
+            
+        } elseif($workflowStep->assignment_mode == "DYNAMIC") {
+            
 
-        // 4️⃣ Déterminer l’étape suivante
-        $nextStep = WorkflowInstanceStep::where(
-            "workflow_instance_id",
-            $instance->id
-        )
-            ->where("position", ">", $currentStep->position)
-            ->orderBy("position", "asc")
-            ->first();
+        $stepRoles = $currentInstanceStep->roles()->pluck('role_id')->toArray();
 
-        if ($nextStep) {
-            // Activer la prochaine étape
-            $nextStep->update([
-                "status" => "PENDING",
-            ]);
-
-            // Mettre à jour l'instance comme "toujours en cours"
-            $instance->update([
-                "status" => "PENDING",
-            ]);
-        } else {
-            // Pas d’étape suivante → Workflow terminé
-            $instance->update([
-                "status" => "COMPLETE",
-            ]);
+            
+        }
+        else{
+            
+            $stepRoles =  [];
+            
         }
 
-        DB::commit();
+        
+    return response()->json([
+        'validators' => $stepRoles
+    ]);
+        
 
-        return response()->json([
-            "success" => true,
-            "message" => "Étape validée avec succès",
-            "currentStep" => $currentStep,
-        ]);
 
-        try {
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
+        // return $instance
+        //     ->instance_steps()
+        //     ->with("workflowStep")
+        //     ->where("status", "PENDING")
+        //     ->orderBy("position", "asc")
+        //     ->first();
     }
+
 
     // Récupérer l'historique des étapes d'un document
     public function history($documentId)
@@ -208,7 +191,7 @@ class WorkflowInstanceController extends Controller
                     isset($users[$step->user_id])
                 ) {
                     $user = $users[$step->user_id];
-                    $displayName = $role . " (" . $user["name"] . ")";
+                    $displayName = $user["name"] . " (" . $role . ")";
                 } else {
                     // PENDING → afficher uniquement le rôle
                     $displayName = $role;
@@ -292,7 +275,7 @@ class WorkflowInstanceController extends Controller
             // 2️⃣ Créer toutes les étapes de l'instance
             $instanceSteps = [];
 
-              //  throw new Exception(json_encode($validated["steps"]), 1);
+            //  throw new Exception(json_encode($validated["steps"]), 1);
 
             //  return $validated["steps"];
 
@@ -307,42 +290,32 @@ class WorkflowInstanceController extends Controller
                     )
                         ->pluck("role_id")
                         ->toArray();
-                }
-                else if ($step["assignment_mode"] === "OWNER") {
+                } elseif ($step["assignment_mode"] === "OWNER") {
+                    //   return
+                    $stepRoles = [$userConnected["role_ids"][0]];
+                } else {
+                    //  return "okay";
 
-                 //   return 
-                    $stepRoles = [$userConnected['role_ids'][0]];
-                }
-                else {
-
-                
-                  //  return "okay";
-
-                    if ($step["assignment_mode"] === "DYNAMIC" && $step["assignment_rule"] !== "DEPARTMENT_SUPERVISOR") {
-                        
-                       
-
-
-                        
-                    }
-                    else if ($step["assignment_mode"] === "DYNAMIC" && $step["assignment_rule"] === "DEPARTMENT_SUPERVISOR") {
-                        
-
+                    if (
+                        $step["assignment_mode"] === "DYNAMIC" &&
+                        $step["assignment_rule"] !== "DEPARTMENT_SUPERVISOR"
+                    ) {
+                    } elseif (
+                        $step["assignment_mode"] === "DYNAMIC" &&
+                        $step["assignment_rule"] === "DEPARTMENT_SUPERVISOR"
+                    ) {
                         //il faut ue fonction qui prends en parametre le role et retourne le departement
 
                         //return [$userConnected['id']];
-                        $departmentId = $this->getDepartmentByUsers([$userConnected['id']])['department_id'];
-                        
-                        
-                    }
-                    else{
-                       // return $step["assignment_rule"];
-
+                        $departmentId = $this->getDepartmentByUsers([
+                            $userConnected["id"],
+                        ])["department_id"];
+                    } else {
+                        // return $step["assignment_rule"];
                     }
 
-                       if ($departmentId) {
-
-                //throw new Exception(json_encode('$stepRoles'), 1);
+                    if ($departmentId) {
+                        //throw new Exception(json_encode('$stepRoles'), 1);
 
                         // récupération dynamique du rôle selon le département
                         $validatorRole = $this->getRoleValidator($departmentId);
@@ -352,19 +325,16 @@ class WorkflowInstanceController extends Controller
                     } else {
                         $stepRoles = [];
                     }
-
-              
                 }
 
-              //  throw new Exception(json_encode($stepRoles), 1);
+                //  throw new Exception(json_encode($stepRoles), 1);
 
-             if ($step["assignment_mode"] === "DYNAMIC" && $step["assignment_rule"] === "DEPARTMENT_SUPERVISOR") {
-                        
-              //  throw new Exception(json_encode($stepRoles), 1);
-                
-                        
-            }
-                
+                if (
+                    $step["assignment_mode"] === "DYNAMIC" &&
+                    $step["assignment_rule"] === "DEPARTMENT_SUPERVISOR"
+                ) {
+                    //  throw new Exception(json_encode($stepRoles), 1);
+                }
 
                 foreach ($stepRoles as $roleId) {
                     // Déterminer le statut initial
@@ -396,14 +366,15 @@ class WorkflowInstanceController extends Controller
 
                     // 3️⃣ Créer l'entrée WorkflowInstanceStepRole pour les rôles dynamiques
                     if ($step["assignment_mode"] === "DYNAMIC") {
-                        $dynamicStepInstance = WorkflowInstanceStepRoleDynamic::create([
-                            "workflow_instance_step_id" => $stepInstance->id,
-                            "role_id" => $roleId,
-                        ]);
+                        $dynamicStepInstance = WorkflowInstanceStepRoleDynamic::create(
+                            [
+                                "workflow_instance_step_id" =>
+                                    $stepInstance->id,
+                                "role_id" => $roleId,
+                            ]
+                        );
 
-                
-                    //    throw new Exception(json_encode($dynamicStepInstance), 1);
-
+                        //    throw new Exception(json_encode($dynamicStepInstance), 1);
                     }
                 }
             }
@@ -447,8 +418,7 @@ class WorkflowInstanceController extends Controller
                 );
             }
 
-        //    throw new Exception(json_encode($stepsToNotify), 1);
-
+            //    throw new Exception(json_encode($stepsToNotify), 1);
 
             DB::commit();
 
@@ -464,7 +434,6 @@ class WorkflowInstanceController extends Controller
             throw $th;
         }
     }
-
 
     public function testNotify(
         Request $request,
@@ -764,6 +733,13 @@ class WorkflowInstanceController extends Controller
         return $documentData; //->toArray();
     }
 
+    public function getCurrentWorkflowInstance($documentId):WorkflowInstance{
+
+        return  WorkflowInstance::whereDocumentId(
+                $documentId
+            )->firstOrFail();
+    }
+
     public function checkIfHasBlocker(Request $request, $documentId)
     {
         DB::beginTransaction();
@@ -773,9 +749,7 @@ class WorkflowInstanceController extends Controller
             $action = Str::lower($request->get("condition"));
 
             // 1️⃣ Récupérer l'instance de workflow
-            $instance = WorkflowInstance::whereDocumentId(
-                $documentId
-            )->firstOrFail();
+            $instance = $this->getCurrentWorkflowInstance($documentId);
 
             // 2️⃣ Récupérer l'étape en cours
             $currentStep = $this->getCurrentStep($instance);

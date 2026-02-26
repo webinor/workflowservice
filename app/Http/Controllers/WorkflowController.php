@@ -191,10 +191,11 @@ class WorkflowController extends Controller
                     "workflow_id" => $workflow->id,
                     "name" => $stepData["stepName"],
                     "assignment_mode" => $stepData["assignationMode"],
-                    "assignment_rule" => !empty($stepData["assignmentRule"]) ? $stepData["assignmentRule"] : null,
+                    "assignment_rule" => !empty($stepData["assignmentRule"])
+                        ? $stepData["assignmentRule"]
+                        : null,
                     //'role_id' => $stepData['roleId'] ?? null,
                     "position" => $index,
-
                 ]);
 
                 $stepIdMap[$stepData["id"]] = $step->id;

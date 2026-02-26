@@ -38,47 +38,48 @@ class WorkflowInstanceStepController extends Controller
             ->get();
 
         // FlatMap pour obtenir un tableau plat de toutes les histories
-        $histories = $steps
-            ->flatMap(function ($step) use ($request) {
-                return $step->histories->map(function ($history) use (
-                    $step,
-                    $request
-                ) {
-                    // Appel microservice User pour récupérer l'utilisateur qui a fait le changement
-                    $userData = null;
-                    if ($history->changed_by) {
-                        // $response = Http::get("http://user-service/api/users/{$history->changed_by}");
-                        $response = Http::acceptJson()
-                            ->withToken($request->bearerToken())
-                            ->get(
-                                config("services.user_service.base_url") .
-                                    "/{$history->changed_by}"
-                            );
-
-                        $userData = $response->successful()
-                            ? $response->json()["user"]
-                            : null;
-                    }
-
-                    return [
-                        "workflow_step_id" => $step->workflow_step_id,
-                        "workflow_instance_step_id" => $step->id,
-                        "changed_by" => $history->changed_by,
-                        "user_name" =>
-                            $userData["name"] ?? "Utilisateur inconnu",
-                        // 'user_role' => $userData['role'] ?? null,
-                        "old_status" => $history->old_status,
-                        "new_status" => $history->new_status,
-                        "comment" => $history->comment,
-                        "created_at" => $history->created_at->format(
-                            "d/m/Y H:i"
-                        ),
-                    ];
-                });
+       $histories = $steps
+    ->flatMap(function ($step) use ($request) {
+        return $step->histories
+            ->filter(function ($history) {
+                // On ne garde que les historiques avec un commentaire non vide
+                return !empty($history->comment);
             })
-            ->sortBy("created_at")
-            ->values()
-            ->toArray();
+            ->map(function ($history) use ($step, $request) {
+                // Appel microservice User pour récupérer l'utilisateur qui a fait le changement
+                $userData = null;
+                if ($history->changed_by) {
+                    $response = Http::acceptJson()
+                        ->withToken($request->bearerToken())
+                        ->get(
+                            config("services.user_service.base_url") .
+                                "/{$history->changed_by}"
+                        );
+
+                    $userData = $response->successful()
+                        ? $response->json()["user"]
+                        : null;
+                }
+
+                return [
+                    "workflow_step_id" => $step->workflow_step_id,
+                    "workflow_instance_step_id" => $step->id,
+                    "changed_by" => $history->changed_by,
+                    "user_name" =>
+                        $userData["name"] ?? "Utilisateur inconnu",
+                    "old_status" => $history->old_status,
+                    "new_status" => $history->new_status,
+                    "comment" => $history->comment,
+                    "created_at" => $history->created_at->format(
+                        "d/m/Y H:i"
+                    ),
+                ];
+            });
+    })
+    ->sortBy("created_at")
+    ->values()
+    ->toArray();
+
 
         return response()->json([
             "success" => true,

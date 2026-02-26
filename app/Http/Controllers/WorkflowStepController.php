@@ -23,9 +23,9 @@ class WorkflowStepController extends Controller
     /**
      * Récupérer les attachment types requis pour une étape donnée
      */
-    public function attachmentTypes(Request $request, $stepId)
+    public function attachmentTypes(Request $request, $docId, $stepId)
     {
-        $documentId = $request->input("documentId");
+        $documentId = $docId;// $request->input("documentId");
 
         if (!$documentId) {
             return response()->json(
