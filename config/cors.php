@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173' , 'http://ged.doitscale.com' ,  'http://ged.cas-assistance.com' ],
+    'allowed_origins' => ['http://localhost:5173' , 'http://ged.doitscale.com' ,  'http://ged.cas-assistance.com','http://api-gateway.ged.cas-assistance.com' ],
 
     'allowed_origins_patterns' => [],
 
