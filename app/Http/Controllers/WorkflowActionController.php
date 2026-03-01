@@ -83,6 +83,8 @@ class WorkflowActionController extends Controller
             $action = WorkflowAction::create([
                 "name" => $validated["actionName"],
                 "action_label" => $validated["actionLabel"],
+                "workflow_action_type_id" => $validated["workflow_action_type_id"],
+                
             ]);
 
             // Lier l’étape

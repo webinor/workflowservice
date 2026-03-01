@@ -54,7 +54,7 @@ class WorkflowPermissionService
         $payload = $this->transformToPayload2(
             $rawDocuments,
             $rawDocuments["user_id"],
-            ["view_own", "view_all"] //, "validate"]
+            ["view_own", "view_all" , "view_department"] //, "validate"]
         );
 
         // Appel vers userservice

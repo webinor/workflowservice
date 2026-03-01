@@ -3,6 +3,7 @@
 use App\Http\Controllers\DocumentWorkflowController;
 use App\Http\Controllers\WorkflowActionController;
 use App\Http\Controllers\WorkflowActionStepController;
+use App\Http\Controllers\WorkflowActionTypeController;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkflowInstanceController;
 use App\Http\Controllers\WorkflowInstanceStepController;
@@ -36,8 +37,11 @@ Route::middleware("jwt.check")
                 "checkIfInjectDepartments"
             );
             Route::get("/{id}/steps", "steps");
+            
             Route::apiResource("/", WorkflowController::class);
         });
+
+        Route::apiResource("/workflow-actions-types", WorkflowActionTypeController::class);
 
         // WorkflowController
         Route::controller(WorkflowController::class)->group(function () {

@@ -33,7 +33,7 @@ class WorkflowActionStepController extends Controller
 
         if ($instanceStep->workflowStep->assignment_mode == "STATIC") {
             $stepActions = WorkflowActionStep::with([
-                "workflowAction",
+                "workflowAction.workflowActionType",
                 "workflowStep.stepRoles",
                 "transition",
             ])
@@ -47,6 +47,7 @@ class WorkflowActionStepController extends Controller
                     $result[] = [
                         "permission_required" =>
                             $actionStep["permission_required"],
+                        "workflow_action_type" => $actionStep["workflowAction"]["workflowActionType"]["code"],
                         "role_id" => $role["role_id"], // depuis step_roles
                         "transition_type" =>
                             $actionStep["transition"]["type"] ?? null,
@@ -60,7 +61,7 @@ class WorkflowActionStepController extends Controller
         } else {
             $instanceStep = WorkflowInstanceStep::with([
                 "roles", // → table instance_step_roles (role_id connus)
-                "workflowStep.workflowActionSteps.workflowAction", // → actions possibles depuis workflow_step
+                "workflowStep.workflowActionSteps.workflowAction.workflowActionType", // → actions possibles depuis workflow_step
                 "workflowStep.workflowActionSteps.transition",
             ])->findOrFail($instanceStep->id);
 
@@ -71,6 +72,7 @@ class WorkflowActionStepController extends Controller
             ) {
                 $result[] = [
                     "permission_required" => $actionStep["permission_required"],
+                    "workflow_action_type" => $actionStep["workflowAction"]["workflowActionType"]["code"],
                     "role_id" => $instanceStep["role_id"], // direct depuis instance_step
                     "transition_type" =>
                         $actionStep["transition"]["type"] ?? null,

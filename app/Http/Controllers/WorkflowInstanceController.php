@@ -134,13 +134,26 @@ class WorkflowInstanceController extends Controller
     public function history($documentId)
     {
         // On suppose que workflow_instances est lié à documents
-        $workflow = WorkflowInstance::where("document_id", $documentId)
-            ->with([
-                "instance_steps.workflowStep" => function ($q) {
-                    // $q->select('id', 'name', 'email');
-                },
-            ])
-            ->firstOrFail();
+    //     $workflow = WorkflowInstance::where("document_id", $documentId)
+    //         ->with([
+    //             "instance_steps.workflowStep" => function ($q) {
+    //                 //$q->where('is_archived_step', false);
+    //             },
+    //         ])
+    //            ->whereHas("instance_steps.workflowStep", function ($q) {
+    //     $q->where('is_archived_step', false);
+    // })
+    //         ->firstOrFail();
+    $workflow = WorkflowInstance::where("document_id", $documentId)
+    ->with([
+        "instance_steps" => function ($q) {
+            $q->whereHas("workflowStep", function ($q2) {
+                $q2->where('is_archived_step', false);
+            });
+        },
+        "instance_steps.workflowStep"
+    ])
+    ->firstOrFail();
 
         // --- 1. Récupérer tous les role_id des steps ---
         $roleIds = $workflow->instance_steps
@@ -203,6 +216,7 @@ class WorkflowInstanceController extends Controller
                     "status" => $step->status,
                     "comment" => $step->comment,
                     "acted_at" => $step->executed_at,
+                    "is_end" => $step->workflowStep->is_archived_step,
                 ];
             })
             ->sortBy("position")

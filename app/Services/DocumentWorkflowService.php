@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
+use Exception;
 
 class DocumentWorkflowService
 {
@@ -15,7 +16,7 @@ class DocumentWorkflowService
     array $documentTypes,
     WorkflowPermissionService $workflowPermissionService
 ): array {
-    $user = $request->get('user');
+     $user = $request->get('user');
 
     return $this->getDocumentsForUser([
         'userId'        => $user['id'],
@@ -188,7 +189,37 @@ class DocumentWorkflowService
             (
                 $perm['permissions']['view_own'] &&
                 $doc['created_by'] === $userId
+            )
+            || 
+            
+            (
+                $perm['permissions']['view_department'] &&
+                $this->checkSameDepartment($doc['created_by'] , $userId)
             );
+            ;
+    }
+
+    protected function checkSameDepartment($user_1,$user_2) : bool {
+
+
+$response = Http::get(config("services.department_service.base_url") . '/users/same-department', [
+    'user1_id' => $user_1,
+    'user2_id' => $user_2,
+]);
+
+$data = $response->json();
+
+// throw new Exception(json_encode($data), 1);
+
+
+if ($data['same_department']) {
+    // Ils sont dans le même département
+    return true;
+} else {
+    // Pas dans le même département
+    return false;
+}
+        
     }
 
     protected function statusTranslations(): array
