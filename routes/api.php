@@ -37,6 +37,8 @@ Route::middleware("jwt.check")
                 "checkIfInjectDepartments"
             );
             Route::get("/{id}/steps", "steps");
+
+            Route::get('/get-status-labels', 'getStatusLabels');
             
             Route::apiResource("/", WorkflowController::class);
         });

@@ -15,4 +15,14 @@ class WorkflowInstance extends Model
     {
         return $this->hasMany(WorkflowInstanceStep::class);
     }
+
+    // WorkflowInstance.php
+public function lastActiveStep()
+{
+    return $this->hasOne(WorkflowInstanceStep::class)
+        ->where('status', '!=', 'NOT_STARTED')
+        ->whereHas('workflowStep', fn($q) => $q->where('is_archived_step', 0))
+        ->with('workflowStep')
+        ->orderByDesc('position'); // pas de limit nécessaire, hasOne prend la première
+}
 }

@@ -37,22 +37,55 @@ class WorkflowValidationController extends Controller
         $filters = $request->query("filters");
 
         // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
-        if ($isValidation) {
-            $steps = WorkflowInstanceStep::with("workflowInstance")
-                ->where("role_id", $roleId)
-                ->where("status", "PENDING")
-                ->get();
-        } else {
-            //si c'est juste le suivi
+        // if ($isValidation) {
+        //     $steps = WorkflowInstanceStep::with("workflowInstance")
+        //         ->where("role_id", $roleId)
+        //         ->where("status", "PENDING")
+        //         ->get();
+        // } else {
+        //     //si c'est juste le suivi
 
-            $steps = WorkflowInstanceStep::with("workflowInstance")
-                //  ->where('role_id', $roleId)
-                // ->where('status', 'PENDING')
-                ->get();
-        }
+        //     $steps = WorkflowInstanceStep::with("workflowInstance")
+        //         //  ->where('role_id', $roleId)
+        //         // ->where('status', 'PENDING')
+        //         ->get();
+        // }
+$stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label")
+    ->where("role_id", $roleId)
+    ->where("status", "PENDING");
+$allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label");
+
+// Filtre exact sur workflowStep.status_label si $filters["status"] existe
+if (!empty($filters["status"])) {
+
+    $statuses = is_array($filters["status"])
+        ? $filters["status"]
+        : explode(",", $filters["status"]);
+
+    // filtre sur workflowStep.status_label
+    $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
+        $q->whereIn("status_label", $statuses);
+    });
+
+    // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
+    if ($statuses === ["reject"]) {
+        $allStepsQuery->where("status", "REJECT");
+    } elseif ($statuses === ["paid"]) {
+        $allStepsQuery->where("status", "COMPLETE");
+    } else {
+        $allStepsQuery->where("status", "PENDING");
+    }
+
+} else {
+    // si pas de filtre, par défaut on peut garder PENDING par exemple
+    // $allStepsQuery->where("status", "PENDING");
+}
+
+$steps_role = $stepsRoleQuery->get();
+$all_steps = $allStepsQuery->get();
 
         // 2️⃣ Extraire les document_ids
-        $documentIds = $steps->pluck("workflowInstance.document_id")->unique();
+        $documentIds = $all_steps->pluck("workflowInstance.document_id")->unique();
 
         // return $documentIds->toArray();
 
@@ -104,6 +137,7 @@ class WorkflowValidationController extends Controller
             "document_id",
             $documentIds
         )
+        ->with('lastActiveStep')
             ->get()
             ->keyBy("document_id"); // clé = document_id pour accès rapide
 
@@ -130,6 +164,56 @@ class WorkflowValidationController extends Controller
                 "color" => "error",
             ],
         ];
+
+        $filtered = collect($documents)->filter(function ($doc) use ($permissionsByDocId, $steps_role) {
+    
+    $docId = $doc["id"];
+
+    // Permissions pour ce document
+    $docPermissions = $permissionsByDocId[$doc["document_type_id"]] ?? null;
+    if (!$docPermissions) return false;
+
+    // Si l'utilisateur a view_all, on garde le document
+    if ($docPermissions["permissions"]["view_all"] ?? false) {
+        return true;
+    }
+
+    // Si l'utilisateur a view_own, on garde seulement s'il a un step pour ce document
+    if ($docPermissions["permissions"]["view_own"] ?? false) {
+        return $steps_role->contains(function ($step) use ($docId) {
+            return $step->workflowInstance->document_id == $docId;
+        });
+    }
+
+    // Sinon, pas de permission → on exclut
+    return false;
+})
+->map(function ($doc) use ($workflowInstances, $translations) {
+    $workflow_instance = $workflowInstances[$doc["id"]] ?? null;
+    $status = $workflow_instance ? $workflow_instance->status : null;
+    
+    // $currentStep = $workflow_instance? $workflow_instance->instance_steps->first() : null ;
+    $currentStep = $workflow_instance? $workflow_instance->lastActiveStep : null ;
+
+$statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->status_label : null;
+
+    if ($status && isset($translations[$status])) {
+        $doc["workflow_status"] = [
+            "label" => $statusLabel ? $statusLabel : $translations[$status]["label"],
+            "emoji" => $translations[$status]["emoji"],
+            "color" => $translations[$status]["color"],
+        ];
+    } else {
+        $doc["workflow_status"] = null;
+    }
+
+    return $doc;
+})
+->values()
+->toArray();
+
+        return $filtered;
+
 
         $filtered = collect($documents)
             ->filter(function ($doc) use ($permissionsByDocId) {
@@ -162,18 +246,18 @@ class WorkflowValidationController extends Controller
 
         return $filtered;
 
-        // On filtre les documents
-        $filtered = collect($documents)
-            ->filter(function ($doc) use ($permissionsByDocId) {
-                return isset($permissionsByDocId[$doc["document_type_id"]]) &&
-                    $permissionsByDocId[$doc["document_type_id"]][
-                        "permissions"
-                    ]["view"] === true;
-            })
-            ->values()
-            ->toArray();
+        // // On filtre les documents
+        // $filtered = collect($documents)
+        //     ->filter(function ($doc) use ($permissionsByDocId) {
+        //         return isset($permissionsByDocId[$doc["document_type_id"]]) &&
+        //             $permissionsByDocId[$doc["document_type_id"]][
+        //                 "permissions"
+        //             ]["view"] === true;
+        //     })
+        //     ->values()
+        //     ->toArray();
 
-        return $filtered;
+        // return $filtered;
 
         // return response()->json();
     }

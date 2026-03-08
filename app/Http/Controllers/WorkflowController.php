@@ -16,6 +16,7 @@ use App\Http\Requests\UpdateWorkflowRequest;
 use App\Models\WorkflowStepAttachmentType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class WorkflowController extends Controller
 {
@@ -96,6 +97,84 @@ class WorkflowController extends Controller
             throw $th;
         }
     }
+
+
+    public function getStatusLabels(Request $request)
+{
+    $documentTypes = $request->input('documentTypes', []);
+    $token = $request->bearerToken();
+
+    if (empty($documentTypes)) {
+        return response()->json([]);
+    }
+
+    // 🔹 appel au document service
+        
+    $response = Http::acceptJson()->withHeaders([
+            'Authorization' => "Bearer $token"
+        ])->get(config('services.document_service.base_url') . '/document_types/getByRelation', [
+        'relations' => $documentTypes
+    ]);
+
+    if (!$response->successful()) {
+        return response()->json([
+            'error' => 'Unable to fetch document types',
+            'body' => $response->body()
+        ], 500);
+    }
+
+    $types = $response->json()["data"];
+
+    $allTypes = [];
+
+    foreach ($types as $type) {
+
+        // if (!empty($type['relation_name'])) {
+
+        //     $relations = explode('.', $type['relation_name']);
+
+        //     foreach ($relations as $relation) {
+        //         $allTypes[] = $relation;
+        //     }
+
+        // } else {
+            $allTypes[] = $type['id'];
+        // }
+    }
+
+    $allTypes = array_unique($allTypes);
+
+    // 🔹 récupérer les status labels liés à ces types
+//  $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.workflow_id')
+//     ->join('document_type_workflows', 'document_type_workflows.workflow_id', '=', 'workflows.id')
+//     ->where('workflow_steps.is_archived_step', 0)
+//     ->where('workflow_steps.position', '>', 0)   // exclusion position = 0
+//     ->whereNotNull('workflow_steps.status_label')
+//     ->where('workflows.active', 1)
+//     ->whereIn('document_type_workflows.document_type_id', $allTypes)
+//     ->distinct()
+//     ->orderBy('workflow_steps.status_label')
+//     ->pluck('workflow_steps.status_label');
+
+
+$labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.workflow_id')
+    ->join('document_type_workflows', 'document_type_workflows.workflow_id', '=', 'workflows.id')
+    ->where('workflow_steps.is_archived_step', 0)
+    ->where('workflow_steps.position', '>', 0)
+    ->whereNotNull('workflow_steps.status_label')
+    ->where('workflows.active', 1)
+    ->whereIn('document_type_workflows.document_type_id', $allTypes)
+    ->select(
+        'workflow_steps.status_label as code',
+        DB::raw('UPPER(workflow_steps.status_label) as label')
+    )
+    ->distinct()
+    ->orderBy('workflow_steps.status_label')
+    ->get();
+
+    return response()->json($labels);
+
+}
 
     /**
      * Show the form for creating a new resource.
@@ -190,6 +269,7 @@ class WorkflowController extends Controller
                 $step = WorkflowStep::create([
                     "workflow_id" => $workflow->id,
                     "name" => $stepData["stepName"],
+                    "status_label" => $stepData["stepStatus"],
                     "assignment_mode" => $stepData["assignationMode"],
                     "assignment_rule" => !empty($stepData["assignmentRule"])
                         ? $stepData["assignmentRule"]

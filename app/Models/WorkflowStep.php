@@ -19,6 +19,7 @@ class WorkflowStep extends Model
         "role_id",
         "position",
         "is_archived_step",
+        "status_label"
     ];
 
     protected $casts = [
