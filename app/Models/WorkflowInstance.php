@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkflowInstance extends Model
 {
@@ -14,6 +15,16 @@ class WorkflowInstance extends Model
     public function instance_steps()
     {
         return $this->hasMany(WorkflowInstanceStep::class);
+    }
+
+    /**
+     * Get the workflow that owns the WorkflowInstance
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function workflow(): BelongsTo
+    {
+        return $this->belongsTo(Workflow::class, );
     }
 
     // WorkflowInstance.php

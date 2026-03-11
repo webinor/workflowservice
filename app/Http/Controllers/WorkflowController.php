@@ -14,27 +14,179 @@ use App\Models\WorkflowInstanceStep;
 use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
 use App\Models\WorkflowStepAttachmentType;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
+use function PHPUnit\Framework\isEmpty;
+
 class WorkflowController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        try {
-            $workflows = Workflow::whereActive(1)->get();
+ * Display a listing of the resource.
+ *
+ * Retourne les workflows actifs avec leurs étapes et transitions.
+ *
+ * @return \Illuminate\Http\JsonResponse
+ */
+public function index(Request $request)
+{
+    try {
 
-            return response()->json(["success" => true, "data" => $workflows]);
-        } catch (\Throwable $th) {
-            throw $th;
-        }
+    $token = $request->bearerToken();
+
+        $workflows = Workflow:://whereActive(1)
+            //->
+            with(['steps.stepRoles', 'steps.attachmentTypes', 'transitions.conditions', 'transitions.fromStep', 'transitions.toStep','documentTypeWorkflow'])
+            ->get();
+
+
+           
+        
+
+        $mapped = $workflows->map(function ($workflow) use ($token){
+
+             $attachmentTypesData = collect([]);
+
+                $attachmentTypeIds = $workflow->steps
+    ->flatMap(fn($step) => $step->attachmentTypes->pluck('attachment_type_id'))
+    ->unique()
+    ->values()
+    ->all();
+
+    if (sizeof($attachmentTypeIds)>0) {
+        # code...
+    
+// throw new Exception($attachmentTypeIds, 1);
+
+
+ $response = Http::acceptJson()->withHeaders([
+            'Authorization' => "Bearer $token"
+        ])->get(config('services.document_service.base_url') . '/get-attachment-types', [
+    'ids' => implode(',', $attachmentTypeIds)
+]);
+
+// throw new Exception($attachmentTypeIds, 1);
+// throw new Exception($response->body(), 1);
+    
+
+$attachmentTypesData = collect($response->json()['data'])->keyBy('id');
+
+// throw new Exception($attachmentTypesData, 1);
+
     }
+            return [
+                'id' => $workflow->id,
+                'name' => $workflow->name,
+                'code' => $workflow->code,
+
+                'steps' => $workflow->steps->map(function ($step) use ($attachmentTypesData) {
+                    return [
+                        'id' => $step->id,
+                        'stepName' => $step->name,
+                        'position' => $step->position,
+                        'stepStatus' => $step->status_label,
+                        'assignationMode'=>$step->assignment_mode,
+                        'assignmentRule'=>$step->assignment_rule,
+                        
+
+                        'roleId' => $step->stepRoles->map(function ($role) {
+                            
+                    return $role->role_id;
+                    // [
+                    //     'id' => $role->id,
+                    //     'role_id' => $role->role_id     
+                    // ];
+                }),
+
+                //  'attachmentTypeCategoryRequiredIdo' => $step->attachmentTypes ? [
+                //      'id' => ($step->attachmentTypes->first()),
+                //     // 'attachment_type_id' => $step->attachmentTypes->first()->attachment_type_id,
+                // ] : null,
+
+                         'attachmentTypeCategoryRequiredId' => $step->attachmentTypes->map(function ($attachmentType) use ($attachmentTypesData) {
+
+    // Récupère les infos du microservice
+    $docType = $attachmentTypesData[$attachmentType->attachment_type_id] ?? null;
+
+    return [
+        'id' => $attachmentType->attachment_type_id,
+        'name' => $docType['name'] ?? null,
+        'slug' => $docType['slug'] ?? null,
+        'category_id' => $docType['attachment_type_category_id'] ?? null,
+        'category' => Str::lower($docType['attachment_type_category']['name']."-attachment") ?? "",
+    ];
+})
+                    ];
+                }),
+
+                'transitions' => $workflow->transitions->map(function ($transition) {
+                    return [
+                        'id' => $transition->id,
+                        'fromStep' => $transition->from_step_id,
+                        'toStep' => $transition->to_step_id,
+                        'name' => $transition->name,
+                        'conditionType' => Str::upper($transition->type),
+
+                        'blockingRules' => $transition->conditions
+            ->where('condition_kind', 'BLOCKING')
+            ->map(function ($condition) {
+                return [
+                    'id' => $condition->id,
+                    'type' => $condition->condition_type, // exists / comparison
+                    'existsTarget' => $condition->required_type,
+                    'value' => collect($condition->required_id)
+                    ->map(fn($v) => (string) $v),
+                    'operator' => $condition->operator,
+                    'field' => $condition->field ?? null,
+                ];
+            })->values(),
+
+
+
+            // 🔵 Path Rules
+        'pathRules' => $transition->conditions
+            ->where('condition_kind', 'PATH')
+            ->map(function ($condition) {
+                return [
+                    'id' => $condition->id,
+                    'type' => $condition->condition_type, // comparison
+                    'field' => $condition->field,
+                    'operator' => $condition->operator,
+                    'value' => collect($condition->required_id)
+                    ->map(fn($v) => (string) $v),
+                    'nextStep' => $condition->next_step_id,
+                ];
+            })->values(),
+                    ];
+                }),
+
+                
+
+                 'document_type' => $workflow->documentTypeWorkflow ? [
+                    'id' => $workflow->documentTypeWorkflow->id,
+                    'document_type_id' => $workflow->documentTypeWorkflow->document_type_id,
+                ] : null,
+
+                'created_at' => $workflow->created_at? $workflow->created_at->format('Y-m-d H:i:s') : "",
+            ];
+        });
+
+        return response()->json([
+            "success" => true,
+            "data" => $mapped
+        ]);
+
+    } catch (\Throwable $th) {
+
+        return response()->json([
+            "success" => false,
+            "message" => "Erreur lors de la récupération des workflows",
+            "error" => $th->getMessage()
+        ], 500);
+    }
+}
 
     public function checkIfInjectDepartments(Request $request, $documentTypeId)
     {

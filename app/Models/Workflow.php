@@ -23,8 +23,13 @@ class Workflow extends Model
 
 
       // Relation vers les transitions
-      public function transitions()
-      {
-          return $this->hasMany(WorkflowTransition::class);
-      }
+    public function transitions()
+    {
+        return $this->hasMany(WorkflowTransition::class);
+    }
+
+        public function documentTypeWorkflow()
+    {
+        return $this->hasOne(DocumentTypeWorkflow::class);
+    }
 }
