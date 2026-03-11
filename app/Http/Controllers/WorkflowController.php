@@ -154,7 +154,7 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
                     'type' => $condition->condition_type, // comparison
                     'field' => $condition->field,
                     'operator' => $condition->operator,
-                    'value' => floatval($condition->field),
+                    'value' => floatval($condition->value),
                     'nextStep' => $condition->next_step_id,
                 ];
             })->values(),
