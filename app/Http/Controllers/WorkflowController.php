@@ -36,8 +36,8 @@ public function index(Request $request)
 
     $token = $request->bearerToken();
 
-        $workflows = Workflow:://whereActive(1)
-            //->
+        $workflows = Workflow::whereActive(1)
+            ->
             with(['steps.stepRoles', 'steps.attachmentTypes', 'transitions.conditions', 'transitions.fromStep', 'transitions.toStep','documentTypeWorkflow'])
             ->get();
 
