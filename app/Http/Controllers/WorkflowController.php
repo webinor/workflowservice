@@ -83,7 +83,7 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
 
                 'steps' => $workflow->steps->map(function ($step) use ($attachmentTypesData) {
                     return [
-                        'id' => $step->id,
+                        'id' => (string)$step->id,
                         'stepName' => $step->name,
                         'position' => $step->position,
                         'stepStatus' => $step->status_label,
@@ -123,9 +123,9 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
 
                 'transitions' => $workflow->transitions->map(function ($transition) {
                     return [
-                        'id' => $transition->id,
-                        'fromStep' => $transition->from_step_id,
-                        'toStep' => $transition->to_step_id,
+                        'id' => (string)$transition->id,
+                        'fromStep' => (string)$transition->from_step_id,
+                        'toStep' => (string)$transition->to_step_id,
                         'name' => $transition->name,
                         'conditionType' => Str::upper($transition->type),
 

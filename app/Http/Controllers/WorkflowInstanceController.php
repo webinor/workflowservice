@@ -826,6 +826,9 @@ class WorkflowInstanceController extends Controller
                 $action
             );
 
+            // throw new Exception(json_encode($stepData), 1);
+
+
             $nextStep = $stepData["next_step"];
             $isDynamic = $stepData["isDynamic"];
 
@@ -1380,19 +1383,60 @@ class WorkflowInstanceController extends Controller
     ) {
         $isDynamic = false;
         // Récupère les transitions depuis l'étape courante
-        $transitions = WorkflowTransition::where(
-            "from_step_id",
-            $currentStep->workflow_step_id
-        )->get();
+        // $transitions = WorkflowTransition::where(
+        //     "from_step_id",
+        //     $currentStep->workflow_step_id
+        // )->get();
 
-        foreach ($transitions as $transition) {
+
+        $default_transition = WorkflowTransition::
+        whereDoesntHave("conditions", function ($q) {
+    $q->where("condition_kind", "PATH");
+})
+->where("from_step_id", $currentStep->workflow_step_id)
+->first();
+
+if (!$default_transition) {
+    throw new Exception("Aucune transition par défaut définie");
+}
+                // throw new Exception($default_transitions, 1);
+
+
+$pathtransitions = WorkflowTransition::
+whereHas("conditions")->
+with([
+    "conditions" => function ($q) {
+        $q->where("condition_kind", "PATH");
+    }
+])
+->where("from_step_id", $currentStep->workflow_step_id)
+->get();
+
+        
+
+                // throw new Exception($pathtransitions, 1);
+
+
+
+        foreach ($pathtransitions as $index => $pathtransition) {
             // Récupère les conditions PATH associées à la transition
-            $pathConditions = WorkflowCondition::where(
-                "workflow_transition_id",
-                $transition->id
-            )
-                ->where("condition_kind", "PATH")
-                ->get();
+            // $pathConditions = WorkflowCondition::where(
+            //     "workflow_transition_id",
+            //     $transition->id
+            // )
+            //     ->where("condition_kind", "PATH")
+            //     ->get();
+
+            
+            $pathConditions =$pathtransition->conditions;
+            
+            // throw new Exception($transitions, 1);
+            
+           
+                // throw new Exception($pathtransition->id, 1);
+                // throw new Exception($pathConditions, 1);
+            
+            
 
             $allSatisfied = true;
 
@@ -1408,30 +1452,97 @@ class WorkflowInstanceController extends Controller
                 continue;
             }
 
+
+                // throw new Exception($pathtransition, 1);
+
+
+
             //return "{$instance->id} {$transition->to_step_id}";
             // Toutes les conditions PATH sont remplies → on retourne la prochaine étape
-            $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
-                "workflow_instance_id",
-                $instance->id
-            )
+            // $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
+            //     "workflow_instance_id",
+            //     $instance->id
+            // )
+            //     ->with("workflowStep")
+            //     ->where("workflow_step_id", $transition->to_step_id)
+            //     ->first();
+
+                
+        return    $this->get_step($instance , $pathtransition , $isDynamic);
+
+            // throw new Exception($tempWorkflowInstanceStep, 1);
+            
+
+        //     if ($transition->to_step_id && !$tempWorkflowInstanceStep) {
+        //         //il y'a un etape dynamique
+
+        //         $isDynamic = true;
+        //     } else {
+
+        // // throw new Exception("tempWorkflowInstanceStep", 1);
+
+        //         return [
+        //             "isDynamic" => $isDynamic,
+        //             "next_step" => $tempWorkflowInstanceStep,
+        //         ];
+        //     }
+        }
+
+        //  $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
+        //         "workflow_instance_id",
+        //         $instance->id
+        //     )
+        //         ->with("workflowStep")
+        //         ->where("workflow_step_id", $default_transitions->to_step_id)
+        //         ->first();
+
+        //  if ($default_transitions->to_step_id && !$tempWorkflowInstanceStep) {
+        //         //il y'a un etape dynamique
+
+        //         $isDynamic = true;
+        //     } else {
+
+        // // throw new Exception("tempWorkflowInstanceStep", 1);
+
+        //         return [
+        //             "isDynamic" => $isDynamic,
+        //             "next_step" => $tempWorkflowInstanceStep,
+        //         ];
+        //     }
+
+        return  $this->get_step($instance , $default_transition , $isDynamic);
+
+        // throw new Exception("Aucune transition valide", 1);
+
+        // Aucune transition valide
+        return ["isDynamic" => $isDynamic, "next_step" => null];
+    }
+
+    function get_step($instance,$transition,$isDynamic)  {
+
+         $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
+                "workflow_instance_id",$instance->id)
                 ->with("workflowStep")
                 ->where("workflow_step_id", $transition->to_step_id)
                 ->first();
 
-            if ($transition->to_step_id && !$tempWorkflowInstanceStep) {
+        // throw new Exception($tempWorkflowInstanceStep, 1);
+        
+
+         if ($transition->to_step_id && !$tempWorkflowInstanceStep) {
                 //il y'a un etape dynamique
 
                 $isDynamic = true;
             } else {
+
+        // throw new Exception("tempWorkflowInstanceStep", 1);
+
                 return [
                     "isDynamic" => $isDynamic,
                     "next_step" => $tempWorkflowInstanceStep,
                 ];
             }
-        }
-
-        // Aucune transition valide
-        return ["isDynamic" => $isDynamic, "next_step" => null];
+        
     }
 
     /**
@@ -1449,6 +1560,8 @@ class WorkflowInstanceController extends Controller
         //   return
         $fieldValue = $this->getNestedValue($data, $condition->field);
         //return $condition->value;
+        
+        // throw new Exception($fieldValue, 1);
 
         //throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
