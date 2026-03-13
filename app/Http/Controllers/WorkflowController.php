@@ -254,9 +254,9 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
 {
 
     return response()->json([
-        ["code" => "En cours de validation","label" => "En cours de validation"],
-        ["code" => "En attente de paiement","label" => "En attente de paiement"],
-        ["code" => "Payée","label" => "Payée"],
+        ["code" => "PENDING","label" => "En cours de validation"],
+        ["code" => "PENDING","label" => "En attente de paiement"],
+        ["code" => "COMPLETE","label" => "Payée"],
     ]);
 
 

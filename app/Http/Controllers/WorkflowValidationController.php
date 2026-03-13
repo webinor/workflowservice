@@ -53,33 +53,39 @@ class WorkflowValidationController extends Controller
             $stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label")
                 ->where("role_id", $roleId)
                 ->where("status", "PENDING");
+                
             $allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label");
 
-            // Filtre exact sur workflowStep.status_label si $filters["status"] existe
             if (!empty($filters["status"])) {
+    $allStepsQuery->whereHas("workflowInstance", function ($query) use ($filters) {
+        $query->where("status", $filters["status"]);
+    });
+}
+            // Filtre exact sur workflowStep.status_label si $filters["status"] existe
+            // if (!empty($filters["status"])) {
 
-                $statuses = is_array($filters["status"])
-                    ? $filters["status"]
-                    : explode(",", $filters["status"]);
+            //     $statuses = is_array($filters["status"])
+            //         ? $filters["status"]
+            //         : explode(",", $filters["status"]);
 
-                // filtre sur workflowStep.status_label
-                $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
-                    $q->whereIn("status_label", $statuses);
-                });
+            //     // filtre sur workflowStep.status_label
+            //     $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
+            //         $q->whereIn("status_label", $statuses);
+            //     });
 
-                // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
-                if ($statuses === ["reject"]) {
-                    $allStepsQuery->where("status", "REJECT");
-                } elseif ($statuses === ["paid"]) {
-                    $allStepsQuery->where("status", "COMPLETE");
-                } else {
-                    $allStepsQuery->where("status", "PENDING");
-                }
+            //     // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
+            //     if ($statuses === ["reject"]) {
+            //         $allStepsQuery->where("status", "REJECT");
+            //     } elseif ($statuses === ["paid"]) {
+            //         $allStepsQuery->where("status", "COMPLETE");
+            //     } else {
+            //         $allStepsQuery->where("status", "PENDING");
+            //     }
 
-            } else {
-                // si pas de filtre, par défaut on peut garder PENDING par exemple
-                // $allStepsQuery->where("status", "PENDING");
-            }
+            // } else {
+            //     // si pas de filtre, par défaut on peut garder PENDING par exemple
+            //     // $allStepsQuery->where("status", "PENDING");
+            // }
 
             $steps_role = $stepsRoleQuery->get();
             $all_steps = $allStepsQuery->get();
@@ -149,12 +155,12 @@ class WorkflowValidationController extends Controller
                             "color" => "info",
                         ],
                         "PENDING" => [
-                            "label" => "En cours de validation",
+                            "label" => "Validation En Cours",
                             "emoji" => "🟡",
                             "color" => "warning",
                         ],
                         "COMPLETE" => [
-                            "label" => "Validation terminée",
+                            "label" => "Payée",
                             "emoji" => "✅",
                             "color" => "success",
                         ],
