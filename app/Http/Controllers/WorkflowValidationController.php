@@ -199,7 +199,7 @@ $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workf
 
     if ($status && isset($translations[$status])) {
         $doc["workflow_status"] = [
-            "label" => $statusLabel ? $statusLabel : $translations[$status]["label"],
+            "label" => $translations[$status]["label"],//$statusLabel ? $statusLabel : $translations[$status]["label"],
             "emoji" => $translations[$status]["emoji"],
             "color" => $translations[$status]["color"],
         ];
