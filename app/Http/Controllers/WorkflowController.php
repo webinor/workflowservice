@@ -252,6 +252,14 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
 
     public function getStatusLabels(Request $request)
 {
+
+    return response()->json([
+        ["code" => "En cours de validation","label" => "En cours de validation"],
+        ["code" => "En attente de paiement","label" => "En attente de paiement"],
+        ["code" => "Payée","label" => "Payée"],
+    ]);
+
+
     $documentTypes = $request->input('documentTypes', []);
     $token = $request->bearerToken();
 

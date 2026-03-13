@@ -23,215 +23,183 @@ class WorkflowValidationController extends Controller
 
     public function getDocumentsToValidateByRole(Request $request)
     {
-        // $roleId = $request->get('role_id');
-        $user_connected = $request->get("user"); // récupéré du user-service
-        $userId = $user_connected["id"]; // récupéré du user-service
-        $roleId = $user_connected["role_id"]; // récupéré du user-service
+                    // $roleId = $request->get('role_id');
+                    $user_connected = $request->get("user"); // récupéré du user-service
+                    $userId = $user_connected["id"]; // récupéré du user-service
+                    $roleId = $user_connected["role_id"]; // récupéré du user-service
 
-        $isValidation = filter_var(
-            $request->query("isValidation"),
-            FILTER_VALIDATE_BOOLEAN
-        );
+                    $isValidation = filter_var(
+                        $request->query("isValidation"),
+                        FILTER_VALIDATE_BOOLEAN
+                    );
 
-        $documentTypes = $request->query("documentTypes");
-        $filters = $request->query("filters");
+                    $documentTypes = $request->query("documentTypes");
+                    $filters = $request->query("filters");
 
-        // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
-        // if ($isValidation) {
-        //     $steps = WorkflowInstanceStep::with("workflowInstance")
-        //         ->where("role_id", $roleId)
-        //         ->where("status", "PENDING")
-        //         ->get();
-        // } else {
-        //     //si c'est juste le suivi
+                    // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
+                    // if ($isValidation) {
+                    //     $steps = WorkflowInstanceStep::with("workflowInstance")
+                    //         ->where("role_id", $roleId)
+                    //         ->where("status", "PENDING")
+                    //         ->get();
+                    // } else {
+                    //     //si c'est juste le suivi
 
-        //     $steps = WorkflowInstanceStep::with("workflowInstance")
-        //         //  ->where('role_id', $roleId)
-        //         // ->where('status', 'PENDING')
-        //         ->get();
-        // }
-$stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label")
-    ->where("role_id", $roleId)
-    ->where("status", "PENDING");
-$allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label");
+                    //     $steps = WorkflowInstanceStep::with("workflowInstance")
+                    //         //  ->where('role_id', $roleId)
+                    //         // ->where('status', 'PENDING')
+                    //         ->get();
+                    // }
+            $stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label")
+                ->where("role_id", $roleId)
+                ->where("status", "PENDING");
+            $allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label");
 
-// Filtre exact sur workflowStep.status_label si $filters["status"] existe
-if (!empty($filters["status"])) {
+            // Filtre exact sur workflowStep.status_label si $filters["status"] existe
+            if (!empty($filters["status"])) {
 
-    $statuses = is_array($filters["status"])
-        ? $filters["status"]
-        : explode(",", $filters["status"]);
+                $statuses = is_array($filters["status"])
+                    ? $filters["status"]
+                    : explode(",", $filters["status"]);
 
-    // filtre sur workflowStep.status_label
-    $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
-        $q->whereIn("status_label", $statuses);
-    });
+                // filtre sur workflowStep.status_label
+                $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
+                    $q->whereIn("status_label", $statuses);
+                });
 
-    // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
-    if ($statuses === ["reject"]) {
-        $allStepsQuery->where("status", "REJECT");
-    } elseif ($statuses === ["paid"]) {
-        $allStepsQuery->where("status", "COMPLETE");
-    } else {
-        $allStepsQuery->where("status", "PENDING");
-    }
+                // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
+                if ($statuses === ["reject"]) {
+                    $allStepsQuery->where("status", "REJECT");
+                } elseif ($statuses === ["paid"]) {
+                    $allStepsQuery->where("status", "COMPLETE");
+                } else {
+                    $allStepsQuery->where("status", "PENDING");
+                }
 
-} else {
-    // si pas de filtre, par défaut on peut garder PENDING par exemple
-    // $allStepsQuery->where("status", "PENDING");
-}
-
-$steps_role = $stepsRoleQuery->get();
-$all_steps = $allStepsQuery->get();
-
-        // 2️⃣ Extraire les document_ids
-        $documentIds = $all_steps->pluck("workflowInstance.document_id")->unique();
-
-        // return $documentIds->toArray();
-
-        // 3️⃣ Appeler le microservice Document pour récupérer les détails
-        $documents = [];
-        if ($documentIds->isNotEmpty()) {
-            //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
-
-            // config('services.document_service.base_url');
-            //return
-            $response = Http::withToken($request->bearerToken())
-                ->acceptJson()
-                ->get(
-                    config("services.document_service.base_url") . "/by-ids", //$queryParams
-                    /**/ [
-                        "ids" => $documentIds->toArray(),
-                        "documentTypes" => $documentTypes,
-                        "filters" => $filters,
-                    ] /**/
-                );
-
-            if ($response->ok()) {
-                $documents = $response->json();
+            } else {
+                // si pas de filtre, par défaut on peut garder PENDING par exemple
+                // $allStepsQuery->where("status", "PENDING");
             }
-        }
 
-        if (count($documents) == 0) {
-            return [];
-        }
+            $steps_role = $stepsRoleQuery->get();
+            $all_steps = $allStepsQuery->get();
 
-        //   return $documents;
+                    // 2️⃣ Extraire les document_ids
+                    $documentIds = $all_steps->pluck("workflowInstance.document_id")->unique();
 
-        $data = [
-            "user_id" => $userId,
-            "role_id" => $roleId,
-            "count" => count($documents),
-            "documents" => $documents,
-        ];
+                    // return $documentIds->toArray();
 
-        $documents_with_permissions = $this->workflowPermissionService->checkPermissions2($data, $request);
+                    // 3️⃣ Appeler le microservice Document pour récupérer les détails
+                    $documents = [];
+                    if ($documentIds->isNotEmpty()) {
+                        //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
 
-        // On indexe les permissions par documentId
-        $permissionsByDocId = collect($documents_with_permissions)->keyBy(
-            "documentId"
-        );
+                        // config('services.document_service.base_url');
+                        //return
+                        $response = Http::withToken($request->bearerToken())
+                            ->acceptJson()
+                            ->get(
+                                config("services.document_service.base_url") . "/by-ids", //$queryParams
+                                /**/ [
+                                    "ids" => $documentIds->toArray(),
+                                    "documentTypes" => $documentTypes,
+                                    "filters" => $filters,
+                                ] /**/
+                            );
 
-        // Récupérer les instances de workflow correspondantes
-        $workflowInstances = WorkflowInstance::whereIn(
-            "document_id",
-            $documentIds
-        )
-        ->with('lastActiveStep')
-            ->get()
-            ->keyBy("document_id"); // clé = document_id pour accès rapide
+                        if ($response->ok()) {
+                            $documents = $response->json();
+                        }
+                    }
 
-        // On filtre et on enrichit les documents
-        $translations = [
-            "NOT_STARTED" => [
-                "label" => "Validation non démarrée",
-                "emoji" => "⏳",
-                "color" => "info",
-            ],
-            "PENDING" => [
-                "label" => "En cours de validation",
-                "emoji" => "🟡",
-                "color" => "warning",
-            ],
-            "COMPLETE" => [
-                "label" => "Validation terminée",
-                "emoji" => "✅",
-                "color" => "success",
-            ],
-            "REJECT" => [
-                "label" => "Rejetée",
-                "emoji" => "❌",
-                "color" => "error",
-            ],
-        ];
+                    if (count($documents) == 0) {
+                        return [];
+                    }
 
-        $filtered = collect($documents)->filter(function ($doc) use ($permissionsByDocId, $steps_role) {
-    
-    $docId = $doc["id"];
+                    //   return $documents;
 
-    // Permissions pour ce document
-    $docPermissions = $permissionsByDocId[$doc["document_type_id"]] ?? null;
-    if (!$docPermissions) return false;
+                    $data = [
+                        "user_id" => $userId,
+                        "role_id" => $roleId,
+                        "count" => count($documents),
+                        "documents" => $documents,
+                    ];
 
-    // Si l'utilisateur a view_all, on garde le document
-    if ($docPermissions["permissions"]["view_all"] ?? false) {
-        return true;
-    }
+                    $documents_with_permissions = $this->workflowPermissionService->checkPermissions2($data, $request);
 
-    // Si l'utilisateur a view_own, on garde seulement s'il a un step pour ce document
-    if ($docPermissions["permissions"]["view_own"] ?? false) {
-        return $steps_role->contains(function ($step) use ($docId) {
-            return $step->workflowInstance->document_id == $docId;
-        });
-    }
+                    // On indexe les permissions par documentId
+                    $permissionsByDocId = collect($documents_with_permissions)->keyBy(
+                        "documentId"
+                    );
 
-    // Sinon, pas de permission → on exclut
-    return false;
-})
-->map(function ($doc) use ($workflowInstances, $translations) {
-    $workflow_instance = $workflowInstances[$doc["id"]] ?? null;
-    $status = $workflow_instance ? $workflow_instance->status : null;
-    
-    // $currentStep = $workflow_instance? $workflow_instance->instance_steps->first() : null ;
-    $currentStep = $workflow_instance? $workflow_instance->lastActiveStep : null ;
+                    // Récupérer les instances de workflow correspondantes
+                    $workflowInstances = WorkflowInstance::whereIn(
+                        "document_id",
+                        $documentIds
+                    )
+                    ->with('lastActiveStep')
+                        ->get()
+                        ->keyBy("document_id"); // clé = document_id pour accès rapide
 
-$statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->status_label : null;
+                    // On filtre et on enrichit les documents
+                    $translations = [
+                        "NOT_STARTED" => [
+                            "label" => "Validation non démarrée",
+                            "emoji" => "⏳",
+                            "color" => "info",
+                        ],
+                        "PENDING" => [
+                            "label" => "En cours de validation",
+                            "emoji" => "🟡",
+                            "color" => "warning",
+                        ],
+                        "COMPLETE" => [
+                            "label" => "Validation terminée",
+                            "emoji" => "✅",
+                            "color" => "success",
+                        ],
+                        "REJECT" => [
+                            "label" => "Rejetée",
+                            "emoji" => "❌",
+                            "color" => "error",
+                        ],
+                    ];
 
-    if ($status && isset($translations[$status])) {
-        $doc["workflow_status"] = [
-            "label" => $translations[$status]["label"],//$statusLabel ? $statusLabel : $translations[$status]["label"],
-            "emoji" => $translations[$status]["emoji"],
-            "color" => $translations[$status]["color"],
-        ];
-    } else {
-        $doc["workflow_status"] = null;
-    }
+                    $filtered = collect($documents)->filter(function ($doc) use ($permissionsByDocId, $steps_role) {
+                
+                $docId = $doc["id"];
 
-    return $doc;
-})
-->values()
-->toArray();
+                // Permissions pour ce document
+                $docPermissions = $permissionsByDocId[$doc["document_type_id"]] ?? null;
+                if (!$docPermissions) return false;
 
-        return $filtered;
+                // Si l'utilisateur a view_all, on garde le document
+                if ($docPermissions["permissions"]["view_all"] ?? false) {
+                    return true;
+                }
 
+                // Si l'utilisateur a view_own, on garde seulement s'il a un step pour ce document
+                if ($docPermissions["permissions"]["view_own"] ?? false) {
+                    return $steps_role->contains(function ($step) use ($docId) {
+                        return $step->workflowInstance->document_id == $docId;
+                    });
+                }
 
-        $filtered = collect($documents)
-            ->filter(function ($doc) use ($permissionsByDocId) {
-                return isset($permissionsByDocId[$doc["document_type_id"]]) &&
-                    ($permissionsByDocId[$doc["document_type_id"]][
-                        "permissions"
-                    ]["view_own"] === true ||
-                        $permissionsByDocId[$doc["document_type_id"]][
-                            "permissions"
-                        ]["view_all"] === true);
+                // Sinon, pas de permission → on exclut
+                return false;
             })
             ->map(function ($doc) use ($workflowInstances, $translations) {
-                $instance = $workflowInstances[$doc["id"]] ?? null;
-                $status = $instance ? $instance->status : null;
+                $workflow_instance = $workflowInstances[$doc["id"]] ?? null;
+                $status = $workflow_instance ? $workflow_instance->status : null;
+                
+                // $currentStep = $workflow_instance? $workflow_instance->instance_steps->first() : null ;
+                $currentStep = $workflow_instance? $workflow_instance->lastActiveStep : null ;
+
+            $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->status_label : null;
 
                 if ($status && isset($translations[$status])) {
                     $doc["workflow_status"] = [
-                        "label" => $translations[$status]["label"],
+                        "label" => $translations[$status]["label"],//$statusLabel ? $statusLabel : $translations[$status]["label"],
                         "emoji" => $translations[$status]["emoji"],
                         "color" => $translations[$status]["color"],
                     ];
@@ -244,193 +212,227 @@ $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workf
             ->values()
             ->toArray();
 
-        return $filtered;
+                    return $filtered;
 
-        // // On filtre les documents
-        // $filtered = collect($documents)
-        //     ->filter(function ($doc) use ($permissionsByDocId) {
-        //         return isset($permissionsByDocId[$doc["document_type_id"]]) &&
-        //             $permissionsByDocId[$doc["document_type_id"]][
-        //                 "permissions"
-        //             ]["view"] === true;
-        //     })
-        //     ->values()
-        //     ->toArray();
 
-        // return $filtered;
+                    $filtered = collect($documents)
+                        ->filter(function ($doc) use ($permissionsByDocId) {
+                            return isset($permissionsByDocId[$doc["document_type_id"]]) &&
+                                ($permissionsByDocId[$doc["document_type_id"]][
+                                    "permissions"
+                                ]["view_own"] === true ||
+                                    $permissionsByDocId[$doc["document_type_id"]][
+                                        "permissions"
+                                    ]["view_all"] === true);
+                        })
+                        ->map(function ($doc) use ($workflowInstances, $translations) {
+                            $instance = $workflowInstances[$doc["id"]] ?? null;
+                            $status = $instance ? $instance->status : null;
 
-        // return response()->json();
+                            if ($status && isset($translations[$status])) {
+                                $doc["workflow_status"] = [
+                                    "label" => $translations[$status]["label"],
+                                    "emoji" => $translations[$status]["emoji"],
+                                    "color" => $translations[$status]["color"],
+                                ];
+                            } else {
+                                $doc["workflow_status"] = null;
+                            }
+
+                            return $doc;
+                        })
+                        ->values()
+                        ->toArray();
+
+                    return $filtered;
+
+                    // // On filtre les documents
+                    // $filtered = collect($documents)
+                    //     ->filter(function ($doc) use ($permissionsByDocId) {
+                    //         return isset($permissionsByDocId[$doc["document_type_id"]]) &&
+                    //             $permissionsByDocId[$doc["document_type_id"]][
+                    //                 "permissions"
+                    //             ]["view"] === true;
+                    //     })
+                    //     ->values()
+                    //     ->toArray();
+
+                    // return $filtered;
+
+                    // return response()->json();
     }
 
-    public function oldgetTaxiPapersToValidateByRole(Request $request)
-    {
-        // $roleId = $request->get('role_id');
-        $user_connected = $request->get("user"); // récupéré du user-service
-        $userId = $user_connected["id"]; // récupéré du user-service
-        $roleId = $user_connected["role_id"]; // récupéré du user-service
+
+
+    // public function oldgetTaxiPapersToValidateByRole(Request $request)
+    // {
+    //     // $roleId = $request->get('role_id');
+    //     $user_connected = $request->get("user"); // récupéré du user-service
+    //     $userId = $user_connected["id"]; // récupéré du user-service
+    //     $roleId = $user_connected["role_id"]; // récupéré du user-service
   
-        $documentTypes = ["taxi_paper"];
+    //     $documentTypes = ["taxi_paper"];
 
-        return $this->documentWorkflowService->getDocumentsForUser([
-            'userId' => $userId,
-            'roleId' => $roleId,
-            'documentTypes' => $documentTypes,
-            'filters' => $request->query('filters'),
-            'isValidation' => true,
-        ], $request , $this->workflowPermissionService);
+    //     return $this->documentWorkflowService->getDocumentsForUser([
+    //         'userId' => $userId,
+    //         'roleId' => $roleId,
+    //         'documentTypes' => $documentTypes,
+    //         'filters' => $request->query('filters'),
+    //         'isValidation' => true,
+    //     ], $request , $this->workflowPermissionService);
 
 
 
-        // $isValidation = true; /* filter_var(
-        //     $request->query("isValidation"),
-        //     FILTER_VALIDATE_BOOLEAN
-        // );*/
+    //     // $isValidation = true; /* filter_var(
+    //     //     $request->query("isValidation"),
+    //     //     FILTER_VALIDATE_BOOLEAN
+    //     // );*/
 
-        // $documentTypes = ["taxi_paper"]; // $request->query("documentTypes");
-        // $filters = $request->query("filters");
+    //     // $documentTypes = ["taxi_paper"]; // $request->query("documentTypes");
+    //     // $filters = $request->query("filters");
 
-        // // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
-        //     $steps = WorkflowInstanceStep::with("workflowInstance")
-        //         ->get();
+    //     // // 1️⃣ Récupérer toutes les étapes en attente pour ce rôle
+    //     //     $steps = WorkflowInstanceStep::with("workflowInstance")
+    //     //         ->get();
         
 
-        // // 2️⃣ Extraire les document_ids
-        // $documentIds = $steps->pluck("workflowInstance.document_id")->unique();
+    //     // // 2️⃣ Extraire les document_ids
+    //     // $documentIds = $steps->pluck("workflowInstance.document_id")->unique();
 
-        // // return $documentIds->toArray();
+    //     // // return $documentIds->toArray();
 
-        // // 3️⃣ Appeler le microservice Document pour récupérer les détails
-        // $documents = [];
-        // if ($documentIds->isNotEmpty()) {
-        //     //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
+    //     // // 3️⃣ Appeler le microservice Document pour récupérer les détails
+    //     // $documents = [];
+    //     // if ($documentIds->isNotEmpty()) {
+    //     //     //  return  $queryParams = $this->prepareDocumentQueryParams($documentIds, $documentTypes, $filters);
 
-        //     // config('services.document_service.base_url');
+    //     //     // config('services.document_service.base_url');
 
-        //     $response = Http::withToken($request->bearerToken())
-        //         ->acceptJson()
-        //         ->get(
-        //             config("services.document_service.base_url") . "/by-ids", //$queryParams
-        //             [
-        //                 "ids" => $documentIds->toArray(),
-        //                 "documentTypes" => $documentTypes,
-        //                 "filters" => $filters,
-        //             ]
-        //         );
+    //     //     $response = Http::withToken($request->bearerToken())
+    //     //         ->acceptJson()
+    //     //         ->get(
+    //     //             config("services.document_service.base_url") . "/by-ids", //$queryParams
+    //     //             [
+    //     //                 "ids" => $documentIds->toArray(),
+    //     //                 "documentTypes" => $documentTypes,
+    //     //                 "filters" => $filters,
+    //     //             ]
+    //     //         );
 
-        //     if ($response->ok()) {
-        //         $documents = $response->json();
-        //     }
-        // }
+    //     //     if ($response->ok()) {
+    //     //         $documents = $response->json();
+    //     //     }
+    //     // }
 
-        // if (count($documents) == 0) {
-        //     return [];
-        // }
+    //     // if (count($documents) == 0) {
+    //     //     return [];
+    //     // }
 
-        // //   return $documents;
+    //     // //   return $documents;
 
-        // $data = [
-        //     "user_id" => $userId,
-        //     "role_id" => $roleId,
-        //     "count" => count($documents),
-        //     "documents" => $documents,
-        // ];
+    //     // $data = [
+    //     //     "user_id" => $userId,
+    //     //     "role_id" => $roleId,
+    //     //     "count" => count($documents),
+    //     //     "documents" => $documents,
+    //     // ];
 
-        // $documents_with_permissions = $this->workflowPermissionService->checkPermissions2($data, $request);
+    //     // $documents_with_permissions = $this->workflowPermissionService->checkPermissions2($data, $request);
 
-        // // On indexe les permissions par documentId
-        // $permissionsByDocId = collect($documents_with_permissions)->keyBy(
-        //     "documentId"
-        // );
+    //     // // On indexe les permissions par documentId
+    //     // $permissionsByDocId = collect($documents_with_permissions)->keyBy(
+    //     //     "documentId"
+    //     // );
 
-        // // Récupérer les instances de workflow correspondantes
-        // $workflowInstances = WorkflowInstance::whereIn(
-        //     "document_id",
-        //     $documentIds
-        // )
-        //     ->get()
-        //     ->keyBy("document_id"); // clé = document_id pour accès rapide
+    //     // // Récupérer les instances de workflow correspondantes
+    //     // $workflowInstances = WorkflowInstance::whereIn(
+    //     //     "document_id",
+    //     //     $documentIds
+    //     // )
+    //     //     ->get()
+    //     //     ->keyBy("document_id"); // clé = document_id pour accès rapide
 
-        // // On filtre et on enrichit les documents
-        // $translations = [
-        //     "NOT_STARTED" => [
-        //         "label" => "Validation non démarrée",
-        //         "emoji" => "⏳",
-        //         "color" => "info",
-        //     ],
-        //     "PENDING" => [
-        //         "label" => "En cours de validation",
-        //         "emoji" => "🟡",
-        //         "color" => "warning",
-        //     ],
-        //     "COMPLETE" => [
-        //         "label" => "Validation terminée",
-        //         "emoji" => "✅",
-        //         "color" => "success",
-        //     ],
-        //     "REJECT" => [
-        //         "label" => "Rejetée",
-        //         "emoji" => "❌",
-        //         "color" => "error",
-        //     ],
-        // ];
+    //     // // On filtre et on enrichit les documents
+    //     // $translations = [
+    //     //     "NOT_STARTED" => [
+    //     //         "label" => "Validation non démarrée",
+    //     //         "emoji" => "⏳",
+    //     //         "color" => "info",
+    //     //     ],
+    //     //     "PENDING" => [
+    //     //         "label" => "En cours de validation",
+    //     //         "emoji" => "🟡",
+    //     //         "color" => "warning",
+    //     //     ],
+    //     //     "COMPLETE" => [
+    //     //         "label" => "Validation terminée",
+    //     //         "emoji" => "✅",
+    //     //         "color" => "success",
+    //     //     ],
+    //     //     "REJECT" => [
+    //     //         "label" => "Rejetée",
+    //     //         "emoji" => "❌",
+    //     //         "color" => "error",
+    //     //     ],
+    //     // ];
 
-        // $actionableSteps = WorkflowInstanceStep::where("role_id", $roleId)
-        //     ->where("status", "PENDING")
-        //     ->get()
-        //     ->keyBy("workflow_instance_id");
+    //     // $actionableSteps = WorkflowInstanceStep::where("role_id", $roleId)
+    //     //     ->where("status", "PENDING")
+    //     //     ->get()
+    //     //     ->keyBy("workflow_instance_id");
 
-        // $filtered = collect($documents)
-        //     ->filter(function ($doc) use ($permissionsByDocId, $userId) {
-        //         $perm = $permissionsByDocId[$doc["document_type_id"]] ?? null;
+    //     // $filtered = collect($documents)
+    //     //     ->filter(function ($doc) use ($permissionsByDocId, $userId) {
+    //     //         $perm = $permissionsByDocId[$doc["document_type_id"]] ?? null;
 
-        //         if (!$perm) {
-        //             return false;
-        //         }
+    //     //         if (!$perm) {
+    //     //             return false;
+    //     //         }
 
-        //         if ($perm["permissions"]["view_all"]) {
-        //             return true;
-        //         }
+    //     //         if ($perm["permissions"]["view_all"]) {
+    //     //             return true;
+    //     //         }
 
-        //         if ($perm["permissions"]["view_own"]) {
-        //             return $doc["created_by"] === $userId;
-        //         }
+    //     //         if ($perm["permissions"]["view_own"]) {
+    //     //             return $doc["created_by"] === $userId;
+    //     //         }
 
-        //         return false;
-        //     })
-        //     ->map(function ($doc) use (
-        //         $workflowInstances,
-        //         $actionableSteps,
-        //         $translations
-        //     ) {
-        //         $instance = $workflowInstances[$doc["id"]] ?? null;
+    //     //         return false;
+    //     //     })
+    //     //     ->map(function ($doc) use (
+    //     //         $workflowInstances,
+    //     //         $actionableSteps,
+    //     //         $translations
+    //     //     ) {
+    //     //         $instance = $workflowInstances[$doc["id"]] ?? null;
 
-        //         $doc["workflow_status"] = null;
-        //         $doc["can_validate"] = false;
+    //     //         $doc["workflow_status"] = null;
+    //     //         $doc["can_validate"] = false;
 
-        //         if ($instance) {
-        //             $status = $instance->status;
+    //     //         if ($instance) {
+    //     //             $status = $instance->status;
 
-        //             if (isset($translations[$status])) {
-        //                 $doc["workflow_status"] = [
-        //                     "label" => $translations[$status]["label"],
-        //                     "emoji" => $translations[$status]["emoji"],
-        //                     "color" => $translations[$status]["color"],
-        //                 ];
-        //             }
+    //     //             if (isset($translations[$status])) {
+    //     //                 $doc["workflow_status"] = [
+    //     //                     "label" => $translations[$status]["label"],
+    //     //                     "emoji" => $translations[$status]["emoji"],
+    //     //                     "color" => $translations[$status]["color"],
+    //     //                 ];
+    //     //             }
 
-        //             // 🔥 C'est ICI la clé
-        //             $doc["can_validate"] = isset(
-        //                 $actionableSteps[$instance->id]
-        //             );
-        //         }
+    //     //             // 🔥 C'est ICI la clé
+    //     //             $doc["can_validate"] = isset(
+    //     //                 $actionableSteps[$instance->id]
+    //     //             );
+    //     //         }
 
-        //         return $doc;
-        //     })
-        //     ->values()
-        //     ->toArray();
+    //     //         return $doc;
+    //     //     })
+    //     //     ->values()
+    //     //     ->toArray();
 
-        // return $filtered;
-    }
+    //     // return $filtered;
+    // }
 
     public function oldgetFeeNotesToValidateByRole(Request $request)
     {
