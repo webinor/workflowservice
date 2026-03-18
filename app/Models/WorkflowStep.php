@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -19,11 +20,14 @@ class WorkflowStep extends Model
         "role_id",
         "position",
         "is_archived_step",
-        "status_label"
+        "is_payment_step",
+        "status_label",
+        "workflow_status_label_id"
     ];
 
     protected $casts = [
         "is_archived_step" => "boolean",
+        "is_payment_step" => "boolean",
     ];
 
     public function workflow()
@@ -34,6 +38,16 @@ class WorkflowStep extends Model
     public function stepRoles()
     {
         return $this->hasMany(WorkflowStepRole::class);
+    }
+
+    /**
+     * Get the workflowStatusLabel that owns the WorkflowStep
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function workflowStatusLabel(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowStatusLabel::class);
     }
 
     //     public function stepRolesDynamic()

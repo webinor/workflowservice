@@ -13,6 +13,7 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStep;
 use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
+use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepAttachmentType;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -86,9 +87,11 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
                         'id' => (string)$step->id,
                         'stepName' => $step->name,
                         'position' => $step->position,
-                        'stepStatus' => $step->status_label,
+                        'stepStatus' => $step->workflow_status_label_id,
                         'assignationMode'=>$step->assignment_mode,
                         'assignmentRule'=>$step->assignment_rule,
+                        'is_payment_step'=>$step->is_payment_step ? "1" : "0",
+                        'is_archived_step'=>$step->is_archived_step ? "1" : "0",
                         
 
                         'roleId' => $step->stepRoles->map(function ($role) {
@@ -249,9 +252,65 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
         }
     }
 
-
-    public function getStatusLabels(Request $request)
+    public function getConfigurableStatusLabels()
 {
+    $labels = WorkflowStatusLabel::where('is_configurable', true)
+                ->orderBy('label')
+                ->get(['id','label','emoji','color']);
+
+    return response()->json([
+        'success' => true,
+        'data' => $labels,
+    ], 200);
+}
+
+    /**
+     * Récupère tous les status labels pour les workflows
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getStatusLabels(Request $request)
+    {
+        try {
+
+            $query = WorkflowStatusLabel::query();
+
+            if ($request->input('status_types')) {
+
+                $query->whereIn('status_type', $request->input('status_types'));
+
+            }
+            // Récupération des labels triés par label
+            $labels = $query->orderBy('label')->get();
+
+            // Formatage pour le frontend (optionnel)
+            $formatted = $labels->map(function ($label) {
+                return [
+                    'id' => $label->id,
+                    'label' => $label->label,
+                    'emoji' => $label->emoji,
+                    'color' => $label->color,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formatted,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des status labels',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function oldgetStatusLabels(Request $request)
+{
+
 
     return response()->json([
         ["code" => "PENDING","label" => "En cours de validation"],
@@ -381,6 +440,23 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
         }
     }
 
+        public function getDocumentTypeData(int $documentTypeId)
+{
+    $response = Http::timeout(10)
+    ->withHeaders([ 
+            "Accept" => "application/json",
+            "Authorization" => "Bearer " . request()->bearerToken(),])
+        ->get(config('services.document_service.base_url')."/documentTypes/{$documentTypeId}");
+
+    if ($response->failed()) {
+        return $response->body();
+        return null;
+
+    }
+
+    return $response->json() ?? null;
+}
+
     /**
      * Store a newly created resource in storage.
      *
@@ -392,7 +468,13 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
     {
         DB::beginTransaction();
 
-        //return $request;
+        // return $request;
+
+        // throw new Exception(json_encode($this->getDocumentTypeData($request->document_type)), 1);
+        
+        
+        // $documentTypeData = $this->getDocumentTypeData($request->document_type);
+
 
         try {
             // Désactiver les workflows existants pour ce type de document
@@ -420,16 +502,24 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
                 ]);
             }
 
+            $documentTypeData = $this->getDocumentTypeData($request->document_type)["data"];
+
+            $child = explode(".",$documentTypeData["relation_name"])[0];
+
             // Map UUID frontend -> ID BDD pour pouvoir relier les transitions
             $stepIdMap = [];
+
+            // return $request->steps;
 
             // 3️⃣ Créer les étapes
             foreach ($request->steps as $index => $stepData) {
                 $step = WorkflowStep::create([
                     "workflow_id" => $workflow->id,
                     "name" => $stepData["stepName"],
-                    "status_label" => $stepData["stepStatus"],
+                    "workflow_status_label_id" => $stepData["stepStatus"] ?? null,
                     "assignment_mode" => $stepData["assignationMode"],
+                    "is_payment_step" => $stepData["is_payment_step"],
+                    "is_archived_step" => $stepData["is_archived_step"],
                     "assignment_rule" => !empty($stepData["assignmentRule"])
                         ? $stepData["assignmentRule"]
                         : null,
@@ -456,18 +546,27 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
                 if (
                     !empty($stepData["attachmentTypeRequired"]) &&
                     is_array($stepData["attachmentTypeRequired"])
-                ) {
+                    ) {
+                        
+                    // return $stepData["attachmentTypeRequired"];
+                    
+
                     foreach (
                         $stepData["attachmentTypeRequired"]
                         as $attachmentTypeId
                     ) {
-                        WorkflowStepAttachmentType::create([
+                        $WorkflowStepAttachmentType = WorkflowStepAttachmentType::create([
                             "workflow_step_id" => $step->id,
                             "attachment_type_id" => $attachmentTypeId,
                         ]);
+
+                        // return $WorkflowStepAttachmentType;
                     }
                 }
             }
+
+            // return '$request->steps';
+
 
             // 4️⃣ Créer les transitions envoyées par le frontend
             foreach ($request->transitions as $transitionData) {
@@ -526,7 +625,7 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
                             "condition_kind" => "PATH",
                             "condition_type" => $rule["type"] ?? null,
                             //'required' => $rule['required'] ?? 'yes',
-                            "field" => $rule["field"] ?? null,
+                            "field" => $child.".".$rule["field"] ?? null,
                             "operator" => $rule["operator"] ?? null,
                             "value" => $rule["value"] ?? null,
                             "next_step_id" => $toStep->id, // $stepIdMap[$rule['nextStep']] ?? null,

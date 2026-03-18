@@ -6,6 +6,7 @@ use App\Models\WorkflowInstance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\WorkflowInstanceStep;
+use App\Models\WorkflowStatusLabel;
 use App\Services\DocumentWorkflowService;
 use App\Services\WorkflowPermissionService;
 use Exception;
@@ -50,27 +51,27 @@ class WorkflowValidationController extends Controller
                     //         // ->where('status', 'PENDING')
                     //         ->get();
                     // }
-            $stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label")
+            $stepsRoleQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,workflow_status_label_id")
                 ->where("role_id", $roleId)
                 ->where("status", "PENDING");
-                
-            $allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,status_label");
 
-            if (!empty($filters["status"])) {
-    $allStepsQuery->whereHas("workflowInstance", function ($query) use ($filters) {
-        $query->where("status", $filters["status"]);
-    });
-}
-            // Filtre exact sur workflowStep.status_label si $filters["status"] existe
+            $allStepsQuery = WorkflowInstanceStep::with("workflowInstance:id,document_id,status", "workflowStep:id,workflow_status_label_id");
+
+//             if (!empty($filters["status"])) {
+//     $allStepsQuery->whereHas("workflowInstance", function ($query) use ($filters) {
+//         $query->where("workflow_status_label_id", WorkflowStatusLabel::whereLabel($filters["status"])->first()->id);
+//     });
+// }
+            // Filtre exact sur workflowStep.workflow_status_label_id si $filters["status"] existe
             // if (!empty($filters["status"])) {
 
             //     $statuses = is_array($filters["status"])
             //         ? $filters["status"]
             //         : explode(",", $filters["status"]);
 
-            //     // filtre sur workflowStep.status_label
+            //     // filtre sur workflowStep.workflow_status_label_id
             //     $allStepsQuery->whereHas("workflowStep", function ($q) use ($statuses) {
-            //         $q->whereIn("status_label", $statuses);
+            //         $q->whereIn("workflow_status_label_id", $statuses);
             //     });
 
             //     // filtre sur WorkflowInstanceStep.status selon la valeur de $statuses
@@ -143,7 +144,7 @@ class WorkflowValidationController extends Controller
                         "document_id",
                         $documentIds
                     )
-                    ->with('lastActiveStep')
+                    ->with(['lastActiveStep','workflowStatusLabel'])
                         ->get()
                         ->keyBy("document_id"); // clé = document_id pour accès rapide
 
@@ -201,13 +202,18 @@ class WorkflowValidationController extends Controller
                 // $currentStep = $workflow_instance? $workflow_instance->instance_steps->first() : null ;
                 $currentStep = $workflow_instance? $workflow_instance->lastActiveStep : null ;
 
-            $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->status_label : null;
+            // $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->workflow_status_label_id : null;
+            $statusLabel = ($currentStep && $currentStep->workflowStep)? $currentStep->workflowStep->workflow_status_label_id : null;
 
                 if ($status && isset($translations[$status])) {
                     $doc["workflow_status"] = [
-                        "label" => $translations[$status]["label"],//$statusLabel ? $statusLabel : $translations[$status]["label"],
-                        "emoji" => $translations[$status]["emoji"],
-                        "color" => $translations[$status]["color"],
+                        // "label" => $translations[$status]["label"],//$statusLabel ? $statusLabel : $translations[$status]["label"],
+                        // "emoji" => $translations[$status]["emoji"],
+                        // "color" => $translations[$status]["color"],
+
+                        "label" =>$workflow_instance->workflowStatusLabel ? $workflow_instance->workflowStatusLabel->label : "" , // $statusLabel ? $statusLabel : $translations[$status]["label"],
+                        "emoji" =>$workflow_instance->workflowStatusLabel ? $workflow_instance->workflowStatusLabel->emoji:"",// $translations[$status]["emoji"],
+                        "color" =>$workflow_instance->workflowStatusLabel ? $workflow_instance->workflowStatusLabel->color:"", // $translations[$status]["color"],
                     ];
                 } else {
                     $doc["workflow_status"] = null;

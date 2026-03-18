@@ -39,6 +39,8 @@ Route::middleware("jwt.check")
             Route::get("/{id}/steps", "steps");
 
             Route::get('/get-status-labels', 'getStatusLabels');
+            Route::get('/get-configurable-status-labels', 'getConfigurableStatusLabels');
+            
             
             Route::apiResource("/", WorkflowController::class);
         });

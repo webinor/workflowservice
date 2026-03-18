@@ -17,6 +17,7 @@ use App\Http\Requests\UpdateWorkflowInstanceRequest;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStepRoleDynamic;
 use App\Models\WorkflowStatusHistory;
+use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
 use App\Services\WorkflowInstanceService;
@@ -258,6 +259,8 @@ class WorkflowInstanceController extends Controller
         });*/
     }
 
+    
+
     /**
      * Store a newly created resource in storage.
      *
@@ -376,6 +379,8 @@ class WorkflowInstanceController extends Controller
                         "position" => $step["position"],
                     ]);
 
+                    $stepInstance->load("workflowStep.workflowStatusLabel");
+
                     $instanceSteps[$step["id"]][$roleId] = $stepInstance;
 
                     // 3️⃣ Créer l'entrée WorkflowInstanceStepRole pour les rôles dynamiques
@@ -412,6 +417,7 @@ class WorkflowInstanceController extends Controller
                         $stepInstance->position === $minPosition
                     ) {
                         $stepInstance->update(["status" => $STATUS_PENDING]);
+                        $workflowInstance->update(["workflow_status_label_id" => $stepInstance->workflowStep->workflowStatusLabel->id ?? "NO STATUS"]);
                         $stepsToNotify[] = $stepInstance; // stocker pour notification
                     }
                 }
@@ -437,7 +443,8 @@ class WorkflowInstanceController extends Controller
             DB::commit();
 
             return response()->json(
-                $workflowInstance->load("instance_steps"),
+                $workflowInstance->load(["instance_steps"]),
+                // $workflowInstance->load(["instance_steps" ,"activeInstanceStep.workflowStep.workflowStatusLabel"]),
                 201
             );
 
@@ -852,6 +859,72 @@ class WorkflowInstanceController extends Controller
         }
     }
 
+    
+    protected function resolveWorkflowStatusLabel($currentStep, $instance)
+{
+    $step = $currentStep->workflowStep;
+
+    // 1️⃣ étape de paiement
+    if ($step->is_payment_step) {
+
+        $response = Http::withToken(request()->bearerToken())
+    ->get(config('services.document_service.base_url')."/".$instance->document_id."/payment-status");
+
+    
+$paymentStatus = $response->json()['status'];
+
+// if ($paymentStatus === 'PARTIALLY_PAID') {
+//     $label = WorkflowStatusLabel::where('code','PARTIALLY_PAID')->first();
+// }
+
+// if ($paymentStatus === 'PAID') {
+//     $label = WorkflowStatusLabel::where('code','PAID')->first();
+// }
+
+    // throw new Exception(WorkflowStatusLabel::where('code', $paymentStatus)->first(), 1);
+
+        return WorkflowStatusLabel::where('code', $paymentStatus)->first();
+    }
+
+    // 2️⃣ label configuré sur la step
+    if ($step->workflowStatusLabel) {
+        return $step->workflowStatusLabel;
+    }
+
+    return null;
+}
+
+public function registerPayment($instance , $currentStep , $request , $user){
+
+if ($currentStep->workflowStep->is_payment_step) {
+    $documentId = $instance->document_id;
+
+    $payload = [
+        'paid_amount' => $request->get('paid_amount'),           // montant payé
+        'is_full_pay' => $request->get('is_full_pay'), // paiement total ou partiel
+        'payment_mode' => $request->get('payment_mode'),
+        'user_id' => $user['id'],                     // qui effectue le paiement
+    ];
+
+    $response = Http::withToken($request->bearerToken())
+        ->acceptJson()
+        ->post(config('services.document_service.base_url') . "/{$documentId}/register-payment", $payload);
+
+    if ($response->failed()) {
+        throw new \Exception("Impossible d'enregistrer le paiement : " . $response->body());
+    }
+
+
+    return $updatedDocument = $response->json();
+
+    // Mettre à jour le label de l'instance workflow
+    $workflowStatusLabel = $currentStep->workflowStep->workflowStatusLabel;
+    $instance->update([
+        'status_label' => $workflowStatusLabel->label ?? 'NO STATUS',
+    ]);
+}
+}
+
     public function validateStep(Request $request, $documentId)
     {
         DB::beginTransaction();
@@ -859,6 +932,10 @@ class WorkflowInstanceController extends Controller
         try {
             $user = $request->get("user");
             $action = Str::lower($request->get("condition"));
+
+            $is_full_pay = $request->get("is_full_pay");
+            $is_payment = $request->get("is_payment");
+            $payment_mode = $request->get("payment_mode");
 
             // 1️⃣ Récupérer l'instance de workflow
             $instance = WorkflowInstance::whereDocumentId(
@@ -967,79 +1044,144 @@ class WorkflowInstanceController extends Controller
                 }
             }
 
-            if ($nextStep) {
-                ////il y'a encore une autre etape
+            // if ($nextStep) {
+            //     ////il y'a encore une autre etape
 
-                //  return $nextStep;
+            //     //  return $nextStep;
 
-                //verifions si la prchaine
-                // Activer la prochaine étape
+            //     //verifions si la prchaine
+            //     // Activer la prochaine étape
 
-                if ($nextStep->workflowStep->is_archived_step) {
-                    $nextStep->update([
-                        "status" => "COMPLETE",
-                        "user_id" => $user["id"],
-                        "executed_at" => now(),
-                        "validated_at" => now(),
-                    ]);
+            //     if ($nextStep->workflowStep->is_archived_step) {
+            //         $nextStep->update([
+            //             "status" => "COMPLETE",
+            //             "user_id" => $user["id"],
+            //             "executed_at" => now(),
+            //             "validated_at" => now(),
+            //         ]);
 
-                    // Mettre à jour l'instance comme "toujours en cours"
-                    $instance->update([
-                        "status" => "COMPLETE",
-                    ]);
+            //         // Mettre à jour l'instance comme "terminee"
+            //         $instance->update([
+            //             "status" => "COMPLETE",
+            //         ]);
 
-                    $historyDataArray[] = [
-                        "model_id" => $currentStep->id,
-                        "model_type" => get_class($currentStep),
-                        "changed_by" => $user["id"],
-                        "old_status" => $oldStatus,
-                        "new_status" =>
-                            $currentStep->status == "COMPLETE"
-                                ? "COMPLETED"
-                                : $currentStep->status,
-                        "comment" => $request->get("comment"),
-                    ];
-                } else {
-                    $nextStep->update([
-                        "status" => "PENDING",
-                    ]);
+            //         $historyDataArray[] = [
+            //             "model_id" => $currentStep->id,
+            //             "model_type" => get_class($currentStep),
+            //             "changed_by" => $user["id"],
+            //             "old_status" => $oldStatus,
+            //             "new_status" =>
+            //                 $currentStep->status == "COMPLETE"
+            //                     ? "COMPLETED"
+            //                     : $currentStep->status,
+            //             "comment" => $request->get("comment"),
+            //         ];
+            //     } else {
+            //         $nextStep->update([
+            //             "status" => "PENDING",
+            //         ]);
 
-                    // Mettre à jour l'instance comme "toujours en cours"
-                    $instance->update([
-                        "status" => "PENDING",
-                    ]);
+            //         // Mettre à jour l'instance comme "toujours en cours"
+            //         $instance->update([
+            //             "status" => "PENDING",
+            //         ]);
 
-                    $this->workflowInstanceService->notifyNextValidator(
-                        $nextStep,
-                        $request,
-                        $request->get("department_id")
-                    );
-                }
+            //         $this->workflowInstanceService->notifyNextValidator(
+            //             $nextStep,
+            //             $request,
+            //             $request->get("department_id")
+            //         );
+            //     }
 
-                //$newStatus = "PENDING";
-            } else {
-                // Pas d’étape suivante → Workflow terminé
-                $instance->update([
-                    "status" => "COMPLETE",
-                ]);
+            //     //$newStatus = "PENDING";
+            // } else {
+            //     // Pas d’étape suivante → Workflow terminé
+            //     $instance->update([
+            //         "status" => "COMPLETE",
+            //     ]);
 
-                //$newStatus = "COMPLETE";
-            }
+            //     //$newStatus = "COMPLETE";
+            // }
+
+
+            
+             $newDoc = $this-> registerPayment($instance , $currentStep , $request , $user)["document"];
+            
+            // Déterminer le label à partir de l'étape qui vient d'être exécutée
+        //   return  
+          $label =   $this->resolveWorkflowStatusLabel($currentStep, $instance);
+            // $label =  WorkflowStatusLabel::where('code', "PARTIALLY_PAID")->first();
+if ($nextStep) {
+
+    // il y'a encore une autre étape
+
+
+    
+    if ($nextStep->workflowStep->is_archived_step) {
+
+        // return    $label =  WorkflowStatusLabel::where('code', "PAID")->first();
+
+
+        $nextStep->update([
+            "status" => "COMPLETE",
+            "user_id" => $user["id"],
+            "executed_at" => now(),
+            "validated_at" => now(),
+        ]);
+
+        // workflow terminé
+        $instance->update([
+            "status" => "COMPLETE",
+            "workflow_status_label_id" => $label ? $label->id : null
+        ]);
+
+        $historyDataArray[] = [
+            "model_id" => $currentStep->id,
+            "model_type" => get_class($currentStep),
+            "changed_by" => $user["id"],
+            "old_status" => $oldStatus,
+            "new_status" =>
+                $currentStep->status == "COMPLETE"
+                    ? "COMPLETED"
+                    : $currentStep->status,
+            "comment" => $request->get("comment"),
+        ];
+
+    } else {
+
+
+
+        // activer la prochaine étape
+        $nextStep->update([
+            "status" => "PENDING",
+        ]);
+
+        // workflow toujours en cours
+        $instance->update([
+            "status" => "PENDING",
+            "workflow_status_label_id" => $label ? $label->id : null
+        ]);
+
+        $this->workflowInstanceService->notifyNextValidator(
+            $nextStep,
+            $request,
+            $request->get("department_id")
+        );
+    }
+
+} else {
+
+    // Pas d’étape suivante → Workflow terminé
+    $instance->update([
+        "status" => "COMPLETE",
+        "status_label_id" => $label ? $label->id : null
+    ]);
+}
+
+
+        // return $instance;
 
             // 🔹 Historisation
-
-            /* $historyData = [
-                "model_id" => $currentStep->id,
-                "model_type" => get_class($currentStep),
-                "changed_by" => $user["id"],
-                "old_status" => $oldStatus,
-                "new_status" =>
-                    $currentStep->status == "COMPLETE"
-                        ? "COMPLETED"
-                        : $currentStep->status,
-                "comment" => $request->get("comment"),
-            ];*/
-
             $historyDataArray[] = [
                 "model_id" => $currentStep->id,
                 "model_type" => get_class($currentStep),
@@ -1071,9 +1213,10 @@ class WorkflowInstanceController extends Controller
 
             return response()->json([
                 "success" => true,
-                "message" => "Étape validée avec succès",
+                "message" => "Paiement finalisé avec succès",
                 "currentStep" => $currentStep,
                 "nextStep" => $nextStep,
+                "instance" => $instance
                 // "history" => $history,
             ]);
         } catch (\Throwable $th) {

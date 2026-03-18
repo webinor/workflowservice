@@ -10,11 +10,21 @@ class WorkflowInstance extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['workflow_id', 'document_id', 'status'];
+    protected $fillable = ['workflow_id', 'document_id', 'status' ,'workflow_status_label_id' ];
 
     public function instance_steps()
     {
         return $this->hasMany(WorkflowInstanceStep::class);
+    }
+
+    /**
+     * Get the workflowStatusLabel that owns the WorkflowInstance
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function workflowStatusLabel(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowStatusLabel::class);
     }
 
     /**
