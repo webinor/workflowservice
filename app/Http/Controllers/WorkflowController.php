@@ -132,35 +132,94 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
                         'name' => $transition->name,
                         'conditionType' => Str::upper($transition->type),
 
-                        'blockingRules' => $transition->conditions
-            ->where('condition_kind', 'BLOCKING')
-            ->map(function ($condition) {
+            //             'blockingRuleGroups' => $transition->conditions
+            // ->where('condition_kind', 'BLOCKING')
+            // ->map(function ($condition) {
+            //     return [
+            //         'id' => $condition->id,
+            //         'type' => $condition->condition_type, // exists / comparison
+            //         'existsTarget' => $condition->required_type,
+            //         'value' => collect($condition->required_id)
+            //         ->map(fn($v) => (string) $v),
+            //         'operator' => $condition->operator,
+            //         'field' => $condition->field ?? null,
+            //     ];
+            // })->values(),
+
+            'blockingRuleGroups' => $transition->conditions
+    ->where('condition_kind', 'BLOCKING')
+    ->map(function ($condition) {
+        // fallback group_id null
+        $condition->group_id = $condition->group_id ?? 'default';
+        return $condition;
+    })
+    ->groupBy('group_id')
+    ->map(function ($conditions, $groupId) {
+
+        return [
+            'id' => $groupId,
+            'rules' => $conditions->map(function ($condition) {
+
                 return [
                     'id' => $condition->id,
-                    'type' => $condition->condition_type, // exists / comparison
+                    'type' => $condition->condition_type,
                     'existsTarget' => $condition->required_type,
-                    'value' => collect($condition->required_id)
-                    ->map(fn($v) => (string) $v),
+                    'value' => is_array($condition->required_id)
+                        ? collect($condition->required_id)->map(fn($v) => (string) $v)
+                        : $condition->value,
                     'operator' => $condition->operator,
                     'field' => $condition->field ?? null,
                 ];
-            })->values(),
+
+            })->values()
+        ];
+
+    })->values(),
 
 
 
             // 🔵 Path Rules
-        'pathRules' => $transition->conditions
-            ->where('condition_kind', 'PATH')
-            ->map(function ($condition) {
+        // 'pathRuleGroups' => $transition->conditions
+        //     ->where('condition_kind', 'PATH')
+        //     ->map(function ($condition) {
+        //         return [
+        //             'id' => $condition->id,
+        //             'type' => $condition->condition_type, // comparison
+        //             'field' => $condition->field,
+        //             'operator' => $condition->operator,
+        //             'value' => $condition->condition_type == "comparison" ? floatval($condition->value) : $condition->value ,
+        //             'nextStep' => $condition->next_step_id,
+        //         ];
+        //     })->values(),
+
+        'pathRuleGroups' => $transition->conditions
+    ->where('condition_kind', 'PATH')
+    ->map(function ($condition) {
+        $condition->group_id = $condition->group_id ?? 'default';
+        return $condition;
+    })
+    ->groupBy('group_id')
+    ->map(function ($conditions, $groupId) {
+
+        return [
+            'id' => $groupId,
+            'rules' => $conditions->map(function ($condition) {
+
                 return [
                     'id' => $condition->id,
-                    'type' => $condition->condition_type, // comparison
+                    'type' => $condition->condition_type,
                     'field' => $condition->field,
                     'operator' => $condition->operator,
-                    'value' => floatval($condition->value),
+                    'value' => $condition->condition_type === "comparison"
+                        ? floatval($condition->value)
+                        : $condition->value,
                     'nextStep' => $condition->next_step_id,
                 ];
-            })->values(),
+
+            })->values()
+        ];
+
+    })->values(),
                     ];
                 }),
 
@@ -597,41 +656,108 @@ $labels = WorkflowStep::join('workflows', 'workflows.id', '=', 'workflow_steps.w
                 ]);
 
                 // 5️⃣ Créer les conditions pour cette transition
-                if (!empty($transitionData["blockingRules"])) {
-                    foreach ($transitionData["blockingRules"] as $rule) {
-                        //return $transitionData['blockingRules'];
-                        //return($rule['value']);
-                        WorkflowCondition::create([
-                            "workflow_step_id" => $fromStep->id,
-                            "workflow_transition_id" => $workflowTransion->id,
-                            "condition_kind" => "BLOCKING",
-                            "condition_type" => $rule["type"] ?? null,
-                            "required_type" => $rule["existsTarget"], //=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
-                            "required_id" => $rule["value"],
-                            "field" =>
-                                /*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
-                            "operator" => $rule["operator"] ?? null,
-                            "next_step_id" => null,
-                        ]);
-                    }
-                }
+                // if (!empty($transitionData["blockingRules"])) {
+                //     foreach ($transitionData["blockingRules"] as $rule) {
+                //         //return $transitionData['blockingRules'];
+                //         //return($rule['value']);
+                //         WorkflowCondition::create([
+                //             "workflow_step_id" => $fromStep->id,
+                //             "workflow_transition_id" => $workflowTransion->id,
+                //             "condition_kind" => "BLOCKING",
+                //             "condition_type" => $rule["type"] ?? null,
+                //             "required_type" => $rule["existsTarget"], //=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
+                //             "required_id" => $rule["value"],
+                //             "field" =>
+                //                 /*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
+                //             "operator" => $rule["operator"] ?? null,
+                //             "next_step_id" => null,
+                //         ]);
+                //     }
+                // }
+                if (!empty($transitionData["blockingRuleGroups"])) {
 
-                if (!empty($transitionData["pathRules"])) {
-                    foreach ($transitionData["pathRules"] as $rule) {
-                        WorkflowCondition::create([
-                            //'workflow_id' => $workflow->id,
-                            "workflow_step_id" => $fromStep->id,
-                            "workflow_transition_id" => $workflowTransion->id,
-                            "condition_kind" => "PATH",
-                            "condition_type" => $rule["type"] ?? null,
-                            //'required' => $rule['required'] ?? 'yes',
-                            "field" => $child.".".$rule["field"] ?? null,
-                            "operator" => $rule["operator"] ?? null,
-                            "value" => $rule["value"] ?? null,
-                            "next_step_id" => $toStep->id, // $stepIdMap[$rule['nextStep']] ?? null,
-                        ]);
-                    }
-                }
+    foreach ($transitionData["blockingRuleGroups"] as $group) {
+
+        $groupId = $group["id"] ?? Str::uuid()->toString();
+
+        foreach ($group["rules"] as $rule) {
+
+           
+            WorkflowCondition::create([
+                "workflow_step_id" => $fromStep->id,
+                "workflow_transition_id" => $workflowTransion->id,
+
+                "group_id" => $groupId, // 🔥 IMPORTANT
+
+                "condition_kind" => "BLOCKING",
+                "condition_type" => $rule["type"] ?? null,
+
+                "required_type" => $rule["existsTarget"] ?? null,
+                "required_id" => $rule["value"] ?? null,
+
+                "field" => $rule["type"] === "exists"
+                    ? "secondary_attachments.[].attachment_type_id"
+                    : ($rule["field"] ?? null),
+
+                "operator" => $rule["operator"] ?? null,
+              "value" => $rule["value"],
+    // : json_encode([$rule["value"]]),
+
+                "next_step_id" => null,
+            ]);
+        }
+    }
+}
+
+                // if (!empty($transitionData["pathRules"])) {
+                //     foreach ($transitionData["pathRules"] as $rule) {
+                //         WorkflowCondition::create([
+                //             //'workflow_id' => $workflow->id,
+                //             "workflow_step_id" => $fromStep->id,
+                //             "workflow_transition_id" => $workflowTransion->id,
+                //             "condition_kind" => "PATH",
+                //             "condition_type" => $rule["type"] ?? null,
+                //             //'required' => $rule['required'] ?? 'yes',
+                //             "field" => $child.".".$rule["field"] ?? null,
+                //             "operator" => $rule["operator"] ?? null,
+                //             "value" => $rule["value"] ?? null,
+                //             "next_step_id" => $toStep->id, // $stepIdMap[$rule['nextStep']] ?? null,
+                //         ]);
+                //     }
+                // }
+
+                if (!empty($transitionData["pathRuleGroups"])) {
+
+    foreach ($transitionData["pathRuleGroups"] as $group) {
+
+        $groupId = $group["id"] ?? Str::uuid()->toString();
+
+        foreach ($group["rules"] as $rule) {
+
+            WorkflowCondition::create([
+                "workflow_step_id" => $fromStep->id,
+                "workflow_transition_id" => $workflowTransion->id,
+
+                "group_id" => $groupId, // 🔥 IMPORTANT
+
+                "condition_kind" => "PATH",
+                "condition_type" => $rule["type"] ?? null,
+
+                "field" => isset($rule["field"])
+                    ? $child . "." . $rule["field"]
+                    : null,
+
+                "operator" => $rule["operator"] ?? null,
+                 "value" => isset($rule["value"])
+    ? (is_array($rule["value"]) ? $rule["value"] : [$rule["value"]])
+    : null,
+
+                "next_step_id" => $toStep->id,
+            ]);
+        }
+    }
+}
+
             }
 
             DB::commit();

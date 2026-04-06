@@ -22,10 +22,13 @@ class WorkflowCondition extends Model
         'operator' ,
         'value',
         'next_step_id',
+        'group_id'
     ];
 
 
     protected $casts = [
     'required_id' => 'array',
+    'value' => 'array',
+
 ];
 }

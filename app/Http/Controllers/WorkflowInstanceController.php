@@ -362,7 +362,7 @@ class WorkflowInstanceController extends Controller
                         $initialStatus = $STATUS_COMPLETE;
                         $stepUserId = $userConnected["id"];
                     } elseif ($index === 0) {
-                        $initialStatus = $STATUS_PENDING;
+                        //$initialStatus = $STATUS_PENDING;
                     }
 
                     $stepInstance = WorkflowInstanceStep::create([
@@ -398,31 +398,62 @@ class WorkflowInstanceController extends Controller
                 }
             }
 
-            // 3️⃣ Activer toutes les premières étapes à exécuter (PENDING)
-            // Trouver la position minimale des étapes non démarrées
-            $minPosition = collect($instanceSteps)
-                ->flatMap(fn($stepGroup) => $stepGroup)
-                ->filter(
-                    fn($stepInstance) => $stepInstance->status ===
-                        $STATUS_NOT_STARTED
-                )
-                ->min(fn($stepInstance) => $stepInstance->position);
 
-            // Mettre en PENDING uniquement les étapes à cette position
-            $stepsToNotify = [];
-            foreach ($instanceSteps as $stepGroup) {
-                foreach ($stepGroup as $stepInstance) {
-                    if (
-                        $stepInstance->status === $STATUS_NOT_STARTED &&
-                        $stepInstance->position === $minPosition
-                    ) {
-                        $stepInstance->update(["status" => $STATUS_PENDING]);
-                        $workflowInstance->update(["workflow_status_label_id" => $stepInstance->workflowStep->workflowStatusLabel->id ?? "NO STATUS"]);
-                        $stepsToNotify[] = $stepInstance; // stocker pour notification
-                    }
-                }
+            $documentData = $this->getDocumentData($workflowInstance, $request);
+
+            //  throw new Exception(json_encode($documentData), 1);
+
+
+
+            $firstStep = $this->getFirstStepInstance($workflowInstance);
+
+
+            $stepData = $this->getNextStep(
+                $workflowInstance,
+                $firstStep,
+                $documentData
+            );
+
+             throw new Exception(json_encode($stepData), 1);
+
+
+            $nextStep = $stepData['next_step'];
+            if ($nextStep) {
+                $nextStep->update(['status' => 'PENDING']);
+                $workflowInstance->update(["workflow_status_label_id" => $stepInstance->workflowStep->workflowStatusLabel->id ?? "NO STATUS"]);
+                $this->workflowInstanceService->notifyNextValidator($nextStep, $request, $departmentId);
             }
 
+            
+
+
+
+            $stepsToNotify = [];
+
+            // 3️⃣ Activer toutes les premières étapes à exécuter (PENDING)
+            // Trouver la position minimale des étapes non démarrées
+            // $minPosition = collect($instanceSteps)
+            //     ->flatMap(fn($stepGroup) => $stepGroup)
+            //     ->filter(
+            //         fn($stepInstance) => $stepInstance->status ===
+            //             $STATUS_NOT_STARTED
+            //     )
+            //     ->min(fn($stepInstance) => $stepInstance->position);
+
+            // // Mettre en PENDING uniquement les étapes à cette position
+            // foreach ($instanceSteps as $stepGroup) {
+            //     foreach ($stepGroup as $stepInstance) {
+            //         if (
+            //             $stepInstance->status === $STATUS_NOT_STARTED &&
+            //             $stepInstance->position === $minPosition
+            //             ) {
+            //                 $stepInstance->update(["status" => $STATUS_PENDING]);
+            //                 $workflowInstance->update(["workflow_status_label_id" => $stepInstance->workflowStep->workflowStatusLabel->id ?? "NO STATUS"]);
+            //                 $stepsToNotify[] = $stepInstance; // stocker pour notification
+            //             }
+            //         }
+            // }
+                
             //  throw new Exception(json_encode($stepsToNotify), 1);
             // 🔔 Ici : notifier les utilisateurs des étapes PENDING
             foreach ($stepsToNotify as $stepInstance) {
@@ -455,6 +486,17 @@ class WorkflowInstanceController extends Controller
             throw $th;
         }
     }
+
+    protected function getFirstStepInstance(WorkflowInstance $workflowInstance)
+{
+    // Récupère toutes les étapes de l'instance
+    $steps = $workflowInstance->instance_steps;
+
+    // Si tu veux juste la première étape selon la position
+    $firstStep = $steps->sortBy('position')->first();
+
+    return $firstStep;
+}
 
     public function testNotify(
         Request $request,
@@ -653,106 +695,92 @@ class WorkflowInstanceController extends Controller
         }
     }
 
-    public function old_store(StoreWorkflowInstanceRequest $request)
-    {
-        try {
-            DB::beginTransaction();
+    
 
-            $validated = $request->validated();
-            $userConnected = $validated["created_by"];
-            $STATUS_NOT_STARTED = "NOT_STARTED";
-            $STATUS_PENDING = "PENDING";
-            $STATUS_COMPLETE = "COMPLETE";
+   public function getDocumentData(WorkflowInstance $instance, $request): array
+{
+    $user = $request->get("user");
 
-            $workflowInstance = WorkflowInstance::create([
-                "workflow_id" => $validated["workflow_id"],
-                "document_id" => $validated["document_id"],
-                "status" => "PENDING",
-            ]);
+    // throw new Exception(json_encode($user), 1);
 
-            //  $department_position = $this->resolveDepartmentValidator($validated["department_id"]) ;
-            // return  $role = $this->resolveRoleValidator($department_position['position']['name'])['results'] ;
 
-            //  return $validated['steps'];
+    $response = Http::withToken($request->bearerToken())
+        ->acceptJson()
+        ->get(
+            config("services.document_service.base_url") .
+                "/{$instance->document_id}"
+        );
 
-            // 4️⃣ Créer les étapes de l'instance
-            // return $step;
-            $userRoleId = $userConnected["role_id"]; // ou $userConnected->role_id selon ton modèle
-
-            foreach ($validated["steps"] as $index => $step) {
-                if ($index === 0 && $step["role_id"] === $userRoleId) {
-                    $initialStatus = $STATUS_COMPLETE; // l'utilisateur réalise l'étape dès la création
-                    $stepUserId = $userConnected["id"];
-                } elseif ($index === 0) {
-                    $initialStatus = $STATUS_PENDING; // première étape à réaliser par un autre
-                    $stepUserId = null;
-                } else {
-                    $initialStatus = $STATUS_NOT_STARTED; // les étapes suivantes ne sont pas encore activées
-                    $stepUserId = null;
-                }
-
-                $step_instance = WorkflowInstanceStep::create([
-                    "workflow_instance_id" => $workflowInstance->id,
-                    "workflow_step_id" => $step["id"],
-                    "role_id" =>
-                        $step["assignment_mode"] == "STATIC"
-                            ? $step["role_id"] ?? null
-                            : $this->getRoleValidator(
-                                $validated["department_id"]
-                            )["id"],
-                    "user_id" => $stepUserId,
-                    "status" => $initialStatus,
-                    "position" => $step["position"], // copie depuis le template
-                ]);
-
-                if ($step["assignment_mode"] != "STATIC") {
-                    // return $step_instance;
-                }
-            }
-
-            $nextStep = $workflowInstance
-                ->instance_steps()
-                ->where("status", $STATUS_NOT_STARTED)
-                ->orderBy("position")
-                ->first();
-
-            if ($nextStep) {
-                $nextStep->update([
-                    "status" => $STATUS_PENDING,
-                ]);
-
-                // notifier le user assigné
-            }
-
-            DB::commit();
-
-            return response()->json($workflowInstance, 201);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
+    if (!$response->successful()) {
+        throw new \Exception(
+            "Impossible de récupérer le document : " . $response->status()
+        );
     }
 
-    public function getDocumentData(WorkflowInstance $instance, $request): array
-    {
-        // 🔹 Récupérer les données du document depuis le microservice
-        $response = Http::withToken($request->bearerToken())
-            ->acceptJson()
-            ->get(
-                config("services.document_service.base_url") .
-                    "/{$instance->document_id}"
-            );
+    $documentData = $response->json();
+
+    // 🔥 Roles → IDs uniquement
+    $roles = collect($user["roles"] ?? [])
+        ->pluck("id")
+        ->toArray();
+
+    // 🔥 Permissions → soit IDs soit noms selon ton système
+    $permissions = collect($user["effective_permissions"] ?? []);
+        // ->map(fn($perm) => is_array($perm) ? ($perm["id"] ?? $perm["name"]) : $perm)
+        // ->toArray();
+
+    $documentData["user"] = [
+        "id" => $user["id"] ?? null,
+        "roles" => $roles,
+        "permissions" => $permissions,
+    ];
+
+    return $documentData;
+}
+
+
+
+private function hasPermission( int $userId , string $action , string $resourceType , string $resourceId , $folderId = null  )
+{
+    //$documentTypeId = 8;// $this->getDocumentType($documentId);
+
+    $url = config('services.user_service.base_url') . '/permissions/check';
+     $response = Http::withHeaders($this->gatewayHeaders())
+    ->get($url, [
+        'userId' => $userId,
+        'resourceType' => $resourceType,
+        'resourceId' => $resourceId,
+        'action' => $action,
+        'folderId' => $folderId,
+    ]);
+
+   
+    
 
         if (!$response->successful()) {
-            throw new \Exception(
-                "Impossible de récupérer le document : " . $response->status()
+
+             throw new Exception(json_encode([
+                    "error" => "Erreur lors de la recuperation de la permission",
+                    "url" => $url,
+                    "userId" => $userId,
+                    "status" => $response->body(),
+                ]), 1);
+
+            return response()->json(
+                [
+                    "error" => "Erreur lors de la recuperation de la permission",
+                    "url" => $url,
+                    "status" => $response->status(),
+                    "body" => $response->body(),
+                ],
+                $response->status()
             );
         }
 
-        $documentData = $response->json();
+        $permissionData = $response->json();
 
-        return $documentData; //->toArray();
-    }
+        return $permissionData["allowed"];
+}
 
     public function getCurrentWorkflowInstance($documentId):WorkflowInstance{
 
@@ -1572,6 +1600,8 @@ with([
 
             
             $pathConditions =$pathtransition->conditions;
+
+            $groupedConditions = $pathConditions->groupBy('group_id');
             
             // throw new Exception($transitions, 1);
             
@@ -1579,6 +1609,8 @@ with([
                 // throw new Exception($pathtransition->id, 1);
                 // throw new Exception($pathConditions, 1);
             
+
+foreach ($groupedConditions as $groupId => $pathConditions) {
             
 
             $allSatisfied = true;
@@ -1590,72 +1622,33 @@ with([
                     break; // une seule condition PATH non remplie → on ignore cette transition
                 }
             }
-
-            if (!$allSatisfied) {
-                continue;
-            }
-
-
-                // throw new Exception($pathtransition, 1);
-
-
-
-            //return "{$instance->id} {$transition->to_step_id}";
-            // Toutes les conditions PATH sont remplies → on retourne la prochaine étape
-            // $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
-            //     "workflow_instance_id",
-            //     $instance->id
-            // )
-            //     ->with("workflowStep")
-            //     ->where("workflow_step_id", $transition->to_step_id)
-            //     ->first();
-
-                
-        return    $this->get_step($instance , $pathtransition , $isDynamic);
-
-            // throw new Exception($tempWorkflowInstanceStep, 1);
             
 
-        //     if ($transition->to_step_id && !$tempWorkflowInstanceStep) {
-        //         //il y'a un etape dynamique
 
-        //         $isDynamic = true;
-        //     } else {
 
-        // // throw new Exception("tempWorkflowInstanceStep", 1);
+            // ✅ SI UN GROUPE EST VALIDE → ON PREND LA TRANSITION
+    if ($allSatisfied) {
 
-        //         return [
-        //             "isDynamic" => $isDynamic,
-        //             "next_step" => $tempWorkflowInstanceStep,
-        //         ];
+    //   throw new Exception(json_encode($pathtransition), 1);
+
+        return $this->get_step($instance, $pathtransition, $isDynamic);
+    }
+
+        //     if (!$allSatisfied) {
+        //         continue;
         //     }
+                
+        // return    $this->get_step($instance , $pathtransition , $isDynamic);
+
+            // throw new Exception($tempWorkflowInstanceStep, 1);
+
+}
+
         }
 
-        //  $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
-        //         "workflow_instance_id",
-        //         $instance->id
-        //     )
-        //         ->with("workflowStep")
-        //         ->where("workflow_step_id", $default_transitions->to_step_id)
-        //         ->first();
-
-        //  if ($default_transitions->to_step_id && !$tempWorkflowInstanceStep) {
-        //         //il y'a un etape dynamique
-
-        //         $isDynamic = true;
-        //     } else {
-
-        // // throw new Exception("tempWorkflowInstanceStep", 1);
-
-        //         return [
-        //             "isDynamic" => $isDynamic,
-        //             "next_step" => $tempWorkflowInstanceStep,
-        //         ];
-        //     }
+        
 
         return  $this->get_step($instance , $default_transition , $isDynamic);
-
-        // throw new Exception("Aucune transition valide", 1);
 
         // Aucune transition valide
         return ["isDynamic" => $isDynamic, "next_step" => null];
@@ -1701,7 +1694,7 @@ with([
         //: bool
         // Récupérer la valeur du champ (supporte les chemins imbriqués)
         //   return
-        $fieldValue = $this->getNestedValue($data, $condition->field);
+        $fieldValue = $this->getNestedValue($data, $condition->field ?? "");
         //return $condition->value;
         
         // throw new Exception($fieldValue, 1);
@@ -1731,9 +1724,95 @@ with([
 
         // Si le type de condition est 'userRole' (exemple : vérifier le rôle du soumissionnaire)
         if ($condition->condition_type === "userRole") {
-            return isset($data["user"]["roles"]) &&
-                in_array($condition->value, $data["user"]["roles"]);
-        }
+
+
+            
+            $userRoles = $data["user"]["roles"] ?? [];
+            
+            
+          
+    // sécurité
+    if (!is_array($userRoles)) {
+        $userRoles = [$userRoles];
+    }
+
+    //   throw new Exception(json_encode($userRoles), 1);
+    // $conditionValue = json_decode($condition->value, true) ?? [];//$condition->value;
+    $conditionValue = $condition->value;
+
+    //   throw new Exception(($condition->value), 1);
+
+    // support multi-values
+    if (!is_array($conditionValue)) {
+        $conditionValue = [$conditionValue];
+    }
+
+    switch ($condition->operator) {
+
+        case "IN":
+
+    //   throw new Exception(json_encode(count(array_intersect($conditionValue, $userRoles)) > 0), 1);
+            // au moins un rôle correspond
+            return count(array_intersect($conditionValue, $userRoles)) > 0;
+
+        case "NOT IN":
+            // aucun rôle ne correspond
+            return count(array_intersect($conditionValue, $userRoles)) === 0;
+
+        default:
+            // fallback (ancien comportement)
+            return count(array_intersect($conditionValue, $userRoles)) > 0;
+    }
+}
+
+        if ($condition->condition_type === "userPermission") {
+
+    $userPermissions = $data["user"]["permissions"] ?? [];
+
+    // sécurité
+    if (!is_array($userPermissions)) {
+        $userPermissions = [$userPermissions];
+    }
+
+    $conditionValue = $condition->value[0] ?? null;
+
+
+    // support multi-values
+    if (!is_array($conditionValue)) {
+        $conditionValue = [$conditionValue];
+    }
+
+    switch ($condition->operator) {
+
+        case "ANY":
+            // au moins une permission correspond
+            return count(array_intersect($conditionValue, $userPermissions)) > 0;
+
+        case "ALL":
+            // toutes les permissions doivent être présentes
+            return empty(array_diff($conditionValue, $userPermissions));
+
+        default:
+            // fallback = ANY
+            return count(array_intersect($conditionValue, $userPermissions)) > 0;
+    }
+}
+
+        if ($condition->condition_type === "isSubmitter") {
+    return isset($data["user"]["id"]) &&
+           isset($data["submitted_by"]) &&
+           $data["user"]["id"] == $data["submitted_by"];
+}
+
+
+if ($condition->condition_type === "isDG") {
+    return in_array("DG", $data["user"]["roles"] ?? []);
+}
+
+
+if ($condition->condition_type === "isManager") {
+    return in_array("MANAGER", $data["user"]["roles"] ?? []);
+}
 
         // Si le type de condition est 'comparison' ou autre basé sur un opérateur
         if (
@@ -1780,27 +1859,7 @@ with([
         return true;
     }
 
-    protected function old_evaluatepCondition(
-        WorkflowCondition $condition,
-        array $data
-    ) {
-        $fieldValue = $this->getNestedValue($data, $condition->field);
-
-        switch ($condition->operator) {
-            case ">":
-                return $fieldValue !== null &&
-                    $fieldValue > (float) $condition->value;
-            case "<":
-                return $fieldValue !== null &&
-                    $fieldValue < (float) $condition->value;
-            case "=":
-                return $fieldValue !== null && $fieldValue == $condition->value;
-            case "!=":
-                return $fieldValue !== null && $fieldValue != $condition->value;
-            default:
-                return true;
-        }
-    }
+ 
 
     /**
      * Récupère une valeur dans un tableau multidimensionnel via un chemin "dot notation"
