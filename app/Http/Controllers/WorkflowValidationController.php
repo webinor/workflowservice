@@ -944,11 +944,21 @@ class WorkflowValidationController extends Controller
         // return response()->json();
     }
 
-        public function getTaxiPapersToValidateByRole(Request $request)
+    
+        public function getMissionsToValidateByRole(Request $request)
+    {
+        return $this->documentWorkflowService
+            ->getDocumentsToValidateByRole($request, ['mission'],$this->workflowPermissionService);
+    }
+
+
+       public function getTaxiPapersToValidateByRole(Request $request)
     {
         return $this->documentWorkflowService
             ->getDocumentsToValidateByRole($request, ['taxi_paper'],$this->workflowPermissionService);
     }
+
+    
 
     public function getFeeNotesToValidateByRole(Request $request)
     {

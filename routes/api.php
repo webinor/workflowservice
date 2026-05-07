@@ -106,6 +106,11 @@ Route::middleware("jwt.check")
             "getMyTaxiPapersToValidateByRole",
         ]);
 
+        Route::get("/missions-to-validate", [
+            WorkflowValidationController::class,
+            "getMissionsToValidateByRole",
+        ]);
+
         Route::get("/taxi-papers-to-validate", [
             WorkflowValidationController::class,
             "getTaxiPapersToValidateByRole",

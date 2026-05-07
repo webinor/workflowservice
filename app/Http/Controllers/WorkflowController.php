@@ -249,7 +249,7 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
     }
 }
 
-    public function checkIfInjectDepartments(Request $request, $documentTypeId)
+    public function checkIfInjectDepartments(Request $request, string $documentTypeId)
     {
         // On récupère l'ID du workflow actif lié via la table pivot
         $workflowIds = DocumentTypeWorkflow::where(
