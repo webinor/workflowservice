@@ -20,6 +20,8 @@ use App\Models\WorkflowStatusHistory;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
+use App\Services\Workflow\Event\WorkflowEventEngine;
+use App\Services\Workflow\WorkflowInstanceResolverService;
 use App\Services\WorkflowInstanceService;
 use Carbon\Carbon;
 use Exception;
@@ -30,13 +32,22 @@ class WorkflowInstanceController extends Controller
 {
     use ResolveDepartmentValidator;
 
-    protected $workflowInstanceService;
+    protected WorkflowInstanceService $workflowInstanceService;
+      protected WorkflowInstanceResolverService $resolver;
+
 
     public function __construct(
-        WorkflowInstanceService $workflowInstanceService
+        WorkflowInstanceService $workflowInstanceService,
+        WorkflowInstanceResolverService $workflowInstanceResolverService
     ) {
         $this->workflowInstanceService = $workflowInstanceService;
+         $this->resolver = $workflowInstanceResolverService;
+         
     }
+
+
+  
+  
     /**
      * Display a listing of the resource.
      *
@@ -78,16 +89,16 @@ class WorkflowInstanceController extends Controller
         ]);
     }
 
-    public function getCurrentStep(
-        WorkflowInstance $instance
-    ): ?WorkflowInstanceStep {
-        return $instance
-            ->instance_steps()
-            ->with("workflowStep")
-            ->where("status", "PENDING")
-            ->orderBy("position", "asc")
-            ->first();
-    }
+    // public function getCurrentStep(
+    //     WorkflowInstance $instance
+    // ): ?WorkflowInstanceStep {
+    //     return $instance
+    //         ->instance_steps()
+    //         ->with("workflowStep")
+    //         ->where("status", "PENDING")
+    //         ->orderBy("position", "asc")
+    //         ->first();
+    // }
 
         public function getCurrentStepValidators($documentId) {
 
@@ -95,7 +106,7 @@ class WorkflowInstanceController extends Controller
             $instance = $this->getCurrentWorkflowInstance($documentId);
 
             // 2️⃣ Récupérer l'étape en cours
-            $currentInstanceStep = $this->getCurrentStep($instance);
+            $currentInstanceStep = $this->resolver->getCurrentStep($instance);
 
         $workflowStep = $currentInstanceStep->workflowStep;
 
@@ -895,7 +906,7 @@ private function hasPermission( int $userId , string $action , string $resourceT
             $instance = $this->getCurrentWorkflowInstance($documentId);
 
             // 2️⃣ Récupérer l'étape en cours
-            $currentStep = $this->getCurrentStep($instance);
+            $currentStep = $this->resolver->getCurrentStep($instance);
 
             if (!$currentStep) {
                 return response()->json(
@@ -955,7 +966,7 @@ private function hasPermission( int $userId , string $action , string $resourceT
                 $instance,
                 $currentStep,
                 $documentData,
-                $action
+                // $action
             );
 
             // throw new Exception(json_encode($stepData), 1);
@@ -985,44 +996,44 @@ private function hasPermission( int $userId , string $action , string $resourceT
     }
 
     
-    protected function resolveWorkflowStatusLabel($currentStep, $instance)
-{
-    $step = $currentStep->workflowStep;
+//     protected function resolveWorkflowStatusLabel($currentStep, $instance)
+// {
+//     $step = $currentStep->workflowStep;
 
-    //  throw new Exception(json_encode($step), 1);
+//     //  throw new Exception(json_encode($step), 1);
 
-    // 1️⃣ étape de paiement
-    if ($step->is_payment_step) {
+//     // 1️⃣ étape de paiement
+//     if ($step->is_payment_step) {
 
-        $response = Http::withToken(request()->bearerToken())
-    ->get(config('services.document_service.base_url')."/".$instance->document_id."/payment-status");
+//         $response = Http::withToken(request()->bearerToken())
+//     ->get(config('services.document_service.base_url')."/".$instance->document_id."/payment-status");
 
     
-$paymentStatus = $response->json()['status'];
+// $paymentStatus = $response->json()['status'];
 
-// if ($paymentStatus === 'PARTIALLY_PAID') {
-//     $label = WorkflowStatusLabel::where('code','PARTIALLY_PAID')->first();
-// }
+// // if ($paymentStatus === 'PARTIALLY_PAID') {
+// //     $label = WorkflowStatusLabel::where('code','PARTIALLY_PAID')->first();
+// // }
 
-// if ($paymentStatus === 'PAID') {
-//     $label = WorkflowStatusLabel::where('code','PAID')->first();
-// }
+// // if ($paymentStatus === 'PAID') {
+// //     $label = WorkflowStatusLabel::where('code','PAID')->first();
+// // }
 
-    // throw new Exception(WorkflowStatusLabel::where('code', $paymentStatus)->first(), 1);
+//     // throw new Exception(WorkflowStatusLabel::where('code', $paymentStatus)->first(), 1);
 
-        return WorkflowStatusLabel::where('code', $paymentStatus)->first();
-    }
+//         return WorkflowStatusLabel::where('code', $paymentStatus)->first();
+//     }
 
    
 
 
-    // 2️⃣ label configuré sur la step
-    if ($step->workflowStatusLabel) {
-        return $step->workflowStatusLabel;
-    }
+//     // 2️⃣ label configuré sur la step
+//     if ($step->workflowStatusLabel) {
+//         return $step->workflowStatusLabel;
+//     }
 
-    return null;
-}
+//     return null;
+// }
 
 public function registerPayment($instance , $currentStep , $request , $user){
 
@@ -1081,7 +1092,7 @@ public function registerPayment($instance , $currentStep , $request , $user){
             )->firstOrFail();
 
             // 2️⃣ Récupérer l'étape en cours
-            $currentStep = $this->getCurrentStep($instance);
+            $currentStep = $this->resolver->getCurrentStep($instance);
             $oldStatus = $currentStep->status;
             $histories = [];
             $historyDataArray = [];
@@ -1122,12 +1133,23 @@ public function registerPayment($instance , $currentStep , $request , $user){
                 "validated_at" => now(),
             ]);
 
+            // 🔥 MINI MOTEUR DÉCLENCHÉ ICI
+    // return    
+    $result = app(WorkflowEventEngine::class)->handle(
+            $documentId,
+            $instance,
+            $currentStep,
+            $request->get("condition") // validate / reject
+        );
+
+            //
+
             // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
             $stepData = $this->getNextStep(
                 $instance,
                 $currentStep,
                 $documentData,
-                $action
+                // $action
             );
 
             //  throw new Exception(json_encode($stepData), 1);
@@ -1208,7 +1230,7 @@ if ($newDoc) {
             
             // Déterminer le label à partir de l'étape qui vient d'être exécutée
         //   return  
-          $label =   $this->resolveWorkflowStatusLabel($currentStep, $instance);
+          $label =   $this->resolver->resolveWorkflowStatusLabel($instance);
             // $label =  WorkflowStatusLabel::where('code', "PARTIALLY_PAID")->first();
     //  throw new Exception(json_encode($label), 1);
 
@@ -1347,7 +1369,7 @@ if ($nextStep) {
             )->firstOrFail();
 
             // 2️⃣ Récupérer l'étape en cours
-            $currentStep = $this->getCurrentStep($instance);
+            $currentStep = $this->resolver->getCurrentStep($instance);
             $oldStatus = $currentStep->status;
             $histories = [];
             $historyDataArray = [];
@@ -1772,7 +1794,7 @@ foreach ($groupedConditions as $groupId => $pathConditions) {
         $fieldValue = $this->getNestedValue($data, $condition->field ?? "");
         //return $condition->value;
         
-        // throw new Exception($fieldValue, 1);
+        // throw new Exception(json_encode($fieldValue), 1);
 
         //throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
@@ -1954,7 +1976,7 @@ if ($condition->condition_type === "isManager") {
         $keys = explode(".", $path);
         $value = $data;
 
-        //  throw new Exception(json_encode($keys), 1);
+        //throw new Exception(json_encode($keys), 1);
 
         foreach ($keys as $key) {
             //return $value;

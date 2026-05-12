@@ -6,10 +6,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
+use App\Models\WorkflowStatusLabel;
+use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
 
 class DocumentWorkflowService
 {
+
+    protected WorkflowInstanceResolverService $resolver;
+
+    public function __construct(WorkflowInstanceResolverService $workflowInstanceResolverService) {
+        $this->resolver = $workflowInstanceResolverService;
+    }
 
     public function getDocumentsToValidateByRole(
     Request $request,
@@ -124,6 +132,7 @@ class DocumentWorkflowService
         return $response->ok() ? $response->json() : [];
     }
 
+
     protected function getPermissions(
         array $documents,
         int $userId,
@@ -148,6 +157,8 @@ class DocumentWorkflowService
         return collect($permissions)->keyBy('documentId');
     }
 
+
+
     protected function enrichDocuments(
         array $documents,
         $permissionsByDocType,
@@ -168,6 +179,7 @@ class DocumentWorkflowService
 
                 if ($instance) {
                     $doc['workflow_status'] = $translations[$instance->status] ?? null;
+                    $doc['workflow_label'] =   $this->resolver->resolveWorkflowStatusLabel($instance) ?? "N/D";
                     $doc['can_validate'] = isset(
                         $actionableSteps[$instance->id]
                     );
