@@ -140,6 +140,7 @@ class WorkflowActionStepController extends Controller
             foreach ($actionStep["workflowStep"]["stepRoles"] as $role) {
                 $stepActionsResult[] = [
                     "permission_required" => $actionStep["permission_required"],
+                    "transaction_type_code" => $actionStep["transaction_type_code"],
                     "workflow_action_type" => $actionStep["workflowAction"]["workflowActionType"]["code"],
                     "role_id" => $role["role_id"],
                     "transition_type" => $actionStep["transition"]["type"] ?? null,
