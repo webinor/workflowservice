@@ -40,7 +40,7 @@ class WorkflowEventEngine
     /**
      * LOGISTIQUE VALIDÉE
      */
-    private function onLogisticsValidated($documentId, $instance)
+    private function onLogisticsValidated(int $documentId,  $instance)
     {
         return $this->documentClient->generateMissionDocuments(
             $documentId,
