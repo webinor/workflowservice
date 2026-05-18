@@ -127,6 +127,7 @@ class DocumentWorkflowService
             );
 
         // throw new Exception(json_encode($response->body()), 1);
+        // throw new Exception(json_encode($documentTypes), 1);
         
 
         return $response->ok() ? $response->json() : [];
