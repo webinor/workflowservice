@@ -15,64 +15,68 @@ class WorkflowInstanceService
         WorkflowInstanceStep $stepInstance,
         $request,
         $departmentId = "",
-        $userIdsToNotify = []
+        $stepRoles = []
     ) {
         $step = $stepInstance->load("workflowStep")->workflowStep;
-        $stepRoles = [];
+        // $stepRoles = [];
 
-        if ($step["assignment_mode"] === "STATIC") {
+        if(false){
 
-             //   throw new Exception(json_encode($step), 1);
+                if ($step["assignment_mode"] === "STATIC") {
 
-            $stepRoles = WorkflowStepRole::where(
-                "workflow_step_id",
-                $step["id"]
-            )
-                ->pluck("role_id")
-                ->toArray();
-        } else {
+                    //   throw new Exception(json_encode($step), 1);
 
-             // throw new Exception(json_encode($step), 1);
+                    $stepRoles = WorkflowStepRole::where(
+                        "workflow_step_id",
+                        $step["id"]
+                    )
+                        ->pluck("role_id")
+                        ->toArray();
+                } else {
 
-
-                //throw new Exception(json_encode($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR"), 1);
-
-
-            if ($step["assignment_rule"] === null || $step["assignment_rule"] === "CUSTOM") {
+                    // throw new Exception(json_encode($step), 1);
 
 
-              //  throw new Exception(json_encode("ouiiiiiiiiii"), 1);
+                        //throw new Exception(json_encode($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR"), 1);
 
-                
-                if ($departmentId != "") {
-                // récupération dynamique du rôle selon le département
-                $validatorRole = $this->getRoleValidator($departmentId);
-                if ($validatorRole) {
-                    $stepRoles = [$validatorRole["id"]];
+
+                    if ($step["assignment_rule"] === null || $step["assignment_rule"] === "CUSTOM") {
+
+
+                    //  throw new Exception(json_encode("ouiiiiiiiiii"), 1);
+
+                        
+                        if ($departmentId != "") {
+                        // récupération dynamique du rôle selon le département
+                        $validatorRole = $this->getRoleValidator($departmentId);
+                        if ($validatorRole) {
+                            $stepRoles = [$validatorRole["id"]];
+                        }
+                    }
+                        
+                    } elseif($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR") {
+                        
+                    
+                        // récupération dynamique du rôle selon le département de l'utilisateur afin de recuperer le superieur hierachique
+                        $validatorRole = $this->getRoleValidator($departmentId);
+                        if ($validatorRole) {
+                            $stepRoles = [$validatorRole["id"]];
+                        }
+                    
+                    //  throw new Exception(json_encode($stepRoles), 1);
+
+                        
+                    }
+                    else{
+
+                        throw new Exception(json_encode("une erreur est survenue lors de la notification du validateur"), 1);
+
+
+                    }
+                    
+                    
                 }
-            }
-                
-            } elseif($step["assignment_rule"] === "DEPARTMENT_SUPERVISOR") {
-                
-             
-                // récupération dynamique du rôle selon le département de l'utilisateur afin de recuperer le superieur hierachique
-                $validatorRole = $this->getRoleValidator($departmentId);
-                if ($validatorRole) {
-                    $stepRoles = [$validatorRole["id"]];
-                }
-            
-              //  throw new Exception(json_encode($stepRoles), 1);
 
-                
-            }
-            else{
-
-                throw new Exception(json_encode("une erreur est survenue lors de la notification du validateur"), 1);
-
-
-            }
-            
-            
         }
 
         // Vérifier si l'étape est PENDING
