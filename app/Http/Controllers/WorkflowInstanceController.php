@@ -369,7 +369,7 @@ $instance_steps = $workflowInstance->instance_steps
                 }
                 elseif($instance_step->workflowStep->assignment_rule == "DIRECT_MANAGER"){
 
-                    $dynamicUser["userData"] = $dynamicUser["data"];
+                    $dynamicUser["userData"] = $dynamicUser;
 
                         // throw new Exception(json_encode($dynamicUser["data"]), 1);
                 

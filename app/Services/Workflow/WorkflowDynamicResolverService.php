@@ -40,9 +40,10 @@ class WorkflowDynamicResolverService
 
             $actor = $this->resolveActor($document); 
             $actorId = $actor["id"]; 
+            $employeeId = $actor["employee"]["id"]; 
 
 
-                    // throw new Exception(json_encode($actor, JSON_PRETTY_PRINT), 1);
+                    // throw new Exception(json_encode($employeeId, JSON_PRETTY_PRINT), 1);
 
 
 
@@ -82,18 +83,30 @@ class WorkflowDynamicResolverService
                 case 'DIRECT_MANAGER':
 
                 
-
-                    if (!$actorId) {
-                        return null;
+                    if (!$employeeId) {
+                        return null ;
                     }
 
-                    $response = Http::get(
-                        config("services.user_service.base_url")
-                        . "/{$actorId}/manager"
-                    );
+                    $response = Http::acceptJson()-> //withToken(request()->bearerToken())->
+    get(config('services.department_service.base_url') . "/employee/{$employeeId}/relationships", [
+        'type' => 'manager'
+    ]);
+
+                    // $response = Http::get(
+                    //     config("services.user_service.base_url")
+                    //     . "/{$actorId}/manager"
+                    // );
+
+                        // throw new Exception(config('services.department_service.base_url') . "/employee/{$employeeId}/relationships", 1);
+                        // throw new Exception(json_encode($response->body()), 1);
+
 
                     if ($response->ok()) {
-                        return $response->json();
+                         $data =  $response->json()["related_employee"]["employee"]["user"];
+
+                        // throw new Exception(json_encode($data), 1);
+
+                       return $data;
                     }
 
                         throw new Exception(json_encode($response->body()), 1);
