@@ -769,52 +769,6 @@ return response()->json([
                 $this->workflowInstanceService->notifyNextValidator($nextStep, $request, $departmentId , $stepRoles);
             }
 
-            
-
-
-
-
-            $stepsToNotify = [];
-
-            // 3️⃣ Activer toutes les premières étapes à exécuter (PENDING)
-            // Trouver la position minimale des étapes non démarrées
-            // $minPosition = collect($instanceSteps)
-            //     ->flatMap(fn($stepGroup) => $stepGroup)
-            //     ->filter(
-            //         fn($stepInstance) => $stepInstance->status ===
-            //             $STATUS_NOT_STARTED
-            //     )
-            //     ->min(fn($stepInstance) => $stepInstance->position);
-
-            // // Mettre en PENDING uniquement les étapes à cette position
-            // foreach ($instanceSteps as $stepGroup) {
-            //     foreach ($stepGroup as $stepInstance) {
-            //         if (
-            //             $stepInstance->status === $STATUS_NOT_STARTED &&
-            //             $stepInstance->position === $minPosition
-            //             ) {
-            //                 $stepInstance->update(["status" => $STATUS_PENDING]);
-            //                 $workflowInstance->update(["workflow_status_label_id" => $stepInstance->workflowStep->workflowStatusLabel->id ?? "NO STATUS"]);
-            //                 $stepsToNotify[] = $stepInstance; // stocker pour notification
-            //             }
-            //         }
-            // }
-                
-            //  throw new Exception(json_encode($stepsToNotify), 1);
-            // 🔔 Ici : notifier les utilisateurs des étapes PENDING
-            foreach ($stepsToNotify as $stepInstance) {
-                //$roleId = $stepInstance->role_id;
-                //$userId = $stepInstance->user_id;
-
-                // Soit tu récupères l'utilisateur associé au rôle
-                // soit tu envoies une notification au rôle directement
-                $this->workflowInstanceService->notifyNextValidator(
-                    $stepInstance,
-                    $request,
-                    $departmentId,
-                    $stepRoles
-                );
-            }
 
 
 
@@ -1379,7 +1333,7 @@ public function registerPayment($instance , $currentStep , $request , $user){
     
     if ($currentStep->workflowStep->is_payment_step) {
 
-    //  throw new Exception(json_encode($currentStep), 1);
+    //  throw new Exception(json_encode($request->all()), 1);
 
 
     $documentId = $instance->document_id;
