@@ -103,11 +103,11 @@ class WorkflowInstanceController extends Controller
 
         public function getCurrentStepValidators($documentId) {
 
-                   // 1️⃣ Récupérer l'instance de workflow
-            $instance = $this->getCurrentWorkflowInstance($documentId);
+        // 1️⃣ Récupérer l'instance de workflow
+        $instance = $this->getCurrentWorkflowInstance($documentId);
 
-            // 2️⃣ Récupérer l'étape en cours
-            $currentInstanceStep = $this->resolver->getCurrentStep($instance);
+        // 2️⃣ Récupérer l'étape en cours
+        $currentInstanceStep = $this->resolver->getCurrentStep($instance);
 
         $workflowStep = $currentInstanceStep->workflowStep;
 
@@ -127,6 +127,16 @@ class WorkflowInstanceController extends Controller
             $stepRoles =  [];
             
         }
+
+//         throw new Exception(json_encode(([
+//     'document_id' => $documentId,
+//     'instance_id' => $instance->id,
+//     'workflow_id' => $instance->workflow_id,
+//     'current_step_id' => $currentInstanceStep->id,
+//     'workflow_step_id' => $workflowStep->id,
+//     'assignment_mode' => $workflowStep->assignment_mode,
+// ])), 1);
+        
 
         
     return response()->json([
@@ -1372,6 +1382,7 @@ public function registerPayment($instance , $currentStep , $request , $user){
         try {
             $user = $request->get("user");
             $action = Str::lower($request->get("condition"));
+            $actionStepId = Str::lower($request->get("actionStepId"));
 
             $is_full_pay = $request->get("is_full_pay");
             $is_payment = $request->get("is_payment");
@@ -1430,7 +1441,8 @@ public function registerPayment($instance , $currentStep , $request , $user){
             $documentId,
             $instance,
             $currentStep,
-            $request->get("condition") // validate / reject
+            $actionStepId
+            // $request->get("condition") // validate / reject
         );
 
             //

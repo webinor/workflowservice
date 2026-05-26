@@ -40,6 +40,11 @@ class WorkflowStep extends Model
         return $this->hasMany(WorkflowStepRole::class);
     }
 
+    public function workflowActionStepEvents()
+    {
+        return $this->hasMany(WorkflowActionStepEvent::class);
+    }
+
     /**
      * Get the workflowStatusLabel that owns the WorkflowStep
      *

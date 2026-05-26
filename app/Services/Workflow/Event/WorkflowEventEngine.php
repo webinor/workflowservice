@@ -2,8 +2,9 @@
 
 namespace App\Services\Workflow\Event;
 
-
+use App\Models\WorkflowActionStepEvent;
 use App\Services\Document\DocumentServiceClient;
+use Exception;
 
 class WorkflowEventEngine
 {
@@ -17,13 +18,45 @@ class WorkflowEventEngine
     /**
      * Point d'entrée du moteur
      */
-    public function handle($documentId, $instance, $currentStep, string $action)
+    public function handle($documentId, $instance, $currentStep, string $actionStepId)
     {
+
+    $events = WorkflowActionStepEvent::where(
+        'workflow_action_step_id',
+        $actionStepId
+    )
+    ->where('is_active', true)
+    ->orderBy('execution_order')
+    ->get();
+
+    //  $events = $currentStep->workflowStep->workflowActionStepEvents;
+
+
+    // throw new Exception(json_encode($events), 1);
+    
+
+    foreach ($events as $event) {
+
+    $handler = app($event->handler_class);
+
+    $handler->execute(
+        $documentId,
+        $instance,
+        $event->config ?? []
+    );
+}
+
+
+
+        return null;
+
+
+
         $code = $currentStep->workflowStep->code;
 
         // 🔥 CAS 1 : validation logistique
         // if ($code === "LOGISTICS_VALIDATION" && $action === "validate") {
-        if (true) {
+        if ($code) {
 
             return $this->onLogisticsValidated($documentId, $instance);
         }
@@ -36,6 +69,15 @@ class WorkflowEventEngine
 
         return null;
     }
+
+    //  private function execute(int $documentId,  $instance)
+    // {
+    //     return $this->documentClient->generateMissionDocuments(
+    //         $documentId,
+    //         $instance->id,
+    //         "logistics_validated"
+    //     );
+    // }
 
     /**
      * LOGISTIQUE VALIDÉE
