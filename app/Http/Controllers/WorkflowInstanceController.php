@@ -1435,14 +1435,32 @@ public function registerPayment($instance , $currentStep , $request , $user){
                 "validated_at" => now(),
             ]);
 
+
+//              DB::afterCommit(function () use (
+//     $WorkflowEventEngine,
+//     $documentId,
+//     $instance,
+//     $currentStep,
+//     $actionStepId
+// ) {
+//    $WorkflowEventEngine->handle(
+//         $documentId,
+//         $instance,
+//         $currentStep,
+//         $actionStepId
+//     );
+// });
+
+
+
             // 🔥 MINI MOTEUR DÉCLENCHÉ ICI
     // return    
-    $result = $WorkflowEventEngine->handle(
+    $WorkflowEventEngine->handle(
             $documentId,
             $instance,
             $currentStep,
             $actionStepId
-            // $request->get("condition") // validate / reject
+          
         );
 
             //

@@ -40,6 +40,8 @@ Route::middleware("jwt.check")
 
             Route::get('/get-status-labels', 'getStatusLabels');
             Route::get('/get-configurable-status-labels', 'getConfigurableStatusLabels');
+
+            Route::get('/documents/{documentId}/status', 'status');
             
             
             Route::apiResource("/", WorkflowController::class);

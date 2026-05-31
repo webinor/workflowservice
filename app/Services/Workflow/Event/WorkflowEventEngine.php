@@ -5,14 +5,17 @@ namespace App\Services\Workflow\Event;
 use App\Models\WorkflowActionStepEvent;
 use App\Services\Document\DocumentServiceClient;
 use Exception;
+use Illuminate\Support\Facades\Http;
 
 class WorkflowEventEngine
 {
     protected DocumentServiceClient $documentClient;
+    protected WorkflowAudienceResolver $workflow_audience_resolver;
 
-    public function __construct( DocumentServiceClient $documentClient){
+    public function __construct( DocumentServiceClient $documentClient,WorkflowAudienceResolver $workflow_audience_resolver){
 
         $this->documentClient = $documentClient;
+        $this->workflow_audience_resolver = $workflow_audience_resolver;
     }
 
     /**
@@ -29,45 +32,126 @@ class WorkflowEventEngine
     ->orderBy('execution_order')
     ->get();
 
+
+   
+       
+        $document =  $this->documentClient->getDocument($documentId);
+
+  
+
+
     //  $events = $currentStep->workflowStep->workflowActionStepEvents;
 
 
     // throw new Exception(json_encode($events), 1);
     
 
-    foreach ($events as $event) {
+foreach ($events as $event) {
 
+    /**
+     * =========================================
+     * 1️⃣ Exécution métier
+     * =========================================
+     */
     $handler = app($event->handler_class);
 
-    $handler->execute(
+    $result = $handler->execute(
         $documentId,
         $instance,
         $event->config ?? []
     );
+
+    /**
+     * =========================================
+     * 2️⃣ Résolution audiences
+     * =========================================
+     */
+     $audiences = $this->workflow_audience_resolver->resolve(
+        $event,
+        $instance,
+        $document
+
+    );
+
+    /**
+     * =========================================
+     * 3️⃣ Dispatch notifications
+     * =========================================
+     */
+    $url = config('services.notification_service.base_url')
+            . '/bulk';
+    foreach ($audiences as $audience) {
+
+    $response =  Http::acceptJson()->post(
+
+            $url,
+
+            [
+
+                /**
+                 * Template code
+                 */
+                'code' => $event->event,
+
+                /**
+                 * EMAIL / SMS / IN_APP
+                 */
+                'channels' => [
+                    $audience['channel']
+                ],
+
+                /**
+                 * Destinataires
+                 */
+                'recipients' => $audience['recipients'],
+
+                /**
+                 * Payload dynamique
+                 */
+                'data' => array_merge(
+                    [
+
+                    'document_id' => $documentId,
+
+                    'workflow_instance_id'
+                        => $instance->id,
+
+                  
+                ],
+                  ($result ?? [])
+                )
+            ]
+        );
+
+
+        if (!$response->successful()) {
+           // return false;
+
+            return response()->json(
+                [
+                    "error" => "Erreur lors de l’appel au microservice notification",
+                    "url" => $url,
+                    "status" => $response->status(),
+                    "body" => $response->body(),
+                ],
+                $response->status()
+            );
+        }
+        else{
+
+
+            return $response->json();
+
+
+        }
+
+
+    }
 }
 
+return ["ok"];
 
 
-        return null;
-
-
-
-        $code = $currentStep->workflowStep->code;
-
-        // 🔥 CAS 1 : validation logistique
-        // if ($code === "LOGISTICS_VALIDATION" && $action === "validate") {
-        if ($code) {
-
-            return $this->onLogisticsValidated($documentId, $instance);
-        }
-
-        // 🔥 CAS 2 : validation finale mission
-        if ($code === "MISSION_FINAL_VALIDATION" && $action === "validate") {
-
-            return $this->onMissionValidated($instance);
-        }
-
-        return null;
     }
 
     //  private function execute(int $documentId,  $instance)

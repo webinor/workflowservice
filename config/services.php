@@ -49,4 +49,11 @@ return [
             "http://localhost:8093/api/documents"
         ),
     ],
+
+     "notification_service" => [
+        "base_url" => env(
+            "NOTIFICATION_SERVICE_BASE_URL",
+            "http://localhost:8093/api/notifications"
+        ),
+    ],
 ];

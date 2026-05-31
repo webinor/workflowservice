@@ -13,8 +13,10 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStep;
 use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
+use App\Models\WorkflowInstance;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepAttachmentType;
+use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -247,6 +249,43 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
             "error" => $th->getMessage()
         ], 500);
     }
+}
+
+
+public function status(WorkflowInstanceResolverService $resolver, $documentId)
+{
+    $instance = WorkflowInstance::where('document_id', $documentId)
+    ->first();
+
+
+
+            // 2️⃣ Récupérer l'étape en cours
+            $currentInstanceStep = $resolver->getCurrentStep($instance);
+
+            $step = $currentInstanceStep->workflowStep;
+
+$transactionTypes = collect($step->workflowActionSteps)
+    ->pluck('transaction_type_code')
+    ->filter()
+    ->values()
+    ->all();
+
+return [
+    'status' => $instance->status,
+    'step' => $step->name,
+    'transaction_types' => $transactionTypes
+];
+
+
+
+    if (!$instance) {
+        return response()->json(['error' => 'Not found'], 404);
+    }
+
+    return [
+        'status' => $instance->status,
+        'label' => $instance->current_step_label,
+    ];
 }
 
     public function checkIfInjectDepartments(Request $request, string $documentTypeId)

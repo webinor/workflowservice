@@ -10,37 +10,73 @@ class DocumentServiceClient
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(env('DOCUMENT_SERVICE_URL'), '/');
+        $this->baseUrl =
+            rtrim(env('DOCUMENT_SERVICE_URL'), '/');
     }
 
     /**
-     * Génère les documents de mission (LM, OM, Fiche régularisation)
+     * =========================================
+     * Génération documents mission
+     * =========================================
      */
-    public function generateMissionDocuments(int $documentId , int $instanceId, string $context )
-    {
-        // $response = Http::timeout(15)->post(
-        //     $this->baseUrl . "/api/documents/missions/generate",
-        //     [
-        //         "instance_id" => $instanceId,
-        //         "context" => $context ?? "logistics_validation",
-        //     ]
-        // );
+    public function generateMissionDocuments(
+        int $documentId,
+        int $instanceId,
+        string $context
+    ) {
 
-      
+        $response = Http::withToken(
+                request()->bearerToken()
+            )
+            ->acceptJson()
+            ->post(
 
-         $response = Http::withToken(request()->bearerToken())
-                    ->acceptJson()
-                    ->post(config("services.document_service.base_url")."/missions/generate",
-            [
-                "document_id" => $documentId,
-                "instance_id" => $instanceId,
-                "context" => $context ?? "logistics_validation",
-            ]
-                        );
+                config("services.document_service.base_url")
+                . "/missions/generate",
+
+                [
+                    "document_id" => $documentId,
+                    "instance_id" => $instanceId,
+                    "context" => $context
+                        ?? "logistics_validation",
+                ]
+            );
 
         if (!$response->successful()) {
+
             throw new \Exception(
-                "DocumentService error: " . $response->body()
+                "DocumentService error: "
+                . $response->body()
+            );
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * =========================================
+     * Récupérer un document
+     * =========================================
+     */
+    public function getDocument(
+        int $documentId
+    ): array {
+
+        $response = Http::withToken(
+                request()->bearerToken()
+            )
+            ->acceptJson()
+            ->get(
+
+                config("services.document_service.base_url")
+                . "/{$documentId}"
+            );
+
+        if (!$response->successful()) {
+
+            throw new \Exception(
+                "DocumentService error: "
+                . $response->body()
             );
         }
 
