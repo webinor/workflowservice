@@ -24,7 +24,7 @@ class CreateWorkflowActionStepEventsTable extends Migration
     /**
      * événement système
      */
-    $table->string('event');
+    $table->string('code');
 
     /**
      * handler

@@ -113,15 +113,64 @@ class WorkflowAudienceResolver
                     break;
             }
 
-            if (!empty($recipients)) {
+            // if (!empty($recipients)) {
 
-                $results[] = [
-                    'channel' => $audience->channel,
-                    'recipients' => $recipients,
-                    'template_id' => $audience->notification_template_id,
-                ];
-            }
+            //     $results[] = [
+            //         'channel' => $audience->channel,
+            //         'recipients' => $recipients,
+            //         'template_id' => $audience->notification_template_id,
+            //     ];
+            // }
+
+            if (empty($recipients)) {
+    continue;
+}
+
+$channel = $audience->channel;
+
+$recipientType = strtolower(
+    $audience->recipient_type ?? 'TO'
+);
+
+if (!isset($results[$channel])) {
+
+    $results[$channel] = [
+        'to' => [],
+        'cc' => [],
+        'bcc' => [],
+    ];
+}
+
+$results[$channel][$recipientType] = array_merge(
+    $results[$channel][$recipientType],
+    $recipients
+);
         }
+
+
+        foreach ($results as $channel => $groups) {
+
+    $results[$channel]['to'] = collect(
+        $groups['to']
+    )
+    ->unique('recipient_email')
+    ->values()
+    ->toArray();
+
+    $results[$channel]['cc'] = collect(
+        $groups['cc']
+    )
+    ->unique('recipient_email')
+    ->values()
+    ->toArray();
+
+    $results[$channel]['bcc'] = collect(
+        $groups['bcc']
+    )
+    ->unique('recipient_email')
+    ->values()
+    ->toArray();
+}
 
         return $results;
     }

@@ -8,4 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class WorkflowActionStepEvent extends Model
 {
     use HasFactory;
+
+    protected $fillable = [
+    'code',
+    'name',
+    'delivery_mode',
+];
 }

@@ -92,46 +92,47 @@ Route::middleware("jwt.check")
         );
 
         
+        Route::get("/get-documents", [
+    WorkflowValidationController::class,
+    "getDocuments"
+]);
 
         // WorkflowValidationController
-        Route::get("/documents-to-validate", [
-            WorkflowValidationController::class,
-            "getDocumentsToValidateByRole",
-        ]);
+        // Route::get("/documents-to-validate", [
+        //     WorkflowValidationController::class,
+        //     "getDocumentsToValidateByRole",
+        // ]);
 
         
+        // Route::get("/my-taxi-papers", [
+        //     WorkflowValidationController::class,
+        //     "getMyTaxiPapersToValidateByRole",
+        // ]);
 
-        //export-invoices
+        // Route::get("/taxi-papers-to-validate", [
+        //     WorkflowValidationController::class,
+        //     "getTaxiPapersToValidateByRole",
+        // ]);
 
-        Route::get("/my-taxi-papers", [
-            WorkflowValidationController::class,
-            "getMyTaxiPapersToValidateByRole",
-        ]);
+        //     Route::get("/missions-to-validate", [
+        //     WorkflowValidationController::class,
+        //     "getMissionsToValidateByRole",
+        // ]);
 
-        Route::get("/missions-to-validate", [
-            WorkflowValidationController::class,
-            "getMissionsToValidateByRole",
-        ]);
+        // Route::get("/fee-notes", [
+        //     WorkflowValidationController::class,
+        //     "getFeeNotes",
+        // ]);
 
-        Route::get("/taxi-papers-to-validate", [
-            WorkflowValidationController::class,
-            "getTaxiPapersToValidateByRole",
-        ]);
+        // Route::get("/my-absence-requests", [
+        //     WorkflowValidationController::class,
+        //     "getMySumitedAbsenceRequests",
+        // ]);
 
-        Route::get("/fee-notes", [
-            WorkflowValidationController::class,
-            "getFeeNotes",
-        ]);
-
-        Route::get("/my-absence-requests", [
-            WorkflowValidationController::class,
-            "getMySumitedAbsenceRequests",
-        ]);
-
-        Route::get("/fee-notes-to-validate", [
-            WorkflowValidationController::class,
-            "getFeeNotesToValidateByRole",
-        ]);
+        // Route::get("/fee-notes-to-validate", [
+        //     WorkflowValidationController::class,
+        //     "getFeeNotesToValidateByRole",
+        // ]);
 
         // WorkflowTransferController
         Route::post("/documents/transfer", [

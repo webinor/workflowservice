@@ -15,98 +15,105 @@ class DocumentWorkflowService
 
     protected WorkflowInstanceResolverService $resolver;
 
+    const CONTEXT_VALIDATION = 'TO_VALIDATE';
+    const CONTEXT_MY_DOCUMENTS = 'MY_DOCUMENTS';
+
     public function __construct(WorkflowInstanceResolverService $workflowInstanceResolverService) {
         $this->resolver = $workflowInstanceResolverService;
     }
 
-    public function getDocumentsToValidateByRole(
+//     public function getDocumentsToValidateByRole(
+//     Request $request,
+//     array $documentTypes,
+//     WorkflowPermissionService $workflowPermissionService
+// ): array {
+//      $user = $request->get('user');
+
+//     return $this->getDocumentsForUser([
+//         'userId'        => $user['id'],
+//         'roleId'        => $user['role_id'],
+//         'documentTypes' => $documentTypes,
+//         'filters'       => $request->query('filters'),
+//     ], $request , $workflowPermissionService);
+// }
+
+
+    public function getDocuments(
+    array $params,
     Request $request,
-    array $documentTypes,
-    WorkflowPermissionService $workflowPermissionService
+    WorkflowPermissionService $permissionService
 ): array {
-     $user = $request->get('user');
 
-    return $this->getDocumentsForUser([
-        'userId'        => $user['id'],
-        'roleId'        => $user['role_id'],
-        'documentTypes' => $documentTypes,
-        'filters'       => $request->query('filters'),
-    ], $request , $workflowPermissionService);
-}
-    public function getDocumentsForUser(array $params, Request $request , WorkflowPermissionService $workflowPermissionService)//: array
-    {
-        [
-            'userId'        => $userId,
-            'roleId'        => $roleId,
-            'documentTypes' => $documentTypes,
-            'filters'       => $filters,
-        ] = $params;
-
-        // 1️⃣ Récupération des documentIds
-        $documentIds = $this->getDocumentIds($roleId);
-
-        if ($documentIds->isEmpty()) {
-            return [];
-        }
-
-        // 2️⃣ Récupération des documents
-        $documents = $this->fetchDocuments(
-            $documentIds,
-            $documentTypes,
-            $filters,
-            $request
-        );
-
-        // throw new Exception(json_encode($documents), 1);
+//     return $this->getDocumentsForUser($params, $request , $permissionService);
+// }
 
 
-        if (empty($documents)) {
-            return [];
-        }
 
-        // 3️⃣ Permissions
-            $permissionsByDocType = $this->getPermissions(
-            $documents,
-            $userId,
-            $roleId,
-            $request,
-            $workflowPermissionService
-        );
+//     public function getDocumentsForUser(array $params, Request $request, WorkflowPermissionService $workflowPermissionService)
+// {
+    [
+        'userId'        => $userId,
+        'roleId'        => $roleId,
+        'document_type' => $document_type,
+        'filters'       => $filters,
+        'context'       => $context,
+    ] = $params;
 
-        // 4️⃣ Workflow instances
-        $workflowInstances = WorkflowInstance::whereIn(
-            'document_id',
-            $documentIds
-        )->get()->keyBy('document_id');
+    // 1. IDs selon contexte
+    $documentIds = $this->getDocumentIds($roleId, $userId, $context);
 
-        // 5️⃣ Steps actionnables
-        $actionableSteps = WorkflowInstanceStep::where('role_id', $roleId)
-            ->where('status', 'PENDING')
-            ->get()
-            ->keyBy('workflow_instance_id');
-
-
-      
-            
-
-        // 6️⃣ Enrichissement final
-        return $this->enrichDocuments(
-            $documents,
-            $permissionsByDocType,
-            $workflowInstances,
-            $actionableSteps,
-            $userId
-        );
+    if ($documentIds->isEmpty()) {
+        return [];
     }
+
+    // 2. documents
+    $documents = $this->fetchDocuments(
+        $documentIds,
+        $document_type,
+        $filters,
+        $request
+    );
+
+    if (empty($documents)) {
+        return [];
+    }
+
+    // 3. permissions (identique)
+    $permissionsByDocType = $this->getPermissions(
+        $documents,
+        $userId,
+        $roleId,
+        $request,
+        $permissionService
+    );
+
+    // 4. workflow instances
+    $workflowInstances = WorkflowInstance::whereIn('document_id', $documentIds)
+        ->get()
+        ->keyBy('document_id');
+
+    // 5. steps actionnables
+    $actionableSteps = WorkflowInstanceStep::where('role_id', $roleId)
+        ->where('status', 'PENDING')
+        ->get()
+        ->keyBy('workflow_instance_id');
+
+    // 6. enrichissement unique
+    return $this->enrichDocuments(
+        $documents,
+        $permissionsByDocType,
+        $workflowInstances,
+        $actionableSteps,
+        $userId
+    );
+}
 
     /* ======================= HELPERS ======================= */
 
-    protected function getDocumentIds(int $roleId)
+    protected function oldgetDocumentIds(int $roleId)
     {
 
         $query = WorkflowInstanceStep::with('workflowInstance');
-
-
 
         return $query
             ->get()
@@ -115,6 +122,28 @@ class DocumentWorkflowService
             ->unique()
             ->values();
     }
+
+      protected function getDocumentIds(int $roleId, int $userId, string $context)
+{
+    $query = WorkflowInstanceStep::with('workflowInstance');
+
+    if ($context === self::CONTEXT_VALIDATION) {
+       
+    }
+
+    if ($context === self::CONTEXT_MY_DOCUMENTS) {
+        // $query->whereHas('workflowInstance', function ($q) use ($userId) {
+        //     $q->where('initiator_user_id', $userId);
+        // });
+    }
+
+    return $query
+        ->get()
+        ->pluck('workflowInstance.document_id')
+        ->filter()
+        ->unique()
+        ->values();
+}
 
     protected function fetchDocuments(
         $documentIds,

@@ -58,7 +58,7 @@ class UserServiceClient
         $response = Http::withHeaders(
             $this->headers()
         )->get(
-            "{$this->baseUrl}/roles/{$roleCode}/users"
+            "{$this->baseUrl}/by-role/{$roleCode}"
         );
 
         if (!$response->successful()) {
