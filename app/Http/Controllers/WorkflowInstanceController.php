@@ -15,6 +15,7 @@ use App\Services\ResolveDepartmentValidator;
 use App\Http\Requests\StoreWorkflowInstanceRequest;
 use App\Http\Requests\UpdateWorkflowInstanceRequest;
 use App\Models\DocumentTypeWorkflow;
+use App\Models\Signature;
 use App\Models\WorkflowInstanceStepRoleDynamic;
 use App\Models\WorkflowStatusHistory;
 use App\Models\WorkflowStatusLabel;
@@ -990,6 +991,22 @@ class WorkflowInstanceController extends Controller
 
             $documentData = $response->json();
 
+            $documentId = $documentData['id'];
+
+            $documentData['signatures'] = Signature::query()
+    ->where('document_id', $documentId)
+    ->with('signatureType')
+    ->get()
+    ->map(fn ($s) => [
+        'signature_type_id'=>$s->signatureType->id,
+        'type' => $s->signatureType->code ?? "--",
+        'label' => $s->signatureType->name ?? "--",
+        'user_id' => $s->user_id,
+        'signed_at' => $s->signed_at,
+    ])->toArray();
+
+
+
             // 🔥 Roles
             $roles = collect($user["roles"] ?? [])
                 ->pluck("id")
@@ -1029,9 +1046,8 @@ class WorkflowInstanceController extends Controller
                 "trace" => $e->getTraceAsString(),
             ]);
 
-            throw new Exception(
-                "Erreur lors de la récupération du document (trace: {$traceId})"
-            );
+            // throw new Exception("Erreur lors de la récupération du document (trace: {$traceId})");
+            throw new Exception("Erreur lors de la récupération du document (trace: {$e->getMessage()})");
         }
     }
 
@@ -2030,9 +2046,10 @@ class WorkflowInstanceController extends Controller
         $fieldValue = $this->getNestedValue($data, $condition->field ?? "");
         //return $condition->value;
 
-        // throw new Exception(json_encode($fieldValue), 1);
+        // throw new Exception(json_encode($condition->field), 1);
+        // throw new Exception(json_encode($data), 1);
 
-        //throw new Exception(json_encode($fieldValue), 1);
+        // throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
 
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
@@ -2202,15 +2219,20 @@ class WorkflowInstanceController extends Controller
         $keys = explode(".", $path);
         $value = $data;
 
-        //throw new Exception(json_encode($keys), 1);
+        // throw new Exception(json_encode($keys), 1);
 
         foreach ($keys as $key) {
             //return $value;
             // Cas spécial : [] signifie "appliquer à tous les éléments du tableau"
             if ($key === "[]") {
+
+
+
+
                 if (!is_array($value)) {
                     return null;
                 }
+
 
                 // On retourne un tableau des valeurs suivantes
                 $remainingPath = implode(
@@ -2218,8 +2240,13 @@ class WorkflowInstanceController extends Controller
                     array_slice($keys, array_search($key, $keys) + 1)
                 );
 
+                
+
+
                 $results = [];
                 foreach ($value as $item) {
+        
+
                     $nested = $this->getNestedValue($item, $remainingPath);
                     if ($nested !== null) {
                         $results[] = $nested;
@@ -2230,10 +2257,13 @@ class WorkflowInstanceController extends Controller
                 //return  $results; // ex: [4, 6, 9]
             }
 
+            // throw new Exception(json_encode(is_array($value) && array_key_exists($key, $value)), 1);
             // return  array_key_exists($key, $value);
             // Cas normal
             if (is_array($value) && array_key_exists($key, $value)) {
                 $value = $value[$key];
+            // throw new Exception(json_encode($value), 1);
+
             } else {
                 return null; // chemin inexistant
             }
