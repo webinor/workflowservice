@@ -16,14 +16,13 @@ class WorkflowDynamicResolverService
 
         $mapper = [
                     "mission"=>"actor_details",
+                    "purchase_request"=>"actor_details",
                     // "mission"=>"actor_id",
                 ];
 
-                $slug = $document["document_type"]["slug"];
+                $slug = $document["document_type"]["relation_name"];
 
-        return $document [$slug]
-        
-        [$mapper[$slug]];
+        return $document [$slug][$mapper[$slug]];
 
                 
 
@@ -43,7 +42,7 @@ class WorkflowDynamicResolverService
             $employeeId = $actor["employee"]["id"]; 
 
 
-                    // throw new Exception(json_encode($employeeId, JSON_PRETTY_PRINT), 1);
+                    // throw new Exception(json_encode($actorId, JSON_PRETTY_PRINT), 1);
 
 
 

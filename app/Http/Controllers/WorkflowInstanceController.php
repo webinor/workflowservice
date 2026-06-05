@@ -524,11 +524,13 @@ class WorkflowInstanceController extends Controller
             // 2️⃣ Créer toutes les étapes de l'instance
             $instanceSteps = [];
 
+            // return
+
             $documentData = $this->getDocumentData($workflowInstance, $request);
 
             // throw new Exception(gettype($validated["steps"]));
 
-            //  return $validated["steps"];
+              $validated["steps"];
 
             //  throw new Exception(json_encode($validated["steps"]  , JSON_PRETTY_PRINT), 1);
 
@@ -857,103 +859,12 @@ class WorkflowInstanceController extends Controller
         //$this->info('Relances envoyées aux validateurs en retard.');
     }
 
-    public function store2(StoreWorkflowInstanceRequest $request)
-    {
-        DB::beginTransaction();
 
-        try {
-            $validated = $request->validated();
-            $userConnected = $validated["created_by"];
-
-            $STATUS_NOT_STARTED = "NOT_STARTED";
-            $STATUS_PENDING = "PENDING";
-            $STATUS_COMPLETE = "COMPLETE";
-
-            // 1️⃣ Créer l'instance de workflow
-            $workflowInstance = WorkflowInstance::create([
-                "workflow_id" => $validated["workflow_id"],
-                "document_id" => $validated["document_id"],
-                "status" => $STATUS_PENDING,
-            ]);
-
-            // 2️⃣ Créer toutes les étapes de l'instance
-            $instanceSteps = [];
-            $userRoleId = $userConnected["role_id"];
-
-            foreach ($validated["steps"] as $index => $step) {
-                if ($index === 0 && $step["role_id"] === $userRoleId) {
-                    $initialStatus = $STATUS_COMPLETE; // l'utilisateur réalise l'étape dès la création
-                    $stepUserId = $userConnected["id"];
-                } elseif ($index === 0) {
-                    $initialStatus = $STATUS_PENDING; // première étape à réaliser par un autre
-                    $stepUserId = null;
-                } else {
-                    $initialStatus = $STATUS_NOT_STARTED; // étapes suivantes
-                    $stepUserId = null;
-                }
-
-                $stepInstance = WorkflowInstanceStep::create([
-                    "workflow_instance_id" => $workflowInstance->id,
-                    "workflow_step_id" => $step["id"],
-                    "role_id" =>
-                        $step["assignment_mode"] == "STATIC"
-                            ? $step["role_id"] ?? null
-                            : $this->getRoleValidator(
-                                $validated["department_id"]
-                            )["id"],
-                    "user_id" => $stepUserId,
-                    "status" => $initialStatus,
-                    "executed_at" =>
-                        $initialStatus == $STATUS_COMPLETE ? now() : null,
-                    "position" => $step["position"],
-                ]);
-
-                $instanceSteps[$step["id"]] = $stepInstance;
-            }
-
-            // 3️⃣ Déterminer et activer la première étape à exécuter
-            $nextStep = $workflowInstance
-                ->instance_steps()
-                ->where("status", $STATUS_NOT_STARTED)
-                ->orderBy("position")
-                ->first();
-
-            if ($nextStep) {
-                $nextStep->update([
-                    "status" => $STATUS_PENDING,
-                ]);
-
-                // notifier le user assigné
-            }
-
-            // 4️⃣ Optionnel : créer un historique des transitions initiales si tu veux précharger les transitions
-            foreach ($validated["steps"] as $index => $step) {
-                $transitions = WorkflowTransition::where(
-                    "from_step_id",
-                    $step["id"]
-                )->get();
-                foreach ($transitions as $transition) {
-                    // Ici tu peux stocker dans un journal ou préparer des notifications
-                    // Pas besoin de changer le statut maintenant, les conditions seront évaluées lors de la validation
-                }
-            }
-
-            DB::commit();
-
-            return response()->json(
-                $workflowInstance->load("instance_steps"),
-                201
-            );
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
-    }
 
     public function getDocumentData(
         WorkflowInstance $instance,
         Request $request
-    ): array {
+    ) {
         $traceId = (string) Str::uuid();
 
         $user = $request->get("user");
@@ -966,6 +877,8 @@ class WorkflowInstanceController extends Controller
                 "user_id" => $user["id"] ?? null,
             ]);
 
+
+
             // 🔥 APPEL SERVICE DOCUMENT
             $response = Http::withToken($request->bearerToken())
                 ->acceptJson()
@@ -977,6 +890,9 @@ class WorkflowInstanceController extends Controller
                 );
 
             if (!$response->successful()) {
+
+
+
                 Log::error("Workflow: échec récupération document", [
                     "trace_id" => $traceId,
                     "status" => $response->status(),
@@ -988,6 +904,7 @@ class WorkflowInstanceController extends Controller
                     "Impossible de récupérer le document (service error {$response->status()})"
                 );
             }
+
 
             $documentData = $response->json();
 
@@ -1038,14 +955,27 @@ class WorkflowInstanceController extends Controller
 
             return $documentData;
         } catch (Exception $e) {
-            Log::error("Workflow: exception getDocumentData", [
-                "trace_id" => $traceId,
-                "workflow_instance_id" => $instance->id,
-                "document_id" => $instance->document_id,
-                "message" => $e->getMessage(),
-                "trace" => $e->getTraceAsString(),
-            ]);
 
+            // Log::error("Workflow: exception getDocumentData", [
+            //     "trace_id" => $traceId,
+            //     "workflow_instance_id" => $instance->id,
+            //     "document_id" => $instance->document_id,
+            //     "message" => $e->getMessage(),
+            //     "trace" => $e->getTraceAsString(),
+            // ]);
+
+                Log::error(
+        '[WORKFLOW_SERVICE] Erreur lors de la récupération du document',
+        [
+            "document_id" => $instance->document_id,
+            'message' => $e->getMessage(),
+            "trace_id" => $traceId,
+            "workflow_instance_id" => $instance->id,
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString(),
+        ]
+    );
             // throw new Exception("Erreur lors de la récupération du document (trace: {$traceId})");
             throw new Exception("Erreur lors de la récupération du document (trace: {$e->getMessage()})");
         }

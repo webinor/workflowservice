@@ -21,6 +21,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 use function PHPUnit\Framework\isEmpty;
 
@@ -252,40 +253,83 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
 }
 
 
-public function status(WorkflowInstanceResolverService $resolver, $documentId)
-{
-    $instance = WorkflowInstance::where('document_id', $documentId)
-    ->first();
+public function status(
+    WorkflowInstanceResolverService $resolver,
+    $documentId
+) {
+    Log::info('[WORKFLOW:STATUS] Start', [
+        'document_id' => $documentId,
+    ]);
 
-
-
-            // 2️⃣ Récupérer l'étape en cours
-            $currentInstanceStep = $resolver->getCurrentStep($instance);
-
-            $step = $currentInstanceStep->workflowStep;
-
-$transactionTypes = collect($step->workflowActionSteps)
-    ->pluck('transaction_type_code')
-    ->filter()
-    ->values()
-    ->all();
-
-return [
-    'status' => $instance->status,
-    'step' => $step->name,
-    'transaction_types' => $transactionTypes
-];
-
-
+    $instance = WorkflowInstance::where(
+        'document_id',
+        $documentId
+    )->first();
 
     if (!$instance) {
-        return response()->json(['error' => 'Not found'], 404);
+
+        Log::warning('[WORKFLOW:STATUS] Workflow instance not found', [
+            'document_id' => $documentId,
+        ]);
+
+        return [
+            'status' => null,
+            'step' => null,
+            'transaction_types' => [],
+        ];
     }
 
-    return [
+    Log::info('[WORKFLOW:STATUS] Instance found', [
+        'instance_id' => $instance->id,
         'status' => $instance->status,
-        'label' => $instance->current_step_label,
+    ]);
+
+    $currentInstanceStep = $resolver->getCurrentStep($instance);
+
+    if (!$currentInstanceStep) {
+
+        Log::warning('[WORKFLOW:STATUS] No current step found', [
+            'instance_id' => $instance->id,
+        ]);
+
+        return [
+            'status' => $instance->status,
+            'step' => null,
+            'transaction_types' => [],
+        ];
+    }
+
+    $step = $currentInstanceStep->workflowStep;
+
+    Log::info('[WORKFLOW:STATUS] Current step resolved', [
+        'instance_id' => $instance->id,
+        'step_id' => $step->id ?? null,
+        'step_name' => $step->name ?? null,
+    ]);
+
+    $transactionTypes = collect(
+        $step->workflowActionSteps
+    )
+        ->pluck('transaction_type_code')
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    Log::info('[WORKFLOW:STATUS] Transaction types resolved', [
+        'instance_id' => $instance->id,
+        'transaction_types' => $transactionTypes,
+    ]);
+
+    $response = [
+        'status' => $instance->status,
+        'step' => $step->name,
+        'transaction_types' => $transactionTypes,
     ];
+
+    Log::info('[WORKFLOW:STATUS] End', $response);
+
+    return $response;
 }
 
     public function checkIfInjectDepartments(Request $request, string $documentTypeId)
