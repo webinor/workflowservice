@@ -573,9 +573,10 @@ class WorkflowInstanceController extends Controller
                     } elseif ($step["assignment_rule"] === "DIRECT_MANAGER") {
                         $actor = $resolver->resolveActor($documentData); //  $documentData[$documentData["document_type"]["slug"]]["actor_details"];
                         // $validatorRole = $this->getRoleValidator($departmentId);
-                        $stepRoles =
-                            $actor["employee"]["manager"]["user"]["role_ids"];
-                        // throw new Exception(json_encode($validatorRole), 1);
+                        // throw new Exception(json_encode($actor["manager"]["role_ids"]), 1);
+                        $stepRoles = $actor["manager"]["role_ids"];
+                        // throw new Exception(json_encode($stepRoles), 1);
+
                     } elseif (
                         $step["assignment_rule"] === "HEAD_OF_DEPARTMENT"
                     ) {
@@ -709,6 +710,8 @@ class WorkflowInstanceController extends Controller
                 $firstStep,
                 $documentData
             );
+
+            //  throw new Exception(json_encode($stepData["next_step"]), 1);
 
             $nextStep = $stepData["next_step"];
             if ($nextStep) {

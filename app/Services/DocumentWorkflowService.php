@@ -62,6 +62,8 @@ class DocumentWorkflowService
     // 1. IDs selon contexte
     $documentIds = $this->getDocumentIds($roleId, $userId, $context);
 
+
+
     if ($documentIds->isEmpty()) {
         return [];
     }
@@ -73,6 +75,9 @@ class DocumentWorkflowService
         $filters,
         $request
     );
+
+    // throw new Exception(json_encode($documents), 1);
+
 
     if (empty($documents)) {
         return [];

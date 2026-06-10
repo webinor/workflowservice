@@ -17,6 +17,7 @@ class WorkflowDynamicResolverService
         $mapper = [
                     "mission"=>"actor_details",
                     "purchase_request"=>"actor_details",
+                    "taxi_paper"=>"actor_details",
                     // "mission"=>"actor_id",
                 ];
 
