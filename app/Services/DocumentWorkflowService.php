@@ -109,7 +109,8 @@ class DocumentWorkflowService
         $permissionsByDocType,
         $workflowInstances,
         $actionableSteps,
-        $userId
+        $userId,
+        $context
     );
 }
 
@@ -169,9 +170,19 @@ class DocumentWorkflowService
 
         // throw new Exception(json_encode($response->body()), 1);
         // throw new Exception(json_encode($documentTypes), 1);
+
+        if ($response->ok()) {
+            return $response->json();
+        } else {
+            
+        throw new Exception(json_encode($response->body()), 1);
+
+
+        }
+        
         
 
-        return $response->ok() ? $response->json() : [];
+        // return $response->ok() ? $response->json() : [];
     }
 
 
@@ -206,12 +217,16 @@ class DocumentWorkflowService
         $permissionsByDocType,
         $workflowInstances,
         $actionableSteps,
-        int $userId
+        int $userId,
+        string $context
     ): array {
         $translations = $this->statusTranslations();
 
+        // throw new Exception(json_encode($permissionsByDocType), 1);
+        
+
         return collect($documents)
-            ->filter(fn ($doc) => $this->canView($doc, $permissionsByDocType, $userId))
+            ->filter(fn ($doc) => $this->canView($doc, $permissionsByDocType, $userId , $context))
             ->map(function ($doc) use ($workflowInstances, $actionableSteps, $translations) {
 
                 $instance = $workflowInstances[$doc['id']] ?? null;
@@ -233,7 +248,68 @@ class DocumentWorkflowService
             ->toArray();
     }
 
-    protected function canView(array $doc, $permissionsByDocType, int $userId): bool
+    protected function canView(
+    array $doc,
+    $permissionsByDocType,
+    int $userId,
+    string $context 
+): bool {
+
+    $perm = $permissionsByDocType[$doc['document_type_id']] ?? null;
+
+    if (!$perm) {
+        return false;
+    }
+
+    $permissions = $perm['permissions'];
+
+    $isOwner = ($doc['created_by'] === $userId);
+
+    $isSameDepartment = $this->checkSameDepartment(
+        $doc['created_by'],
+        $userId
+    );
+
+    /**
+     * =========================
+     * 📁 MES DOCUMENTS
+     * =========================
+     */
+    if ($context === 'MY_DOCUMENTS') {
+        return $isOwner;
+    }
+
+    /**
+     * =========================
+     * 🧾 À VALIDER
+     * =========================
+     */
+    if ($context === 'TO_VALIDATE') {
+
+        return (
+            ($permissions['view_department'] && $isSameDepartment)
+            || $permissions['view_all']
+        );
+    }
+
+    /**
+     * =========================
+     * 🌍 ALL DOCUMENTS
+     * =========================
+     */
+    if ($context === 'ALL_DOCUMENTS') {
+
+        return (
+            $permissions['view_all']
+            || ($permissions['view_department'] && $isSameDepartment)
+            || ($permissions['view_own'] && $isOwner)
+        );
+    }
+
+    return false;
+}
+
+    protected function old_canView(array $doc, $permissionsByDocType, int $userId): bool
     {
         $perm = $permissionsByDocType[$doc['document_type_id']] ?? null;
 
