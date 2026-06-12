@@ -60,7 +60,7 @@ class DocumentWorkflowService
     ] = $params;
 
     // 1. IDs selon contexte
-    $documentIds = $this->getDocumentIds($roleId, $userId, $context);
+    $documentIds = $this->getDocumentIds($roleId, $userId, $context, $params["filters"]);
 
 
 
@@ -129,20 +129,76 @@ class DocumentWorkflowService
             ->values();
     }
 
-      protected function getDocumentIds(int $roleId, int $userId, string $context)
-{
-    $query = WorkflowInstanceStep::with('workflowInstance');
+   protected function getDocumentIds(
+    int $roleId,
+    int $userId,
+    string $context,
+    $filters
+) {
+    $query = WorkflowInstanceStep::query()
+        ->with('workflowInstance');
 
+    $filters = $filters ?? [];
+
+    $statut = $filters['statut'] ?? null;
+    $date = $filters['date'] ?? null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | CONTEXT : TO_VALIDATE
+    |--------------------------------------------------------------------------
+    */
     if ($context === self::CONTEXT_VALIDATION) {
-       
+
+        $query->whereHas('workflowInstance', function ($q) use ($roleId, $statut) {
+
+            // étape assignée au rôle
+            // $q->where('assigned_role_id', $roleId);
+
+            // statut workflow
+            if (!empty($statut)) {
+                $q->where('status', $statut);
+            }
+        });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | CONTEXT : MY DOCUMENTS
+    |--------------------------------------------------------------------------
+    */
     if ($context === self::CONTEXT_MY_DOCUMENTS) {
-        // $query->whereHas('workflowInstance', function ($q) use ($userId) {
-        //     $q->where('initiator_user_id', $userId);
-        // });
+
+        $query->whereHas('workflowInstance', function ($q) use ($userId, $statut) {
+
+            // $q->where('initiator_user_id', $userId);
+
+            if (!empty($statut)) {
+                $q->where('status', $statut);
+            }
+        });
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | DATE FILTER (DOCUMENT SIDE — si dispo via relation)
+    |--------------------------------------------------------------------------
+    */
+    if (!empty($date['from']) && !empty($date['to'])) {
+
+        $query->whereHas('workflowInstance.document', function ($q) use ($date) {
+            $q->whereBetween('created_at', [
+                $date['from'],
+                $date['to']
+            ]);
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESULT
+    |--------------------------------------------------------------------------
+    */
     return $query
         ->get()
         ->pluck('workflowInstance.document_id')
