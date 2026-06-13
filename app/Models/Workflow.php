@@ -32,4 +32,6 @@ class Workflow extends Model
     {
         return $this->hasOne(DocumentTypeWorkflow::class);
     }
+
+    
 }

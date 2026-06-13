@@ -10,6 +10,8 @@ class Signature extends Model
 {
     use HasFactory;
 
+    protected $guarded = [];
+
     /**
      * Get the signatureType that owns the Signature
      *

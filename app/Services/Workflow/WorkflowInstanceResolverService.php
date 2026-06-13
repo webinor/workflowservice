@@ -15,7 +15,7 @@ class WorkflowInstanceResolverService
 
         return $instance
             ->instance_steps()
-            ->with("workflowStep.workflowActionSteps")
+            ->with(["workflowStep.workflowActionSteps"])
             ->where("status", "PENDING")
             ->orderBy("position", "asc")
             ->first();

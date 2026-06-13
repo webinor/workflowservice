@@ -13,9 +13,11 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstanceStep;
 use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
+use App\Models\Signature;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepAttachmentType;
+use App\Services\DocumentWorkflowService;
 use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -252,6 +254,13 @@ $attachmentTypesData = collect($response->json()['data'])->keyBy('id');
     }
 }
 
+
+public function getAvailabilityContext(DocumentWorkflowService $documentWorkflowService, int $documentId)
+{
+
+return $documentWorkflowService->availabilityContext($documentId);
+    
+}
 
 public function status(
     WorkflowInstanceResolverService $resolver,

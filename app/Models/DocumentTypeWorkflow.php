@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DocumentTypeWorkflow extends Model
 {
@@ -14,5 +15,15 @@ class DocumentTypeWorkflow extends Model
     public function workflow()
     {
         return $this->belongsTo(Workflow::class);
+    }
+
+    /**
+     * Get the documentType that owns the DocumentTypeWorkflow
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function documentType(): BelongsTo
+    {
+        return $this->belongsTo(DocumentTypeWorkflow::class);
     }
 }

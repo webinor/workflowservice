@@ -36,6 +36,19 @@ class WorkflowInstanceStep extends Model
         return $this->belongsTo(WorkflowStep::class);
     }
 
+    public function assignments()
+{
+    return $this->hasMany(WorkflowInstanceStepAssignment::class, 'instance_step_id');
+}
+
+    public function dynamicRoles()
+    {
+        return $this->hasMany(
+            WorkflowInstanceStepRoleDynamic::class,
+            'workflow_instance_step_id'
+        );
+    }
+
     public function roles()
     {
         return $this->hasMany(

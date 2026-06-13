@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSignatureRequest;
 use App\Http\Requests\UpdateSignatureRequest;
 use App\Models\Signature;
+use App\Models\SignatureType;
+use App\Models\WorkflowInstance;
+use App\Models\WorkflowInstanceStep;
+use Illuminate\Http\Request;
 
 class SignatureController extends Controller
 {
@@ -38,6 +42,55 @@ class SignatureController extends Controller
     {
         //
     }
+
+    public function storeBeneficiarySignature(Request $request)
+{
+    $request->validate([
+        'document_id' => 'required|integer',
+        'employee_id' => 'required|integer',
+        'user_id' => 'required|integer',
+        'transaction_type_code' => 'required|string',
+    ]);
+
+    $signatureType = SignatureType::whereCode($request->transaction_type_code)->first();
+
+    if (!$signatureType) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Aucun type de signature actif'
+        ], 404);
+    }
+
+    $instance = WorkflowInstance::where('document_id', $request->document_id)
+    ->firstOrFail();
+
+  $instanceStep = WorkflowInstanceStep::where('workflow_instance_id', $instance->id)
+    ->where('status', 'PENDING')
+    ->orderBy('position')
+    ->firstOrFail();
+
+    if (!$instanceStep) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Aucune étape active'
+        ], 404);
+    }
+
+    Signature::create([
+        'document_id' => $request->document_id,
+        'signature_type_id' => $signatureType -> id,
+        'workflow_instance_step_id' => $instanceStep->id,
+        'employee_id' => $request->employee_id,
+        'user_id' => $request->user_id,
+        'comment' => $request->comment,
+        'signed_at' => now(),
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Signature enregistrée'
+    ]);
+}
 
     /**
      * Display the specified resource.

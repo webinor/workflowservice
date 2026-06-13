@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\DocumentWorkflowController;
+use App\Http\Controllers\SignatureController;
+use App\Http\Controllers\UserDashboardContextController;
 use App\Http\Controllers\WorkflowActionController;
 use App\Http\Controllers\WorkflowActionStepController;
 use App\Http\Controllers\WorkflowActionTypeController;
@@ -23,6 +25,15 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+  Route::prefix("workflows")
+    ->controller(SignatureController::class)->group(function () {
+            Route::post(
+                "signatures/beneficiary",
+                "storeBeneficiarySignature"
+            );
+
+        });
 Route::middleware("jwt.check")
     ->prefix("workflows")
     ->group(function () {
@@ -42,10 +53,24 @@ Route::middleware("jwt.check")
             Route::get('/get-configurable-status-labels', 'getConfigurableStatusLabels');
 
             Route::get('/documents/{documentId}/status', 'status');
+
+               Route::get(
+    '/documents/{documentId}/availability-context',
+    'getAvailabilityContext'
+);
+
+Route::post(
+        '/users/dashboard-context',
+        [UserDashboardContextController::class, 'show']
+    );
             
             
             Route::apiResource("/", WorkflowController::class);
         });
+
+
+     
+      
 
         Route::apiResource("/workflow-actions-types", WorkflowActionTypeController::class);
 

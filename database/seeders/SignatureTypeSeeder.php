@@ -11,6 +11,11 @@ class SignatureTypeSeeder extends Seeder
     {
         $signatureTypes = [
             [
+                'code' => 'TAXI_PAPER_SETTLEMENT',
+                'name' => 'Réception des frais de taxi',
+                'description' => 'Signature attestant la réception des frais de taxi',
+            ],
+            [
                 'code' => 'ADVANCE_RECEIPT',
                 'name' => 'Réception de l\'avance',
                 'description' => 'Signature attestant la réception de l\'avance de mission',

@@ -2,24 +2,30 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use App\Models\Signature;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStatusLabel;
+use App\Services\DocumentEnricherRegistry;
 use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class DocumentWorkflowService
 {
 
     protected WorkflowInstanceResolverService $resolver;
+    protected DocumentEnricherRegistry $registry;
 
     const CONTEXT_VALIDATION = 'TO_VALIDATE';
     const CONTEXT_MY_DOCUMENTS = 'MY_DOCUMENTS';
 
-    public function __construct(WorkflowInstanceResolverService $workflowInstanceResolverService) {
+    public function __construct(WorkflowInstanceResolverService $workflowInstanceResolverService,
+    DocumentEnricherRegistry $documentEnricherRegistry
+    ) {
         $this->resolver = $workflowInstanceResolverService;
+        $this->registry = $documentEnricherRegistry;
     }
 
 //     public function getDocumentsToValidateByRole(
@@ -76,7 +82,23 @@ class DocumentWorkflowService
         $request
     );
 
-    // throw new Exception(json_encode($documents), 1);
+
+    $availabilityContexts = $this->availabilityContexts($documentIds->toArray());
+
+    
+
+    $contextsByDocId = collect($availabilityContexts)
+    ->keyBy('document_id');
+
+    $documents = collect($documents)->map(function ($doc) use ($contextsByDocId) {
+
+    $context = $contextsByDocId[$doc['id']] ?? null;
+
+    return $this->enrichDocument($doc, $context);
+
+    })->toArray();
+
+    //  throw new Exception(json_encode($documents), 1);
 
 
     if (empty($documents)) {
@@ -98,10 +120,19 @@ class DocumentWorkflowService
         ->keyBy('document_id');
 
     // 5. steps actionnables
-    $actionableSteps = WorkflowInstanceStep::where('role_id', $roleId)
-        ->where('status', 'PENDING')
-        ->get()
-        ->keyBy('workflow_instance_id');
+    // $actionableSteps = WorkflowInstanceStep::where('role_id', $roleId)
+    //     ->where('status', 'PENDING')
+    //     ->get()
+    //     ->keyBy('workflow_instance_id');
+
+    $actionableSteps = WorkflowInstanceStep::whereHas('assignments', function ($q) use ($roleId) {
+        $q->where('role_id', $roleId)
+          ->where('decision', 'PENDING');
+    })
+    ->where('status', 'PENDING')
+    ->with('assignments')
+    ->get()
+    ->keyBy('workflow_instance_id');
 
     // 6. enrichissement unique
     return $this->enrichDocuments(
@@ -112,6 +143,132 @@ class DocumentWorkflowService
         $userId,
         $context
     );
+}
+
+
+private function enrichDocument(array $doc, ?array $context): array
+{
+    
+    // throw new Exception(json_encode($doc), 1);
+
+    $resolver = $this->registry->resolve($doc['document_type_slug']);
+
+    
+
+    return $resolver->enrich($doc, $context);
+}
+
+
+public function availabilityContexts(array $documentIds)
+{
+    // 1. Récupérer tous les workflows en une fois
+    $workflows = WorkflowInstance::query()
+        ->whereIn('document_id', $documentIds)
+        ->get()
+        ->keyBy('document_id');
+
+    // 2. Signatures en batch
+    $signatures = Signature::query()
+        ->whereIn('document_id', $documentIds)
+        ->with('signatureType')
+        ->get()
+        ->groupBy('document_id');
+
+    // 3. Steps en batch (via workflow_instance_id)
+    $workflowIds = $workflows->pluck('id')->toArray();
+
+    $steps = WorkflowInstanceStep::query()
+        ->whereIn('workflow_instance_id', $workflowIds)
+        ->where('status', 'COMPLETE')
+        ->with('workflowStep')
+        ->get()
+        ->groupBy('workflow_instance_id');
+
+    // 4. Build response
+    return collect($documentIds)->map(function ($documentId) use (
+        $workflows,
+        $signatures,
+        $steps
+    ) {
+        $workflow = $workflows[$documentId] ?? null;
+
+        if (!$workflow) {
+            return [
+                "document_id" => $documentId,
+                "workflow_status" => null,
+                "signatures" => [],
+                "completed_steps" => []
+            ];
+        }
+
+        $docSignatures = ($signatures[$documentId] ?? collect())
+            ->map(function ($signature) {
+                return [
+                    "code" => $signature->signatureType->code,
+                    "signed" => true,
+                    "signed_at" => $signature->signed_at,
+                ];
+            })
+            ->values();
+
+        $docSteps = ($steps[$workflow->id] ?? collect())
+            ->map(fn($step) => $step->workflowStep->code)
+            ->values();
+
+        return [
+            "document_id" => $documentId,
+            "workflow_status" => $workflow->status,
+            "signatures" => $docSignatures,
+            "completed_steps" => $docSteps,
+        ];
+    })->values()->toArray();
+}
+
+public function availabilityContext(int $documentId)
+{
+    $workflow = WorkflowInstance::where(
+        "document_id",
+        $documentId
+    )
+    ->first();
+
+    if (!$workflow) {
+        return response()->json([
+            "workflow_status" => null,
+            "signatures" => [],
+            "completed_steps" => []
+        ]);
+    }
+
+    $signatures = Signature::query()
+        ->where("document_id", $documentId)
+        ->with("signatureType")
+        ->get()
+        ->map(function ($signature) {
+
+            return [
+                "code" => $signature->signatureType->code,
+                "signed" => true,
+                "signed_at" => $signature->signed_at,
+            ];
+        });
+
+    $completedSteps = WorkflowInstanceStep::query()
+        ->where(
+            "workflow_instance_id",
+            $workflow->id
+        )
+        ->where("status", "COMPLETE")
+        ->with("workflowStep")
+        ->get()
+        ->map(fn($step) => $step->workflowStep->code)
+        ->values();
+
+    return response()->json([
+        "workflow_status" => $workflow->status,
+        "signatures" => $signatures,
+        "completed_steps" => $completedSteps,
+    ]);
 }
 
     /* ======================= HELPERS ======================= */
