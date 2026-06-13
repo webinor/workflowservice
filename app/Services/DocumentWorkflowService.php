@@ -307,17 +307,24 @@ public function availabilityContext(int $documentId)
     */
     if ($context === self::CONTEXT_VALIDATION) {
 
-        $query->whereHas('workflowInstance', function ($q) use ($roleId, $statut) {
 
-            // étape assignée au rôle
-            // $q->where('assigned_role_id', $roleId);
 
-            // statut workflow
-            if (!empty($statut)) {
-                $q->where('status', $statut);
-            }
+    // Filtre optionnel sur le workflow
+    if (!empty($statut)) {
+
+        // L'étape doit être en attente
+    $query->where('status', $statut);
+
+    // Et assignée à l'utilisateur / rôle courant
+    $query->whereHas('assignments', function ($q) use ($roleId) {
+        $q->where('role_id', $roleId);
+    });
+
+        $query->whereHas('workflowInstance', function ($q) use ($statut) {
+            $q->where('status', $statut);
         });
     }
+}
 
     /*
     |--------------------------------------------------------------------------
