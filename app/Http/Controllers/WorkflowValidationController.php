@@ -31,6 +31,7 @@ class WorkflowValidationController extends Controller
 
         $document_type = $request->query("document_type", []);
         $context = $request->query("context", "");
+        $filters = $request->query("filters" , []);
 
         return $this->documentWorkflowService->getDocuments(
             [
@@ -38,7 +39,7 @@ class WorkflowValidationController extends Controller
                 "roleId" => $user["role_id"],
                 "document_type" => $document_type,
                 "context" => $context,
-                "filters" => $request->query("filters"),
+                "filters" => $filters,
             ],
             $request,
             $this->workflowPermissionService

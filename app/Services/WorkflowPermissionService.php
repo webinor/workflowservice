@@ -47,7 +47,7 @@ class WorkflowPermissionService
     public function checkPermissions2(array $rawDocuments, $request)
     {
         // On récupère le userId (par ex. du document ou du contexte connecté)
-        $userId = $rawDocuments["documents"][0]["created_by"];
+        // $userId = $rawDocuments["documents"][0]["created_by"];
 
         // On génère le payload (grâce à la fonction qu’on a faite avant)
         //$payload = $this->transformToPayload($rawDocuments, $rawDocuments['role_id'], ['view', 'validate']);

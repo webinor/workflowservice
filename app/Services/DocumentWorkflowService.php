@@ -29,20 +29,7 @@ class DocumentWorkflowService
         $this->registry = $documentEnricherRegistry;
     }
 
-    //     public function getDocumentsToValidateByRole(
-    //     Request $request,
-    //     array $documentTypes,
-    //     WorkflowPermissionService $workflowPermissionService
-    // ): array {
-    //      $user = $request->get('user');
-
-    //     return $this->getDocumentsForUser([
-    //         'userId'        => $user['id'],
-    //         'roleId'        => $user['role_id'],
-    //         'documentTypes' => $documentTypes,
-    //         'filters'       => $request->query('filters'),
-    //     ], $request , $workflowPermissionService);
-    // }
+ 
 
 
     public function getDocuments(
@@ -59,6 +46,8 @@ class DocumentWorkflowService
         "context" => $context,
     ] = $params;
 
+    // throw new Exception(json_encode($filters), 1);
+    
     /*
     |--------------------------------------------------------------------------
     | Query de base (réutilisable)
@@ -75,13 +64,13 @@ class DocumentWorkflowService
     | Stats globales (sans filtres UI)
     |--------------------------------------------------------------------------
     */
-    $statsDocumentIds = $this->getDocumentIds(
-    clone $baseQuery,
-    $roleId,
-    $filters,
-    false,   // pas de statut
-    false    // ❗ pas de rôle
-);
+//     $statsDocumentIds = $this->getDocumentIds(
+//     clone $baseQuery,
+//     $roleId,
+//     $filters,
+//     false,   // pas de statut
+//     false    // ❗ pas de rôle
+// );
 
     /*
     |--------------------------------------------------------------------------
@@ -104,29 +93,24 @@ class DocumentWorkflowService
     |--------------------------------------------------------------------------
     */
 
-       if ($documentIds->isEmpty()) {
+    //    if ($documentIds->isEmpty()) {
 
 
 
 
-        $documents = [];
-
-         $statDocuments = $this->fetchDocuments(
-        $statsDocumentIds,
-        $document_type,
-        $filters,
-        $request
-    );
-
-         return [
-        'data' => $documents,
-        'stats' => sizeof($statDocuments),
-    ];
+    //      return [
+    //     'data' => [],
+    // ];
 
 
 
-    }
-    else{
+    // }
+   
+    //  return [
+    //             "ids" => $documentIds->toArray(),
+    //             "documentTypes" => $document_type,
+    //             "filters" => $filters,
+    //         ];
 
     $documents = $this->fetchDocuments(
         $documentIds,
@@ -135,28 +119,17 @@ class DocumentWorkflowService
         $request
     );
 
+      if (collect($documents)->isEmpty()) {
+
+         return [
+        'data' => [],
+    ];
+
+
+
     }
-    
-
   
-
-      if ($statsDocumentIds->isEmpty()) {
-
-      $statDocuments = 0;
-
-      }
-      else{
-
-        $statDocuments = sizeof($this->fetchDocuments(
-        $statsDocumentIds,
-        $document_type,
-        $filters,
-        $request
-    ));
-
-
-      }
-
+    
     
 
     /*
@@ -185,6 +158,7 @@ class DocumentWorkflowService
         ->toArray();
 
   
+
 
     /*
     |--------------------------------------------------------------------------
@@ -241,7 +215,7 @@ class DocumentWorkflowService
 
     return [
         'data' => $documents,
-        'stats' => $statDocuments,
+        // 'stats' => $statDocuments,
     ];
 }
 
@@ -404,6 +378,9 @@ private function getDocumentIds(
     */
     if ($applyRoleFilter) {
 
+ 
+    
+
         $query->whereHas('assignments', function ($q) use ($roleId) {
             $q->where('role_id', $roleId)
               ->where('decision', 'PENDING');
@@ -415,12 +392,24 @@ private function getDocumentIds(
     | FILTRE STATUT
     |--------------------------------------------------------------------------
     */
+    // if ($applyStatusFilter && !empty($statut)) {
+
+
+    //     $query->whereHas('workflowInstance', function ($q) use ($statut) {
+    //         $q->where('status', $statut);
+    //     });
+    // }
     if ($applyStatusFilter && !empty($statut)) {
 
-        $query->whereHas('workflowInstance', function ($q) use ($statut) {
-            $q->where('status', $statut);
-        });
-    }
+    $query->where(function ($q) use ($roleId, $statut) {
+
+        $q->whereHas('assignments', function ($a) use ($roleId) {
+            $a->where('role_id', $roleId)
+              ->where('decision', 'PENDING');
+        })
+        ->where('status', $statut);
+    });
+}
 
     /*
     |--------------------------------------------------------------------------
