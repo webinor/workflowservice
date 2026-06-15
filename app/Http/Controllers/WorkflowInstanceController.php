@@ -144,195 +144,7 @@ class WorkflowInstanceController extends Controller
         //     ->first();
     }
 
-    // Récupérer l'historique des étapes d'un document
-    // public function history(
-    //     Request $request,
-    //     WorkflowDynamicResolverService $resolver,
-    //     int $documentId
-    // ) {
-    //     $workflowInstance = WorkflowInstance::where("document_id", $documentId)
-    //         ->with([
-    //             "instance_steps" => function ($q) {
-    //                 $q->whereHas("workflowStep", function ($q2) {
-    //                     $q2->where("is_archived_step", false);
-    //                 });
-    //             },
-    //             "instance_steps.workflowStep",
-    //             "instance_steps.dynamicRoles",
-    //         ])
-    //         ->firstOrFail();
-
-    //     /**
-    //      * ===========================================
-    //      * Récupération des rôles
-    //      * ===========================================
-    //      */
-    //     $roleIds = collect();
-
-    //     foreach ($workflowInstance->instance_steps as $step) {
-    //         $roleIds->push($step->role_id);
-
-    //         foreach ($step->dynamicRoles as $dynamicRole) {
-    //             $roleIds->push($dynamicRole->role_id);
-    //         }
-    //     }
-
-    //     $roleIds = $roleIds
-    //         ->filter()
-    //         ->unique()
-    //         ->values()
-    //         ->toArray();
-
-    //     $roles = [];
-
-    //     if (!empty($roleIds)) {
-    //         $responseRoles = Http::get(
-    //             config("services.user_service.base_url") . "/roles/getByIds",
-    //             [
-    //                 "ids" => implode(",", $roleIds),
-    //             ]
-    //         );
-
-    //         if ($responseRoles->ok()) {
-    //             $roles = collect($responseRoles->json())->keyBy("id");
-    //         }
-    //     }
-
-    //     /**
-    //      * ===========================================
-    //      * Utilisateurs ayant déjà exécuté
-    //      * ===========================================
-    //      */
-    //     $completedUserIds = $workflowInstance->instance_steps
-    //         ->pluck("user_id")
-    //         ->filter()
-    //         ->unique()
-    //         ->values()
-    //         ->toArray();
-
-    //     $users = [];
-
-    //     if (!empty($completedUserIds)) {
-    //         $responseUsers = Http::get(
-    //             config("services.user_service.base_url") . "/getByIds",
-    //             [
-    //                 "ids" => implode(",", $completedUserIds),
-    //             ]
-    //         );
-
-    //         if ($responseUsers->ok()) {
-    //             $users = collect($responseUsers->json())->keyBy("id");
-    //         }
-    //     }
-
-    //     /**
-    //      * ===========================================
-    //      * Construction timeline
-    //      * ===========================================
-    //      */
-    //     $instanceSteps = $workflowInstance->instance_steps
-    //         ->map(function ($instanceStep) use ($users, $roles, $resolver) {
-    //             $displayName = null;
-
-    //             /**
-    //              * =======================================
-    //              * ETAPE EXECUTEE
-    //              * =======================================
-    //              */
-    //             if (
-    //                 in_array($instanceStep->status, ["COMPLETE", "REJECTED"]) &&
-    //                 $instanceStep->user_id
-    //             ) {
-    //                 $displayName =
-    //                     $users[$instanceStep->user_id]["name"] ??
-    //                     "Utilisateur inconnu";
-    //             }
-    //             /**
-    //              * =======================================
-    //              * ETAPE DYNAMIQUE
-    //              * =======================================
-    //              */ elseif (
-    //                 $instanceStep->workflowStep->assignment_mode === "DYNAMIC"
-    //             ) {
-    //                 $dynamicRoleIds = $instanceStep->dynamicRoles
-    //                     ->pluck("role_id")
-    //                     ->unique()
-    //                     ->values()
-    //                     ->toArray();
-
-    //                 $usersByRoles = $resolver->resolveUsersByRoles(
-    //                     $dynamicRoleIds
-    //                 );
-
-    //                 $displayName = collect($usersByRoles)
-    //                     ->flatten(1)
-    //                     ->pluck("name")
-    //                     ->filter()
-    //                     ->unique()
-    //                     ->implode(" / ");
-    //             }
-    //             /**
-    //              * =======================================
-    //              * ETAPE STATIQUE
-    //              * =======================================
-    //              */ else {
-    //                 $effectiveRoleId =
-    //                     $instanceStep->resolved_role_id ??
-    //                     $instanceStep->role_id;
-
-    //                 $usersByRole = $resolver->resolveUsersByRoles([
-    //                     $effectiveRoleId,
-    //                 ]);
-
-    //                 if (
-    //                     isset($usersByRole[$effectiveRoleId]) &&
-    //                     count($usersByRole[$effectiveRoleId]) === 1
-    //                 ) {
-    //                     $displayName =
-    //                         $usersByRole[$effectiveRoleId][0]["name"];
-    //                 } else {
-    //                     $displayName =
-    //                         $roles[$effectiveRoleId]["name"] ?? "Rôle inconnu";
-    //                 }
-    //             }
-
-    //             return [
-    //                 "id" => $instanceStep->id,
-
-    //                 "workflow_step_id" => $instanceStep->workflow_step_id,
-
-    //                 "position" => $instanceStep->workflowStep->position,
-
-    //                 "validator" => $displayName,
-
-    //                 "status" => $instanceStep->status,
-
-    //                 "comment" => $instanceStep->comment,
-
-    //                 "acted_at" => $instanceStep->executed_at,
-
-    //                 "is_end" => $instanceStep->workflowStep->is_archived_step,
-
-    //                 "role_id" => $instanceStep->role_id,
-
-    //                 "resolved_role_id" => $instanceStep->resolved_role_id,
-
-    //                 "dynamic_roles" => $instanceStep->dynamicRoles
-    //                     ->pluck("role_id")
-    //                     ->values()
-    //                     ->toArray(),
-    //             ];
-    //         })
-    //         ->sortBy("position")
-    //         ->values()
-    //         ->toArray();
-
-    //     return response()->json([
-    //         "document_id" => $documentId,
-    //         "workflow_status" => $workflowInstance->status,
-    //         "steps" => $instanceSteps,
-    //     ]);
-    // }
+ 
 
     public function history(
     Request $request,
@@ -446,13 +258,48 @@ class WorkflowInstanceController extends Controller
              */
             elseif ($instanceStep->workflowStep->assignment_mode === "DYNAMIC") {
 
+            $agent_user_id = null;
+
+                if ($instanceStep->workflowStep->assignment_rule === "MISSION_EXECUTOR") {
+                    
+
+                    $agent_user_id = collect($assignments)->first(fn ($a) => !is_null($a['user_id']))['user_id'] ?? null;
+
+
+                }
+                else{
+
+                }
+
                 $roleIds = $assignments
                     ->pluck("role_id")
                     ->unique()
                     ->values()
                     ->toArray();
 
+               
+
+
                 $usersByRoles = $resolver->resolveUsersByRoles($roleIds);
+
+                if ($agent_user_id) {
+    $usersByRoles = collect($usersByRoles)
+        ->map(function ($users) use ($agent_user_id) {
+            return collect($users)
+                ->filter(fn ($user) => $user['id'] == $agent_user_id)
+                ->values()
+                ->all();
+        })
+        ->filter(fn ($users) => count($users) > 0)
+        ->toArray();
+
+
+        //   throw new Exception(json_encode($usersByRoles)); 
+}
+
+                
+
+
 
                 $displayName = collect($usersByRoles)
                     ->flatten(1)
@@ -654,9 +501,11 @@ class WorkflowInstanceController extends Controller
 
                         $user = $resolver->resolveUser($dynamicUser["user_id"]);
 
+                        // throw new Exception(json_encode($user), 1);
+
+
                         $stepRoles = $user["role_ids"];
 
-                        // throw new Exception(json_encode($stepRoles), 1);
 
                         // $validatorRole = $this->getRoleValidator($departmentId);
                         // $stepRoles = $documentData[$documentData["document_type"]["slug"]]["actor_details"]["employee"]["manager"]["user"]["role_ids"];
@@ -666,15 +515,15 @@ class WorkflowInstanceController extends Controller
                             $documentData
                         );
 
-                        $documentData[$documentData["document_type"]["slug"]][
+                        $agent_user_id = $documentData[$documentData["document_type"]["slug"]][
                             "actor_details"
-                        ];
+                        ]["id"];
 
                         // throw new Exception(json_encode($documentData[$documentData["document_type"]["slug"]]["actor_details"]), 1);
 
                         $stepRoles = $missionExecutor["role_ids"];
 
-                        // throw new Exception(json_encode($stepRoles), 1);
+                        // throw new Exception(json_encode($agent_user_id), 1);
 
                         // $validatorRole = $this->getRoleValidator($departmentId);
                         // $stepRoles = $documentData[$documentData["document_type"]["slug"]]["actor_details"]["employee"]["manager"]["user"]["role_ids"];
@@ -865,7 +714,7 @@ foreach ($stepRoles as $roleId) {
 
     $assignment = WorkflowInstanceStepAssignment::create([
         "instance_step_id" => $stepInstance->id,
-        "user_id" => null,
+        "user_id" => $agent_user_id ?? null,
         "role_id" => $roleId,
         "source_type" => $step["assignment_mode"],
         "decision" => "PENDING",

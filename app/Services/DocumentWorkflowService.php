@@ -78,6 +78,7 @@ class DocumentWorkflowService
     |--------------------------------------------------------------------------
     */
     $documentIds = $this->getDocumentIds(
+    $context,
     clone $baseQuery,
     $roleId,
     $filters,
@@ -362,6 +363,7 @@ private function buildWorkflowQuery(
 
 
 private function getDocumentIds(
+    string $context,
     Builder $query,
     int $roleId,
     array $filters = [],
@@ -371,6 +373,11 @@ private function getDocumentIds(
     $statut = $filters['statut'] ?? null;
     $date = $filters['date'] ?? null;
 
+
+    if ($context === self::CONTEXT_VALIDATION) {
+
+       
+    
     /*
     |--------------------------------------------------------------------------
     | FILTRE ROLE (OPTIONNEL)
@@ -424,6 +431,13 @@ private function getDocumentIds(
                 [$date['from'], $date['to']]
             );
         });
+    }
+
+     
+    }
+
+    if ($context === self::CONTEXT_MY_DOCUMENTS) {
+
     }
 
     return $query

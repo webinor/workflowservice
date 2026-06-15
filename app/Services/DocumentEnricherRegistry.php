@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Services\Mission\MissionEnricher;
+use App\Services\Purchase\PurchaseEnricher;
 use App\Services\Taxi\TaxiPaperEnricher;
 use Exception;
 
@@ -19,6 +20,10 @@ class DocumentEnricherRegistry
 
             return new MissionEnricher();
             
+        }
+
+        if ($type === "demande-achat") {
+            return new PurchaseEnricher();
         }
 
         throw new Exception(

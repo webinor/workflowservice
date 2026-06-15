@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\Signature;
 use App\Models\WorkflowInstanceStep;
+use App\Models\WorkflowStep;
+use Exception;
 use Illuminate\Http\Request;
 
 class UserDashboardContextController extends Controller
@@ -16,14 +18,48 @@ class UserDashboardContextController extends Controller
         $departmentId = $request->input("department_id");
 
         // 1. Récupérer workflows assignés à ces rôles
-        $tasks = WorkflowInstanceStep::query()
-            ->whereHas("assignments", function ($q) use ($roles, $userId) {
-                $q->where("user_id", $userId)->orWhereIn("role_id", $roles);
-                $q->where("source_type", "!=" , "OWNER");
-            })
-            ->where("status", "PENDING")
-            ->with(["workflowStep.workflow"])
-            ->get();
+        // $tasks = WorkflowInstanceStep::query()
+        //     ->whereHas("assignments", function ($q) use ($roles, $userId) {
+        //         $q->where("user_id", $userId)->orWhereIn("role_id", $roles);
+        //         $q->where("source_type", "!=" , "OWNER");
+        //     })
+        //     ->where("status", "PENDING")
+        //     ->with(["workflowStep.workflow"])
+        //     ->get();
+
+      $excludedRules = [
+    "MISSION_EXECUTOR",
+    "MISSION_OWNER",
+    "REQUESTER",
+    "BENEFICIARY",
+];
+
+
+;
+
+$tasks = WorkflowInstanceStep::query()
+    ->whereHas("assignments", function ($q) use ($roles, $userId) {
+        $q->where(function ($sub) use ($roles, $userId) {
+            $sub->where("user_id", $userId)
+                ->orWhereIn("role_id", $roles);
+        })
+        ->where("source_type", "!=", "OWNER");
+    })
+    ->where("status", "PENDING")
+    ->with(["workflowStep.workflow", "workflowStep"])
+    ->get();
+
+    // throw new Exception(json_encode($tasks), 1);
+
+    $isValidatorUser = !$tasks->contains(function ($step) use ($excludedRules) {
+
+    $rule = $step->workflowStep->assignment_rule;
+    
+    return in_array($rule, $excludedRules);
+});
+
+    // throw new Exception(json_encode($isValidatorUser), 1);
+
 
         $workflowIds = $tasks
             ->pluck("workflowStep.workflow_id")
@@ -46,11 +82,11 @@ class UserDashboardContextController extends Controller
         });
 
         $tasks = $tasksByType
-            ->map(function ($steps, $type) {
+            ->map(function ($steps, $type) use ($isValidatorUser) {
                 return [
                     "document_type" => $type,
                     "count" => $steps->count(),
-                    "can_validate" => true,
+                    "can_validate" => $isValidatorUser,
                 ];
             })
             ->values();
@@ -74,6 +110,7 @@ class UserDashboardContextController extends Controller
             "tasks" => $tasks,
             "signatures" => $signatures,
             "has_pending_tasks" => $tasks->isNotEmpty(),
+            "isValidatorUser" => $isValidatorUser
         ]);
     }
 }

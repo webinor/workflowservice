@@ -50,6 +50,9 @@ class WorkflowDynamicResolverService
                 );
 
                 if ($response->ok()) {
+
+                // throw new Exception(json_encode($response->body(), JSON_PRETTY_PRINT),1);
+
                     return $response->json();
                 }
 
@@ -143,11 +146,12 @@ class WorkflowDynamicResolverService
             return null;
         }
 
-        $response = Http::get(
+        $response = Http::acceptJson()->get(
             config("services.user_service.base_url") . "/{$userId}"
         );
 
         if (!$response->ok()) {
+            throw new Exception(json_encode('$response->body()'), 1);
             return null;
         }
 
