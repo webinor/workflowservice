@@ -2214,7 +2214,7 @@ if ($index === 0 && $hasApproved) {
             ->where("from_step_id", $currentStep->workflow_step_id)
             ->get();
 
-        // throw new Exception($pathtransitions, 1);
+        throw new Exception($pathtransitions, 1);
 
         foreach ($pathtransitions as $index => $pathtransition) {
             // Récupère les conditions PATH associées à la transition
