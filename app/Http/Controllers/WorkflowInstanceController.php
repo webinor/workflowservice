@@ -2249,7 +2249,7 @@ if ($index === 0 && $hasApproved) {
 
                 // ✅ SI UN GROUPE EST VALIDE → ON PREND LA TRANSITION
                 if ($allSatisfied) {
-                      throw new Exception(json_encode($pathtransition), 1);
+                    //   throw new Exception(json_encode($pathtransition), 1);
 
                     return $this->get_step(
                         $instance,
@@ -2268,7 +2268,7 @@ if ($index === 0 && $hasApproved) {
             }
         }
 
-        throw new Exception("aucune satisfaite", 1);
+        // throw new Exception("aucune satisfaite", 1);
 
         // throw new Exception(json_encode($this->get_step($instance, $default_transition, $isDynamic)), 1);
 
