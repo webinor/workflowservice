@@ -37,6 +37,10 @@ class WorkflowEventEngine
             ->orderBy("execution_order")
             ->get();
 
+        // throw new Exception(json_encode($actionStepId), 1);
+        // throw new Exception(json_encode($events), 1);
+        
+
         $document = $this->documentClient->getDocument($documentId);
 
         //  $events = $currentStep->workflowStep->workflowActionStepEvents;
