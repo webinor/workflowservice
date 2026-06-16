@@ -534,22 +534,22 @@ class WorkflowInstanceController extends Controller
                             $documentData
                         );
 
-                        $DG_ROLE_ID =
-                            collect($dynamicUsers)
-                                ->pluck("roles")
-                                ->flatten(1)
-                                ->firstWhere("name", "Directeur General")[
-                                "id"
-                            ] ?? null;
-                        // throw new Exception(json_encode($DG_ROLE_ID), 1);
+                        // $DG_ROLE_ID =
+                        //     collect($dynamicUsers)
+                        //         ->pluck("roles")
+                        //         ->flatten(1)
+                        //         ->firstWhere("name", "Directeur General")[
+                        //         "id"
+                        //     ] ?? null;
+                        // // throw new Exception(json_encode($DG_ROLE_ID), 1);
 
-                        $dynamicUsers = collect($dynamicUsers)
-                            ->reject(function ($user) use ($DG_ROLE_ID) {
-                                return collect($user["roles"])
-                                    ->pluck("id")
-                                    ->contains($DG_ROLE_ID);
-                            })
-                            ->values();
+                        // $dynamicUsers = collect($dynamicUsers)
+                        //     ->reject(function ($user) use ($DG_ROLE_ID) {
+                        //         return collect($user["roles"])
+                        //             ->pluck("id")
+                        //             ->contains($DG_ROLE_ID);
+                        //     })
+                        //     ->values();
 
                         // throw new Exception(json_encode($dynamicUsers), 1);
 
