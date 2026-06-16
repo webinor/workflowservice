@@ -551,7 +551,7 @@ class WorkflowInstanceController extends Controller
                         //     })
                         //     ->values();
 
-                        // throw new Exception(json_encode($dynamicUsers), 1);
+                        throw new Exception(json_encode($dynamicUsers), 1);
 
                         $stepRoles = collect($dynamicUsers)
                             ->pluck("roles")
