@@ -87,6 +87,9 @@ class DocumentWorkflowService
 );
 
 
+    // throw new Exception(json_encode($documentIds), 1);
+
+
 
     /*
     |--------------------------------------------------------------------------
@@ -119,6 +122,9 @@ class DocumentWorkflowService
         $filters,
         $request
     );
+
+    // throw new Exception(json_encode($documents), 1);
+
 
       if (collect($documents)->isEmpty()) {
 
@@ -374,8 +380,11 @@ private function getDocumentIds(
     $date = $filters['date'] ?? null;
 
 
+
     if ($context === self::CONTEXT_VALIDATION) {
 
+    // throw new Exception($context, 1);
+    
        
     
     /*
