@@ -72,7 +72,6 @@ class HttpClientService
 
             return [
                 "success" => true,
-                "url"=>"{$this->baseUrl}/$uri",
                 "status" => $response->status(),
                 "data" => $response->json(),
             ];
@@ -87,6 +86,7 @@ class HttpClientService
 
             return [
                 "success" => false,
+                 "url"=>"{$this->baseUrl}/$uri",
                 "status" => $e->response ? $e->response->status() : 500,
                 "error" => $e->getMessage(),
                 "body" => $e->response ? $e->response->json() : null,
