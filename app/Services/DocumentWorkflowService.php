@@ -225,7 +225,7 @@ class DocumentWorkflowService
         $context
     );
 
-    // throw new Exception(json_encode($documents), 1);
+    throw new Exception(json_encode($documents), 1);
 
 
     return [
@@ -559,7 +559,7 @@ private function getDocumentIds(
     ): array {
         $translations = $this->statusTranslations();
 
-        throw new Exception(json_encode($documents), 1);
+        // throw new Exception(json_encode($documents), 1);
 
         return collect($documents)
             ->filter(
@@ -615,7 +615,8 @@ private function getDocumentIds(
         $isOwner = $doc["created_by"] === $userId;
 
         $isSameDepartment = $this->checkSameDepartment(
-            $doc["created_by"],
+            // $doc["created_by"],
+            $doc['actor']['id'],//id de la personne concernee par le document ( agent de mission par exemple )
             $userId
         );
 
