@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 
 class UserDashboardContextController extends Controller
 {
-    public function show(Request $request , HttpClientService $client)
+    public function show(Request $request )
     {
         $userId = $request->get("user")["id"];
         $roles = $request->input("roles", []);
@@ -80,6 +80,8 @@ $mapping = DocumentTypeWorkflow::query()
     ->unique()
     ->values()
     ->all();
+
+    $client = HttpClientService::service('document');
 
     $response = $client->get("document-types", ["ids" => $documentTypeIds]);
 
