@@ -614,12 +614,13 @@ private function getDocumentIds(
 
         $isOwner = $doc["created_by"] === $userId;
 
-        throw new Exception(json_encode($doc), 1);
+        // throw new Exception(json_encode($doc), 1);
 
 
         $isSameDepartment = $this->checkSameDepartment(
             // $doc["created_by"],
-            $doc['actor']['id'] ?? 0,//id de la personne concernee par le document ( agent de mission par exemple )
+            isset($doc['beneficiary']) ? $doc['beneficiary']['id'] : $doc['actor']['id'],
+            // $doc['actor']['id'] ?? 0,//id de la personne concernee par le document ( agent de mission par exemple )
             $userId
         );
 
