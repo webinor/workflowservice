@@ -179,7 +179,7 @@ class DocumentWorkflowService
         $permissionService
     );
 
-    throw new Exception(json_encode($documents), 1);
+    // throw new Exception(json_encode($documents), 1);
 
 
     /*
@@ -207,6 +207,9 @@ class DocumentWorkflowService
         ->with('assignments')
         ->get()
         ->keyBy('workflow_instance_id');
+
+    throw new Exception(json_encode($actionableSteps), 1);
+    
 
     /*
     |--------------------------------------------------------------------------
