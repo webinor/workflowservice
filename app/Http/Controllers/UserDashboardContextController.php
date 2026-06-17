@@ -74,7 +74,7 @@ $tasks = WorkflowInstanceStep::query()
             ->get()
             ->groupBy("workflow_id");
 
-    throw new Exception(json_encode($mapping), 1);
+    // throw new Exception(json_encode($mapping), 1);
         
 
         $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
@@ -84,6 +84,10 @@ $tasks = WorkflowInstanceStep::query()
 
             if ($docType) {
                 return $docType->id;
+            }
+            else{
+    throw new Exception(json_encode($mapping[$workflowId]), 1);
+
             }
 
     throw new Exception(json_encode("Type de document inconnu"), 1);
