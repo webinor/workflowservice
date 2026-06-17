@@ -83,7 +83,7 @@ $mapping = DocumentTypeWorkflow::query()
 
     $client = HttpClientService::service('document');
 
-    $response = $client->get("document-types", ["ids" => $documentTypeIds]);
+    $response = $client->get("documentTypes", ["ids" => $documentTypeIds]);
 
     throw new Exception(json_encode($response), 1);
 
