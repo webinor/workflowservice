@@ -88,26 +88,24 @@ $mapping = DocumentTypeWorkflow::query()
     
 
     
-    $documentTypes = $response['data']['data'];
+    $documentTypes = $response['data']['data'] ?? [];
+
+    $documentTypeMap = collect($documentTypes)
+    ->keyBy('id');
     
-    throw new Exception(json_encode($documentTypes), 1);
+    // throw new Exception(json_encode($documentTypes), 1);
 
-        $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
-            $workflowId = $step->workflowStep->workflow_id;
+       $tasksByType = $tasks->groupBy(function ($step) use ($mapping, $documentTypeMap) {
 
-            $docType = $mapping[$workflowId][0]->documentType ?? null;
+    $workflowId = $step->workflowStep->workflow_id;
 
-            if ($docType) {
-                return $docType->id;
-            }
-            else{
-    throw new Exception(json_encode($mapping[$workflowId]), 1);
+    $docTypeId = $mapping[$workflowId][0]->document_type_id ?? null;
 
-            }
+    return $docTypeId;
+});
 
-    throw new Exception(json_encode("Type de document inconnu"), 1);
+    throw new Exception(json_encode($tasksByType), 1);
 
-        });
 
         $tasks = $tasksByType
             ->map(function ($steps, $type) use ($isValidatorUser) {
