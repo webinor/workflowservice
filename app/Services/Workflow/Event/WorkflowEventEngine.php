@@ -38,7 +38,7 @@ class WorkflowEventEngine
             ->get();
 
         // throw new Exception(json_encode($actionStepId), 1);
-        throw new Exception(json_encode($events), 1);
+        // throw new Exception(json_encode($events), 1);
         
 
         $document = $this->documentClient->getDocument($documentId);
