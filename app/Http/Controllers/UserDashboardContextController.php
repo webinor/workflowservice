@@ -74,7 +74,7 @@ $tasks = WorkflowInstanceStep::query()
             ->get()
             ->groupBy("workflow_id");
 
-    // throw new Exception(json_encode($mapping), 1);
+    throw new Exception(json_encode($mapping), 1);
         
 
         $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
