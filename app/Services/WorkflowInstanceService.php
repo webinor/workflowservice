@@ -84,6 +84,9 @@ class WorkflowInstanceService
             ///  return;
         }
 
+            //    throw new Exception(json_encode($stepRoles), 1);
+
+
         $workflowInstance = $stepInstance->workflowInstance;
         $documentId = $workflowInstance->document_id;
         $stepName = $stepInstance->workflowStep->name;

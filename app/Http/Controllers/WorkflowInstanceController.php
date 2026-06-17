@@ -786,8 +786,23 @@ if ($index === 0 && $hasApproved) {
                 // throw new Exception(json_encode('$stepData'), 1);
             }
 
+
+
             $nextStep = $stepData["next_step"];
             if ($nextStep) {
+
+
+            $roleIdsToNotify = collect(
+    $nextStep['assignments'] ?? []
+)
+->pluck('role_id')
+->filter()
+->unique()
+->values()
+->toArray();
+
+            //    throw new Exception(json_encode($roleIdsToNotify), 1);
+
                 $nextStep->update(["status" => "PENDING"]);
                 $workflowInstance->update([
                     "workflow_status_label_id" =>
@@ -798,7 +813,7 @@ if ($index === 0 && $hasApproved) {
                     $nextStep,
                     $request,
                     $departmentId,
-                    $stepRoles
+                    $roleIdsToNotify
                 );
             }
 
@@ -1984,7 +1999,9 @@ if ($index === 0 && $hasApproved) {
 
     function get_step($instance, $transition, $isDynamic)
     {
-        $tempWorkflowInstanceStep = WorkflowInstanceStep::where(
+        $tempWorkflowInstanceStep = WorkflowInstanceStep::
+        with('assignments')
+        ->where(
             "workflow_instance_id",
             $instance->id
         )
