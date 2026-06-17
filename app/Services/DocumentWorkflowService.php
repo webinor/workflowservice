@@ -122,7 +122,7 @@ class DocumentWorkflowService
         $request
     );
 
-    throw new Exception(json_encode($documents), 1);
+    // throw new Exception(json_encode($documents), 1);
 
 
       if (collect($documents)->isEmpty()) {
@@ -178,6 +178,9 @@ class DocumentWorkflowService
         $request,
         $permissionService
     );
+
+    throw new Exception(json_encode($documents), 1);
+
 
     /*
     |--------------------------------------------------------------------------
