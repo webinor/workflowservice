@@ -127,7 +127,7 @@ $mapping = DocumentTypeWorkflow::query()
     })
     ->values();
 
-    throw new Exception(json_encode($tasks), 1);
+    // throw new Exception(json_encode($tasks), 1);
 
 
         // 2. Signatures (employee-based)
