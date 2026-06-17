@@ -208,7 +208,7 @@ class DocumentWorkflowService
         ->get()
         ->keyBy('workflow_instance_id');
 
-    throw new Exception(json_encode($actionableSteps), 1);
+    // throw new Exception(json_encode($actionableSteps), 1);
     
 
     /*
