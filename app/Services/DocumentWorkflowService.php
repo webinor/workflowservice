@@ -225,6 +225,9 @@ class DocumentWorkflowService
         $context
     );
 
+    throw new Exception(json_encode($documents), 1);
+
+
     return [
         'data' => $documents,
         // 'stats' => $statDocuments,
