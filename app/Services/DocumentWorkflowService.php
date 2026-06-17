@@ -225,7 +225,7 @@ class DocumentWorkflowService
         $context
     );
 
-    throw new Exception(json_encode($documents), 1);
+    // throw new Exception(json_encode($documents), 1);
 
 
     return [
@@ -559,7 +559,7 @@ private function getDocumentIds(
     ): array {
         $translations = $this->statusTranslations();
 
-        // throw new Exception(json_encode($permissionsByDocType), 1);
+        throw new Exception(json_encode($documents), 1);
 
         return collect($documents)
             ->filter(
