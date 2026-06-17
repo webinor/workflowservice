@@ -104,18 +104,31 @@ $mapping = DocumentTypeWorkflow::query()
     return $docTypeId;
 });
 
-    throw new Exception(json_encode($tasksByType), 1);
+    // throw new Exception(json_encode($tasksByType), 1);
 
 
-        $tasks = $tasksByType
-            ->map(function ($steps, $type) use ($isValidatorUser) {
-                return [
-                    "document_type" => $type,
-                    "count" => $steps->count(),
-                    "can_validate" => $isValidatorUser,
-                ];
-            })
-            ->values();
+       $tasks = $tasksByType
+    ->map(function ($steps, $typeId) use ($documentTypeMap, $isValidatorUser) {
+
+        $docType = $documentTypeMap->get($typeId);
+
+        return [
+            "document_type" => $docType,
+            // [
+            //     "id" => $typeId,
+            //     "name" => $docType['name'] ?? null,
+            //     "code" => $docType['code'] ?? null,
+            //     "icon" => $docType['icon'] ?? null,
+            //     "color" => $docType['color'] ?? null,
+            // ],
+            "count" => $steps->count(),
+            "can_validate" => $isValidatorUser,
+        ];
+    })
+    ->values();
+
+    throw new Exception(json_encode($tasks), 1);
+
 
         // 2. Signatures (employee-based)
         $signatures = Signature::query()
