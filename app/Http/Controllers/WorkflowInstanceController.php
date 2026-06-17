@@ -1562,7 +1562,7 @@ if ($index === 0 && $hasApproved) {
             WorkflowStatusHistory::create($historyData);
         }
 
-        DB::commit();
+        // DB::commit();
 
         // throw new Exception(json_encode($historyDataArray), 1);
         
