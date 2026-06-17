@@ -87,7 +87,7 @@ class DocumentWorkflowService
 );
 
 
-    // throw new Exception(json_encode($documentIds), 1);
+    throw new Exception(json_encode($documentIds), 1);
 
 
 
