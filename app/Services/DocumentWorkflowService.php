@@ -614,6 +614,9 @@ private function getDocumentIds(
 
         $isOwner = $doc["created_by"] === $userId;
 
+        $isActor = isset($doc['beneficiary']) ? $doc['beneficiary']['id'] === $userId : $doc['actor']['id'] === $userId;
+
+
         // throw new Exception(json_encode($doc), 1);
 
 
