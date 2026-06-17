@@ -17,13 +17,5 @@ class DocumentTypeWorkflow extends Model
         return $this->belongsTo(Workflow::class);
     }
 
-    /**
-     * Get the documentType that owns the DocumentTypeWorkflow
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function documentType(): BelongsTo
-    {
-        return $this->belongsTo(DocumentTypeWorkflow::class);
-    }
+    
 }

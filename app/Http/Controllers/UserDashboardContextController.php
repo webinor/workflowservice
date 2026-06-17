@@ -6,12 +6,13 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\Signature;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStep;
+use App\Services\HttpClientService;
 use Exception;
 use Illuminate\Http\Request;
 
 class UserDashboardContextController extends Controller
 {
-    public function show(Request $request)
+    public function show(Request $request , HttpClientService $client)
     {
         $userId = $request->get("user")["id"];
         $roles = $request->input("roles", []);
@@ -62,19 +63,29 @@ $tasks = WorkflowInstanceStep::query()
     // throw new Exception(json_encode($isValidatorUser), 1);
 
 
-        $workflowIds = $tasks
-            ->pluck("workflowStep.workflow_id")
-            ->unique()
-            ->values()
-            ->all();
+       $workflowIds = $tasks
+    ->pluck("workflowStep.workflow_id")
+    ->unique()
+    ->values()
+    ->all();
 
-        $mapping = DocumentTypeWorkflow::query()
-            ->whereIn("workflow_id", $workflowIds)
-            ->with("documentType")
-            ->get()
-            ->groupBy("workflow_id");
+$mapping = DocumentTypeWorkflow::query()
+    ->whereIn("workflow_id", $workflowIds)
+    ->get()
+    ->groupBy("workflow_id");
 
-    throw new Exception(json_encode($mapping), 1);
+    $documentTypeIds = $mapping
+    ->flatten()
+    ->pluck("document_type_id")
+    ->unique()
+    ->values()
+    ->all();
+
+    $response = $client->get("document-types", ["ids" => $documentTypeIds]);
+
+    throw new Exception(json_encode($response), 1);
+
+    $documentTypes = $documentTypeService->findMany($documentTypeIds);
         
 
         $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
