@@ -792,14 +792,7 @@ if ($index === 0 && $hasApproved) {
             if ($nextStep) {
 
 
-            $roleIdsToNotify = collect(
-    $nextStep['assignments'] ?? []
-)
-->pluck('role_id')
-->filter()
-->unique()
-->values()
-->toArray();
+            $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
 
             //    throw new Exception(json_encode($roleIdsToNotify), 1);
 
@@ -833,6 +826,18 @@ if ($index === 0 && $hasApproved) {
             DB::rollBack();
             throw $th;
         }
+    }
+
+    protected function getRoleIdsToNotify(WorkflowInstanceStep $nextStep){
+
+  return  collect(
+    $nextStep['assignments'] ?? []
+)
+->pluck('role_id')
+->filter()
+->unique()
+->values()
+->toArray();
     }
 
     protected function getFirstStepInstance(WorkflowInstance $workflowInstance)
@@ -1532,6 +1537,8 @@ if ($index === 0 && $hasApproved) {
 
             } else {
 
+             $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
+
                 $nextStep->update([
                     "status" => "PENDING",
                 ]);
@@ -1544,7 +1551,8 @@ if ($index === 0 && $hasApproved) {
                 $this->workflowInstanceService->notifyNextValidator(
                     $nextStep,
                     $request,
-                    $request->get("department_id")
+                    $request->get("department_id"),
+                    $roleIdsToNotify
                 );
             }
 
