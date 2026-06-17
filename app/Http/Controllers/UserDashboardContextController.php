@@ -85,10 +85,12 @@ $mapping = DocumentTypeWorkflow::query()
 
     $response = $client->get("documentTypes", ["ids" => $documentTypeIds]);
 
-    throw new Exception(json_encode($response), 1);
+    
 
-    $documentTypes = $documentTypeService->findMany($documentTypeIds);
-        
+    
+    $documentTypes = $response['data']['data'];
+    
+    throw new Exception(json_encode($documentTypes), 1);
 
         $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
             $workflowId = $step->workflowStep->workflow_id;
