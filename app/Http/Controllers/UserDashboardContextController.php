@@ -54,10 +54,11 @@ $tasks = WorkflowInstanceStep::query()
     $isValidatorUser = !$tasks->contains(function ($step) use ($excludedRules) {
 
     $rule = $step->workflowStep->assignment_rule;
-    
+
     return in_array($rule, $excludedRules);
 });
 
+    // throw new Exception(json_encode($workflowContext), 1);
     // throw new Exception(json_encode($isValidatorUser), 1);
 
 
@@ -73,12 +74,20 @@ $tasks = WorkflowInstanceStep::query()
             ->get()
             ->groupBy("workflow_id");
 
+    throw new Exception(json_encode($mapping), 1);
+        
+
         $tasksByType = $tasks->groupBy(function ($step) use ($mapping) {
             $workflowId = $step->workflowStep->workflow_id;
 
             $docType = $mapping[$workflowId][0]->documentType ?? null;
 
-            return $docType ? $docType->id : "unknown";
+            if ($docType) {
+                return $docType->id;
+            }
+
+    throw new Exception(json_encode("Type de document inconnu"), 1);
+
         });
 
         $tasks = $tasksByType
