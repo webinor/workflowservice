@@ -633,7 +633,7 @@ private function getDocumentIds(
          * =========================
          */
         if ($context === "MY_DOCUMENTS") {
-            return $isOwner;
+            return $isOwner || $isActor;
         }
 
         /**
