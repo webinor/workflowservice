@@ -72,63 +72,17 @@ class WorkflowEventEngine
                 $document
             );
 
+        // throw new Exception(json_encode($audiences), 1);
+
+
             /**
              * =========================================
              * 3️⃣ Dispatch notifications
              * =========================================
              */
             $url = config("services.notification_service.base_url") . "/bulk";
-            // foreach ($audiences as $audience) {
-            //     $response = Http::acceptJson()->post(
-            //         $url,
-
-            //         [
-            //             /**
-            //              * Template code
-            //              */
-            //             "code" => $event->event,
-
-            //             /**
-            //              * EMAIL / SMS / IN_APP
-            //              */
-            //             "channels" => [$audience["channel"]],
-
-            //             /**
-            //              * Destinataires
-            //              */
-            //             "recipients" => $audience["recipients"],
-
-            //             /**
-            //              * Payload dynamique
-            //              */
-            //             "data" => array_merge(
-            //                 [
-            //                     "document_id" => $documentId,
-
-            //                     "workflow_instance_id" => $instance->id,
-            //                 ],
-            //                 $result ?? []
-            //             ),
-            //         ]
-            //     );
-
-            //     if (!$response->successful()) {
-            //         // return false;
-
-            //         return response()->json(
-            //             [
-            //                 "error" =>
-            //                     "Erreur lors de l’appel au microservice notification",
-            //                 "url" => $url,
-            //                 "status" => $response->status(),
-            //                 "body" => $response->body(),
-            //             ],
-            //             $response->status()
-            //         );
-            //     } else {
-            //         return $response->json();
-            //     }
-            // }
+            
+            
             foreach ($audiences as $channel => $recipients) {
 
     $response = Http::acceptJson()->post(
@@ -144,6 +98,8 @@ class WorkflowEventEngine
             'cc' => $recipients['cc'] ?? [],
 
             'bcc' => $recipients['bcc'] ?? [],
+
+            'attachments' => $result['attachments'] ?? [],
 
             'data' => array_merge(
                 [
