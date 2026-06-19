@@ -72,7 +72,7 @@ class WorkflowEventEngine
                 $document
             );
 
-        // throw new Exception(json_encode($audiences), 1);
+        throw new Exception(json_encode($audiences), 1);
 
 
             /**
