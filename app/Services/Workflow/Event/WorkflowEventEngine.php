@@ -38,12 +38,12 @@ class WorkflowEventEngine
             ->get();
 
         // throw new Exception(json_encode($actionStepId), 1);
-        // throw new Exception(json_encode($events), 1);
+        throw new Exception(json_encode($events), 1);
         
 
         $document = $this->documentClient->getDocument($documentId);
 
-        //  $events = $currentStep->workflowStep->workflowActionStepEvents;
+         $events = $currentStep->workflowStep->workflowActionStepEvents;
 
         // throw new Exception(json_encode($events), 1);
 
@@ -72,7 +72,7 @@ class WorkflowEventEngine
                 $document
             );
 
-        throw new Exception(json_encode($audiences), 1);
+        // throw new Exception(json_encode($audiences), 1);
 
 
             /**
