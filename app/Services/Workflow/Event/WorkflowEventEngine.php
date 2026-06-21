@@ -3,6 +3,7 @@
 namespace App\Services\Workflow\Event;
 
 use App\Models\WorkflowActionStepEvent;
+use App\Models\WorkflowInstanceStep;
 use App\Services\Document\DocumentServiceClient;
 use Exception;
 use Illuminate\Support\Facades\Http;
@@ -25,8 +26,7 @@ class WorkflowEventEngine
      */
     public function handle(
         $documentId,
-        $instance,
-        $currentStep,
+        WorkflowInstanceStep $instance,
         string $actionStepId
     ) {
         $events = WorkflowActionStepEvent::where(
@@ -37,15 +37,14 @@ class WorkflowEventEngine
             ->orderBy("execution_order")
             ->get();
 
-        // throw new Exception(json_encode($actionStepId), 1);
-        // throw new Exception(json_encode($events), 1);
+      
         
 
         $document = $this->documentClient->getDocument($documentId);
 
         //  $events = $currentStep->workflowStep->workflowActionStepEvents;
 
-        // throw new Exception(json_encode($events), 1);
+        // throw new Exception(json_encode($document), 1);
 
         foreach ($events as $event) {
             /**
@@ -58,8 +57,12 @@ class WorkflowEventEngine
             $result = $handler->execute(
                 $documentId,
                 $instance,
+                $document,
                 $event->config ?? []
             );
+
+        // throw new Exception(json_encode($result), 1);
+
 
             /**
              * =========================================
@@ -74,6 +77,15 @@ class WorkflowEventEngine
 
         // throw new Exception(json_encode($audiences), 1);
 
+          $this->dispatchNotifications(
+        $event,
+        $audiences,
+        $instance,
+        $documentId,
+        $result
+    );
+
+    return;
 
             /**
              * =========================================
@@ -103,6 +115,9 @@ class WorkflowEventEngine
 
             'data' => array_merge(
                 [
+                    // 'actor' => $actor,
+                    // 'mission_reference' => $mission_reference,
+                    // 'period' => $period,
                     'document_id' => $documentId,
                     'workflow_instance_id' => $instance->id,
                 ],
@@ -124,36 +139,48 @@ class WorkflowEventEngine
         return ["ok"];
     }
 
-    //  private function execute(int $documentId,  $instance)
-    // {
-    //     return $this->documentClient->generateMissionDocuments(
-    //         $documentId,
-    //         $instance->id,
-    //         "logistics_validated"
-    //     );
-    // }
+  
 
-    /**
-     * LOGISTIQUE VALIDÉE
-     */
-    private function onLogisticsValidated(int $documentId, $instance)
-    {
-        return $this->documentClient->generateMissionDocuments(
-            $documentId,
-            $instance->id,
-            "logistics_validated"
+    private function dispatchNotifications(
+    $event,
+    array $audiences,
+    $instance,
+    int $documentId,
+    array $result
+)
+{
+    $url = config(
+        'services.notification_service.base_url'
+    ) . '/bulk';
+
+    foreach ($audiences as $channel => $recipients) {
+
+        Http::acceptJson()->post(
+            $url,
+            [
+                'code' => $event->code,
+
+                'channel' => $channel,
+
+                'to' => $recipients['to'] ?? [],
+
+                'cc' => $recipients['cc'] ?? [],
+
+                'bcc' => $recipients['bcc'] ?? [],
+
+                'attachments' =>
+                    $result['attachments'] ?? [],
+
+                'data' => array_merge(
+                    [
+                        'document_id' => $documentId,
+
+                        'workflow_instance_id' =>$instance->id,
+                    ],
+                    $result['data'] ?? []
+                ),
+            ]
         );
     }
-
-    /**
-     * MISSION COMPLÈTEMENT VALIDÉE
-     */
-    private function onMissionValidated($instance)
-    {
-        return $this->documentClient->generateMissionDocuments(
-            "",
-            $instance->id,
-            "mission_completed"
-        );
-    }
+}
 }

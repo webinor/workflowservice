@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkflowActionStep extends Model
 {
@@ -32,5 +33,15 @@ class WorkflowActionStep extends Model
             "from_step_id",
             "workflow_step_id"
         );
+    }
+
+    /**
+     * Get all of the workflowActionStepEvents for the WorkflowActionStep
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function workflowActionStepEvents(): HasMany
+    {
+        return $this->hasMany(WorkflowActionStepEvent::class);
     }
 }

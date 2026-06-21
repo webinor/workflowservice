@@ -22,7 +22,8 @@ class WorkflowCondition extends Model
         'operator' ,
         'value',
         'next_step_id',
-        'group_id'
+        'group_id',
+        'error_message'
     ];
 
 

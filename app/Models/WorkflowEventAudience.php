@@ -9,13 +9,6 @@ class WorkflowEventAudience extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-    'workflow_event_id',
-    'target_type',
-    'target_value',
-    'channel',
-    'recipient_type',
-];
-
+    protected $guarded = [];
 
 }

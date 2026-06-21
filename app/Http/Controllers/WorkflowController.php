@@ -15,6 +15,8 @@ use App\Http\Requests\StoreWorkflowRequest;
 use App\Http\Requests\UpdateWorkflowRequest;
 use App\Models\Signature;
 use App\Models\WorkflowActionStep;
+use App\Models\WorkflowActionStepEvent;
+use App\Models\WorkflowEventAudience;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepAttachmentType;
@@ -945,327 +947,403 @@ class WorkflowController extends Controller
     }
 
     public function store(StoreWorkflowRequest $request)
-{
-    DB::beginTransaction();
+    {
+        DB::beginTransaction();
 
-    // return $request->validated();
+        // return $request->validated();
 
-    try {
-
-        /*
+        try {
+            /*
         |--------------------------------------------------------------------------
         | 1. Désactiver les workflows existants du document type
         |--------------------------------------------------------------------------
         */
 
-        $workflowIds = DocumentTypeWorkflow::where(
-            "document_type_id",
-            $request->document_type
-        )->pluck("workflow_id");
+            $workflowIds = DocumentTypeWorkflow::where(
+                "document_type_id",
+                $request->document_type
+            )->pluck("workflow_id");
 
-        Workflow::whereIn("id", $workflowIds)
-            ->where("active", true)
-            ->update(["active" => false]);
+            Workflow::whereIn("id", $workflowIds)
+                ->where("active", true)
+                ->update(["active" => false]);
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | 2. Créer nouveau workflow
         |--------------------------------------------------------------------------
         */
 
-         $workflow = Workflow::create([
-            "name" => $request->name,
-            "active" => true,
-        ]);
+            $workflow = Workflow::create([
+                "name" => $request->name,
+                "active" => true,
+            ]);
 
-        DocumentTypeWorkflow::create([
-            "workflow_id" => $workflow->id,
-            "document_type_id" => $request->document_type,
-        ]);
+            DocumentTypeWorkflow::create([
+                "workflow_id" => $workflow->id,
+                "document_type_id" => $request->document_type,
+            ]);
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | 🔥 IMPORTANT : récupération document type data (pour PATH rules)
         |--------------------------------------------------------------------------
         */
 
-        $documentTypeData = $this->getDocumentTypeData(
-            $request->document_type
-        )["data"] ?? null;
+            $documentTypeData =
+                $this->getDocumentTypeData($request->document_type)["data"] ??
+                null;
 
-        $child = isset($documentTypeData["relation_name"])
-            ? explode(".", $documentTypeData["relation_name"])[0]
-            : null;
+            $child = isset($documentTypeData["relation_name"])
+                ? explode(".", $documentTypeData["relation_name"])[0]
+                : null;
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | 3. Charger ancien workflow pour reuse
         |--------------------------------------------------------------------------
         */
 
-         $oldWorkflow = Workflow::whereIn("id", $workflowIds)
-            ->where("active", false)
-            ->latest()
-            ->first();
+            $oldWorkflow = Workflow::whereIn("id", $workflowIds)
+                ->where("active", false)
+                ->latest()
+                ->first();
 
-        $oldSteps = collect();
-        $oldStepMap = [];
-        $keys = [];
+            $oldSteps = collect();
+            $oldStepMap = [];
+            $keys = [];
 
-        if ($oldWorkflow) {
-            $oldSteps = WorkflowStep::where("workflow_id", $oldWorkflow->id)
-                ->get();
+            if ($oldWorkflow) {
+                $oldSteps = WorkflowStep::where(
+                    "workflow_id",
+                    $oldWorkflow->id
+                )->get();
 
-            foreach ($oldSteps as $i => $step) {
+                foreach ($oldSteps as $i => $step) {
+                    $oldStepSignature = md5(
+                        json_encode([
+                            $step["name"],
+                            $step["assignment_mode"],
+                            $step["assignment_rule"] ?? null,
+                            $step["is_payment_step"],
+                            $step["is_archived_step"],
+                        ])
+                    );
 
-            $oldStepSignature = md5(json_encode([
-                $step["name"],
-                $step["assignment_mode"],
-                $step["assignment_rule"] ?? null,
-                $step["is_payment_step"],
-                $step["is_archived_step"],
-            ]));
+                    if ($i == 0) {
+                        //     return [
+                        //     $step["name"],
+                        //     $step["assignment_mode"],
+                        //     $step["assignment_rule"] ?? null,
+                        //     $step["is_payment_step"],
+                        //     $step["is_archived_step"],
+                        // ];
+                    }
 
-
-              if ($i == 0) {
-            //     return [
-            //     $step["name"],
-            //     $step["assignment_mode"],
-            //     $step["assignment_rule"] ?? null,
-            //     $step["is_payment_step"],
-            //     $step["is_archived_step"],
-            // ];
+                    $keys[] = $oldStepSignature;
+                    // $oldStepMap[$step->signature] = $step;
+                    $oldStepMap[$oldStepSignature] = $step;
+                }
             }
 
+            // return $keys;
 
-                $keys[] = $oldStepSignature;
-                // $oldStepMap[$step->signature] = $step;
-                $oldStepMap[$oldStepSignature] = $step;
-            }
-        }
-
-        // return $keys;
-
-        /*
+            /*
         |--------------------------------------------------------------------------
         | 4. Création steps + reuse actions
         |--------------------------------------------------------------------------
         */
 
-        $stepIdMap = [];
+            $stepIdMap = [];
 
-        foreach ($request->steps as $index => $stepData) {
+            foreach ($request->steps as $index => $stepData) {
+                $signature = md5(
+                    json_encode([
+                        $stepData["stepName"],
+                        $stepData["assignationMode"],
+                        $stepData["assignmentRule"] ?? null,
+                        filter_var(
+                            $stepData["is_payment_step"] ?? false,
+                            FILTER_VALIDATE_BOOLEAN
+                        ),
+                        filter_var(
+                            $stepData["is_archived_step"] ?? false,
+                            FILTER_VALIDATE_BOOLEAN
+                        ),
+                    ])
+                );
 
-            $signature = md5(json_encode([
-                $stepData["stepName"],
-                $stepData["assignationMode"],
-                $stepData["assignmentRule"] ?? null,
-               filter_var(
-        $stepData["is_payment_step"] ?? false,
-        FILTER_VALIDATE_BOOLEAN
-    ),
-     filter_var(
-        $stepData["is_archived_step"] ?? false,
-        FILTER_VALIDATE_BOOLEAN
-    ),
-            ]));
+                //         if ($index == 0) {
+                //             return [
+                //             $stepData["stepName"],
+                //             $stepData["assignationMode"],
+                //             $stepData["assignmentRule"] ?? null,
+                //             filter_var(
+                //     $stepData["is_payment_step"] ?? false,
+                //     FILTER_VALIDATE_BOOLEAN
+                // ),
+                //  filter_var(
+                //     $stepData["is_archived_step"] ?? false,
+                //     FILTER_VALIDATE_BOOLEAN
+                // ),
+                //         ];//
+                //         }
+                // return    $signature;
 
-    //         if ($index == 0) {
-    //             return [
-    //             $stepData["stepName"],
-    //             $stepData["assignationMode"],
-    //             $stepData["assignmentRule"] ?? null,
-    //             filter_var(
-    //     $stepData["is_payment_step"] ?? false,
-    //     FILTER_VALIDATE_BOOLEAN
-    // ),
-    //  filter_var(
-    //     $stepData["is_archived_step"] ?? false,
-    //     FILTER_VALIDATE_BOOLEAN
-    // ),
-    //         ];//
-    //         }
-            // return    $signature;
-    
-            $oldStep = $oldStepMap[$signature] ?? null;
+                $oldStep = $oldStepMap[$signature] ?? null;
 
-            $step = WorkflowStep::create([
-                "workflow_id" => $workflow->id,
-                "name" => $stepData["stepName"],
-                "workflow_status_label_id" => $stepData["stepStatus"] ?? null,
-                "assignment_mode" => $stepData["assignationMode"],
-                "is_payment_step" => $stepData["is_payment_step"],
-                "is_archived_step" => $stepData["is_archived_step"],
-                "assignment_rule" => $stepData["assignmentRule"] ?? null,
-                "position" => $stepData["stepPosition"],
+                $step = WorkflowStep::create([
+                    "workflow_id" => $workflow->id,
+                    "name" => $stepData["stepName"],
+                    "workflow_status_label_id" =>
+                        $stepData["stepStatus"] ?? null,
+                    "assignment_mode" => $stepData["assignationMode"],
+                    "is_payment_step" => $stepData["is_payment_step"],
+                    "is_archived_step" => $stepData["is_archived_step"],
+                    "assignment_rule" => $stepData["assignmentRule"] ?? null,
+                    "position" => $stepData["stepPosition"],
 
-                // IMPORTANT
-                "signature" => $signature,
-            ]);
+                    // IMPORTANT
+                    "signature" => $signature,
+                ]);
 
-            $stepIdMap[$stepData["id"]] = $step->id;
+                $stepIdMap[$stepData["id"]] = $step->id;
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | 4.1 Reuse actions si step identique
             |--------------------------------------------------------------------------
             */
 
-            if ($oldStep) {
+                if ($oldStep) {
+                    // return $oldStep;
 
-            // return $oldStep;
+                    $oldActionSteps = WorkflowActionStep::with([
+                        "workflowActionStepEvents.workflowEventAudiences"
+                    ])
+                    ->where(
+                        "workflow_step_id",
+                        $oldStep->id
+                    )->get();
 
-                $oldActionSteps = WorkflowActionStep::where("workflow_step_id", $oldStep->id)
-                    ->get();
+                    foreach ($oldActionSteps as $oldActionStep) {
 
-                foreach ($oldActionSteps as $oldActionStep) {
+                      $newActionStep =  WorkflowActionStep::create([
+                            "workflow_action_id" =>    $oldActionStep->workflow_action_id,
+                            "workflow_step_id" => $step->id,
+                            "permission_required" =>  $oldActionStep->permission_required,
+                            "transaction_type_code" =>  $oldActionStep->transaction_type_code,
+                        ]);
 
-                    WorkflowActionStep::create([
-                        "workflow_action_id" => $oldActionStep->workflow_action_id,
-                        "workflow_step_id" => $step->id,
-                        "permission_required" => $oldActionStep->permission_required,
-                        "transaction_type_code" => $oldActionStep->transaction_type_code,
-                    ]);
+
+
+                           foreach ($oldActionStep->workflowActionStepEvents as $oldEvent) {
+
+                           if (!$newActionStep) {
+
+                        //      throw new Exception(json_encode($newActionStep), 1);
+
+                           }
+
+
+        $newEvent = WorkflowActionStepEvent::create([
+            "workflow_action_step_id" => $newActionStep->id,
+            "code" => $oldEvent->code,
+            "delivery_mode" => $oldEvent->delivery_mode,
+            "handler_class" => $oldEvent->handler_class,
+            "config" => $oldEvent->config,
+            "is_active" => $oldEvent->is_active,
+            "execution_order" => $oldEvent->execution_order,
+        ]);
+
+      
+        
+
+
+                foreach ($oldEvent->workflowEventAudiences as $oldAudience) {
+
+            WorkflowEventAudience::create([
+                "workflow_action_step_event_id" => $newEvent->id,
+                "target_type" => $oldAudience->target_type,
+                "target_value" => $oldAudience->target_value,
+                "channel" => $oldAudience->channel,
+                "recipient_type" => $oldAudience->recipient_type,
+                "notification_template_id" => $oldAudience->notification_template_id,
+                "active" => $oldAudience->active,
+                "metadata" => $oldAudience->metadata,
+            ]);
+        }
+    
+
+
+                        }
+
+
+
+
+
+                    }
+
+
+
+                     
+
+
+
+                    
                 }
-            }
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | 4.2 Roles
             |--------------------------------------------------------------------------
             */
 
-            if (!empty($stepData["roleId"]) && is_array($stepData["roleId"])) {
-                foreach ($stepData["roleId"] as $roleId) {
-                    WorkflowStepRole::create([
-                        "workflow_step_id" => $step->id,
-                        "role_id" => $roleId,
-                    ]);
+                if (
+                    !empty($stepData["roleId"]) &&
+                    is_array($stepData["roleId"])
+                ) {
+                    foreach ($stepData["roleId"] as $roleId) {
+                        WorkflowStepRole::create([
+                            "workflow_step_id" => $step->id,
+                            "role_id" => $roleId,
+                        ]);
+                    }
                 }
-            }
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | 4.3 Attachments
             |--------------------------------------------------------------------------
             */
 
-            if (!empty($stepData["attachmentTypeRequired"])) {
-                foreach ($stepData["attachmentTypeRequired"] as $attachmentTypeId) {
-                    WorkflowStepAttachmentType::create([
-                        "workflow_step_id" => $step->id,
-                        "attachment_type_id" => $attachmentTypeId,
-                    ]);
+                if (!empty($stepData["attachmentTypeRequired"])) {
+                    foreach (
+                        $stepData["attachmentTypeRequired"]
+                        as $attachmentTypeId
+                    ) {
+                        WorkflowStepAttachmentType::create([
+                            "workflow_step_id" => $step->id,
+                            "attachment_type_id" => $attachmentTypeId,
+                        ]);
+                    }
                 }
             }
-        }
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | 5. TRANSITIONS (inchangé)
         |--------------------------------------------------------------------------
         */
 
-        foreach ($request->transitions as $transitionData) {
+            foreach ($request->transitions as $transitionData) {
+                $fromStep = WorkflowStep::find(
+                    $stepIdMap[$transitionData["fromStep"]] ?? null
+                );
 
-            $fromStep = WorkflowStep::find(
-                $stepIdMap[$transitionData["fromStep"]] ?? null
-            );
+                $toStep = WorkflowStep::find(
+                    $stepIdMap[$transitionData["toStep"]] ?? null
+                );
 
-            $toStep = WorkflowStep::find(
-                $stepIdMap[$transitionData["toStep"]] ?? null
-            );
+                if (!$fromStep || !$toStep) {
+                    continue;
+                }
 
-            if (!$fromStep || !$toStep) continue;
+                $workflowTransition = WorkflowTransition::create([
+                    "workflow_id" => $workflow->id,
+                    "from_step_id" => $fromStep->id,
+                    "to_step_id" => $toStep->id,
+                    "name" =>
+                        Str::slug($fromStep->name, "_") .
+                        "_to_" .
+                        Str::slug($toStep->name, "_"),
+                    "type" => strtolower($transitionData["conditionType"]),
+                    "rules" => $transitionData["conditionExpression"] ?? null,
+                ]);
 
-            $workflowTransition = WorkflowTransition::create([
-                "workflow_id" => $workflow->id,
-                "from_step_id" => $fromStep->id,
-                "to_step_id" => $toStep->id,
-                "name" => Str::slug($fromStep->name, "_") . "_to_" . Str::slug($toStep->name, "_"),
-                "type" => strtolower($transitionData["conditionType"]),
-                "rules" => $transitionData["conditionExpression"] ?? null,
-            ]);
-
-            /*
+                /*
             |--------------------------------------------------------------------------
             | BLOCKING RULES
             |--------------------------------------------------------------------------
             */
 
-            if (!empty($transitionData["blockingRuleGroups"])) {
-                foreach ($transitionData["blockingRuleGroups"] as $group) {
+                if (!empty($transitionData["blockingRuleGroups"])) {
+                    foreach ($transitionData["blockingRuleGroups"] as $group) {
+                        $groupId = $group["id"] ?? Str::uuid()->toString();
 
-                    $groupId = $group["id"] ?? Str::uuid()->toString();
-
-                    foreach ($group["rules"] as $rule) {
-                        WorkflowCondition::create([
-                            "workflow_step_id" => $fromStep->id,
-                            "workflow_transition_id" => $workflowTransition->id,
-                            "group_id" => $groupId,
-                            "condition_kind" => "BLOCKING",
-                            "condition_type" => $rule["type"] ?? null,
-                            "required_type" => $rule["existsTarget"] ?? null,
-                            "required_id" => $rule["value"] ?? null,
-                            "field" => $rule["type"] === "exists"
-                                ? "secondary_attachments.[].attachment_type_id"
-                                : $rule["field"] ?? null,
-                            "operator" => $rule["operator"] ?? null,
-                            "value" => $rule["value"] ?? null,
-                        ]);
+                        foreach ($group["rules"] as $rule) {
+                            WorkflowCondition::create([
+                                "workflow_step_id" => $fromStep->id,
+                                "workflow_transition_id" =>
+                                    $workflowTransition->id,
+                                "group_id" => $groupId,
+                                "condition_kind" => "BLOCKING",
+                                "condition_type" => $rule["type"] ?? null,
+                                "required_type" =>
+                                    $rule["existsTarget"] ?? null,
+                                "required_id" => $rule["value"] ?? null,
+                                "field" =>
+                                    $rule["type"] === "exists"
+                                        ? "secondary_attachments.[].attachment_type_id"
+                                        : $rule["field"] ?? null,
+                                "operator" => $rule["operator"] ?? null,
+                                "value" => $rule["value"] ?? null,
+                            ]);
+                        }
                     }
                 }
-            }
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | PATH RULES
             |--------------------------------------------------------------------------
             */
 
-            if (!empty($transitionData["pathRuleGroups"])) {
-                foreach ($transitionData["pathRuleGroups"] as $group) {
+                if (!empty($transitionData["pathRuleGroups"])) {
+                    foreach ($transitionData["pathRuleGroups"] as $group) {
+                        $groupId = $group["id"] ?? Str::uuid()->toString();
 
-                    $groupId = $group["id"] ?? Str::uuid()->toString();
-
-                    foreach ($group["rules"] as $rule) {
-                        WorkflowCondition::create([
-                            "workflow_step_id" => $fromStep->id,
-                            "workflow_transition_id" => $workflowTransition->id,
-                            "group_id" => $groupId,
-                            "condition_kind" => "PATH",
-                            "condition_type" => $rule["type"] ?? null,
-                            "field" => isset($rule["field"])
-                                ? $child . "." . $rule["field"]
-                                : null,
-                            "operator" => $rule["operator"] ?? null,
-                            "value" => $rule["value"] ?? null,
-                            "next_step_id" => $toStep->id,
-                        ]);
+                        foreach ($group["rules"] as $rule) {
+                            WorkflowCondition::create([
+                                "workflow_step_id" => $fromStep->id,
+                                "workflow_transition_id" =>
+                                    $workflowTransition->id,
+                                "group_id" => $groupId,
+                                "condition_kind" => "PATH",
+                                "condition_type" => $rule["type"] ?? null,
+                                "field" => isset($rule["field"])
+                                    ? $child . "." . $rule["field"]
+                                    : null,
+                                "operator" => $rule["operator"] ?? null,
+                                "value" => $rule["value"] ?? null,
+                                "next_step_id" => $toStep->id,
+                            ]);
+                        }
                     }
                 }
             }
+
+            // DB::commit();
+
+            return response()->json(
+                [
+                    // "success" => true,
+                    "success" => false,
+                    "data" => [
+                        "workflow" => $workflow->load(
+                            "steps.workflowActionSteps.workflowActionStepEvents.workflowEventAudiences",
+                            "steps.workflowActionSteps.workflowAction",
+                            "transitions.conditions"
+                        ),
+                    ],
+                ],
+                201
+            );
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
         }
-
-        DB::commit();
-
-        return response()->json([
-            "success" => true,
-            // "success" => false,
-            "data" => [
-                "workflow" => $workflow->load(
-                    // "steps.workflowActionSteps.workflowAction",
-                    "steps.workflowActionSteps.workflowAction",
-                    "transitions.conditions"
-                ),
-            ],
-        ], 201);
-
-    } catch (\Throwable $th) {
-        DB::rollBack();
-        throw $th;
     }
-}
 
     /**
      * Display the specified resource.
