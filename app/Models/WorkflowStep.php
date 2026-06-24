@@ -92,4 +92,22 @@ class WorkflowStep extends Model
     {
         return $this->hasMany(WorkflowInstanceStep::class, "workflow_step_id");
     }
+
+    public function stepEvents()
+{
+    return $this->hasMany(
+        WorkflowStepEvent::class,
+        'workflow_step_id'
+    );
+}
+
+public function events()
+{
+    return $this->belongsToMany(
+        WorkflowEvent::class,
+        'workflow_step_events',
+        'workflow_step_id',
+        'workflow_event_id'
+    );
+}
 }

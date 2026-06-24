@@ -21,6 +21,12 @@ class DocumentWorkflowService
     const CONTEXT_VALIDATION = "TO_VALIDATE";
     const CONTEXT_MY_DOCUMENTS = "MY_DOCUMENTS";
 
+    const FILTER_PENDING = "PENDING";
+    const FILTER_IN_PROGRESS = "IN_PROGRESS";
+    const FILTER_COMPLETE = "COMPLETE";
+    const FILTER_REJECTED = "REJECTED";
+    const FILTER_ALL_DOCUMENTS = "ALL_DOCUMENTS";
+
     public function __construct(
         WorkflowInstanceResolverService $workflowInstanceResolverService,
         DocumentEnricherRegistry $documentEnricherRegistry
@@ -29,234 +35,185 @@ class DocumentWorkflowService
         $this->registry = $documentEnricherRegistry;
     }
 
- 
-
-
     public function getDocuments(
-    array $params,
-    Request $request,
-    WorkflowPermissionService $permissionService
-): array {
+        array $params,
+        Request $request,
+        WorkflowPermissionService $permissionService
+    ): array {
+        [
+            "userId" => $userId,
+            "roleId" => $roleId,
+            "document_type" => $document_type,
+            "validationContext" => $validationContext,
+            "filters" => $filters,
+            "filterContext" => $filterContext,
+        ] = $params;
 
-    [
-        "userId" => $userId,
-        "roleId" => $roleId,
-        "document_type" => $document_type,
-        "filters" => $filters,
-        "context" => $context,
-    ] = $params;
+        // return $params;
+        // throw new Exception(json_encode($filters), 1);
 
-    // throw new Exception(json_encode($filters), 1);
-    
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Query de base (réutilisable)
     |--------------------------------------------------------------------------
     */
-    $baseQuery = $this->buildWorkflowQuery(
-        // $roleId,
-        // $userId,
-        $context
-    );
+        $baseQuery = $this->buildWorkflowQuery($validationContext);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Stats globales (sans filtres UI)
-    |--------------------------------------------------------------------------
-    */
-//     $statsDocumentIds = $this->getDocumentIds(
-//     clone $baseQuery,
-//     $roleId,
-//     $filters,
-//     false,   // pas de statut
-//     false    // ❗ pas de rôle
-// );
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Documents filtrés
     |--------------------------------------------------------------------------
     */
-    $documentIds = $this->getDocumentIds(
-    $context,
-    clone $baseQuery,
-    $roleId,
-    $filters,
-    !empty($filters['statut']),
-    !empty($filters['statut'])
-);
+        $documentIds = $this->getDocumentIds(
+            $filterContext,
+            clone $baseQuery,
+            $roleId,
+            $validationContext,
+            $filters,
+            !empty($filters["statut"]),
+            !empty($filters["statut"])
+        );
 
+        // throw new Exception(json_encode($documentIds), 1);
 
-
-
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Documents
     |--------------------------------------------------------------------------
     */
 
-    //    if ($documentIds->isEmpty()) {
+        //    if ($documentIds->isEmpty()) {
 
+        //      return [
+        //     'data' => [],
+        // ];
 
+        // }
 
+        //  return [
+        //             "ids" => $documentIds->toArray(),
+        //             "documentTypes" => $document_type,
+        //             "filters" => $filters,
+        //         ];
 
-    //      return [
-    //     'data' => [],
-    // ];
+        $documents = $this->fetchDocuments(
+            $documentIds,
+            $document_type,
+            $filters,
+            $request
+        );
 
+        // throw new Exception(json_encode(sizeof($documents)), 1);
 
+        if (collect($documents)->isEmpty()) {
+            return [
+                "data" => [],
+            ];
+        }
 
-    // }
-   
-    //  return [
-    //             "ids" => $documentIds->toArray(),
-    //             "documentTypes" => $document_type,
-    //             "filters" => $filters,
-    //         ];
-
-    $documents = $this->fetchDocuments(
-        $documentIds,
-        $document_type,
-        $filters,
-        $request
-    );
-
-    // throw new Exception(json_encode($documents), 1);
-
-
-      if (collect($documents)->isEmpty()) {
-
-         return [
-        'data' => [],
-    ];
-
-
-
-    }
-  
-    
-    
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Availability Context
     |--------------------------------------------------------------------------
     */
-    $availabilityContexts = $this->availabilityContexts(
-        $documentIds->toArray()
-    );
+        $availabilityContexts = $this->availabilityContexts(
+            $documentIds->toArray()
+        );
 
-    $contextsByDocId = collect($availabilityContexts)
-        ->keyBy('document_id');
+        // throw new Exception(json_encode(sizeof($availabilityContexts)), 1);
 
-    $documents = collect($documents)
-        ->map(function ($doc) use ($contextsByDocId) {
+        $contextsByDocId = collect($availabilityContexts)->keyBy("document_id");
 
-            $context = $contextsByDocId->get($doc['id']);
+        $documents = collect($documents)
+            ->map(function ($doc) use ($contextsByDocId) {
+                $context = $contextsByDocId->get($doc["id"]);
 
-            return $this->enrichDocument(
-                $doc,
-                $context
-            );
-        })
-        ->values()
-        ->toArray();
+                return $this->enrichDocument($doc, $context);
+            })
+            ->values()
+            ->toArray();
 
-  
+        // throw new Exception(json_encode($documents), 1);
 
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Permissions
     |--------------------------------------------------------------------------
     */
-    $permissionsByDocType = $this->getPermissions(
-        $documents,
-        $userId,
-        $roleId,
-        $request,
-        $permissionService
-    );
+        $permissionsByDocType = $this->getPermissions(
+            $documents,
+            $userId,
+            $roleId,
+            $request,
+            $permissionService
+        );
 
-    // throw new Exception(json_encode($documents), 1);
+        // throw new Exception(json_encode($documents), 1);
 
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Workflow instances
     |--------------------------------------------------------------------------
     */
-    $workflowInstances = WorkflowInstance::query()
-        ->whereIn('document_id', $documentIds)
-        ->get()
-        ->keyBy('document_id');
+        $workflowInstances = WorkflowInstance::query()
+            ->whereIn("document_id", $documentIds)
+            ->get()
+            ->keyBy("document_id");
 
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Etapes actionnables
     |--------------------------------------------------------------------------
     */
-    $actionableSteps = WorkflowInstanceStep::query()
-        ->whereHas('assignments', function ($q) use ($roleId) {
+        $actionableSteps = WorkflowInstanceStep::query()
+            ->whereHas("assignments", function ($q) use ($roleId) {
+                $q->where("role_id", $roleId)->where("decision", "PENDING");
+            })
+            ->where("status", "PENDING")
+            ->with("assignments")
+            ->get()
+            ->keyBy("workflow_instance_id");
 
-            $q->where('role_id', $roleId)
-              ->where('decision', 'PENDING');
-        })
-        ->where('status', 'PENDING')
-        ->with('assignments')
-        ->get()
-        ->keyBy('workflow_instance_id');
+        // throw new Exception(json_encode($actionableSteps), 1);
 
-    // throw new Exception(json_encode($actionableSteps), 1);
-    
-
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Enrichissement final
     |--------------------------------------------------------------------------
     */
-    $documents = $this->enrichDocuments(
-        $documents,
-        $permissionsByDocType,
-        $workflowInstances,
-        $actionableSteps,
-        $userId,
-        $context
-    );
+        $documents = $this->enrichDocuments(
+            $documents,
+            $permissionsByDocType,
+            $workflowInstances,
+            $actionableSteps,
+            $userId,
+            $validationContext
+        );
 
-    // throw new Exception(json_encode($documents), 1);
+        // throw new Exception(json_encode($documents), 1);
 
-
-    return [
-        'data' => $documents,
-        // 'stats' => $statDocuments,
-    ];
-}
-
-
-private function buildWorkflowQuery(
-    string $context
-) {
-    $query = WorkflowInstanceStep::query()
-        ->with('workflowInstance');
-
-    if ($context === self::CONTEXT_VALIDATION) {
-
-        // $query->where('status', 'PENDING');
+        return [
+            "data" => $documents,
+            // 'stats' => $statDocuments,
+        ];
     }
 
-    if ($context === self::CONTEXT_MY_DOCUMENTS) {
+    private function buildWorkflowQuery(string $validationContext)
+    {
+        $query = WorkflowInstanceStep::query()->with("workflowInstance");
 
-        $query->whereHas('workflowInstance', function ($q) {
+        if ($validationContext === self::CONTEXT_VALIDATION) {
+            // $query->where('status', 'PENDING');
+        }
 
-            // filtre métier global (optionnel)
-            // $q->whereNotNull('id');
-        });
+        if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
+            // $query->whereHas("workflowInstance", function ($q) {
+            //     // filtre métier global (optionnel)
+            // });
+        }
+
+        return $query;
     }
-
-    return $query;
-}
 
     private function enrichDocument(array $doc, ?array $context): array
     {
@@ -373,128 +330,214 @@ private function buildWorkflowQuery(
         ]);
     }
 
+    private function getDocumentIds(
+        string $filterContext,
+        Builder $query,
+        int $roleId,
+        string $validationContext,
+        array $filters = [],
+        bool $applyStatusFilter = true,
+        bool $applyRoleFilter = true
+    ) {
+        // $filterContext = $filters["statut"];
+        $statut = $filters["statut"] ?? null;
+
+        if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
 
 
+                if ($filterContext === self::FILTER_PENDING) {
+                // throw new Exception($filterContext, 1);
 
-private function getDocumentIds(
-    string $context,
-    Builder $query,
-    int $roleId,
-    array $filters = [],
-    bool $applyStatusFilter = true,
-    bool $applyRoleFilter = true
-) {
-    $statut = $filters['statut'] ?? null;
-    $date = $filters['date'] ?? null;
-
-
-
-    if ($context === self::CONTEXT_VALIDATION) {
-
-    // throw new Exception($context, 1);
-    
-       
-    
-    /*
+                /*
     |--------------------------------------------------------------------------
     | FILTRE ROLE (OPTIONNEL)
     |--------------------------------------------------------------------------
     */
-    if ($applyRoleFilter) {
 
- 
-    
+                if ($applyRoleFilter) {
+                    $query->whereHas("assignments", function ($q) use (
+                        $roleId,
+                        $statut
+                    ) {
+                        $q->where("role_id", $roleId)->where(
+                            "decision","PENDING"
+                            // $statut != "COMPLETE" ? $statut : "APPROVED"
+                        );
+                    });
+                }
 
-        $query->whereHas('assignments', function ($q) use ($roleId) {
-            $q->where('role_id', $roleId)
-              ->where('decision', 'PENDING');
-        });
-    }
-
-    /*
+                /*
     |--------------------------------------------------------------------------
     | FILTRE STATUT
     |--------------------------------------------------------------------------
     */
-    // if ($applyStatusFilter && !empty($statut)) {
+                if ($applyStatusFilter && !empty($statut)) {
+                    $query->where(function ($q) use ($roleId, $statut) {
+                        $q->whereHas("assignments", function ($a) use (
+                            $roleId,
+                            $statut
+                        ) {
+                            $a->where("role_id", $roleId)->where(
+                                "decision","PENDING"
+                                // $statut != "COMPLETE" ? $statut : "APPROVED"
+                            );
+                        })->where("status", "PENDING");
+                    });
+                }
+            }
 
 
-    //     $query->whereHas('workflowInstance', function ($q) use ($statut) {
-    //         $q->where('status', $statut);
-    //     });
-    // }
-    if ($applyStatusFilter && !empty($statut)) {
+              if ($filterContext === self::FILTER_IN_PROGRESS) {
+             
+            
+                if ($applyStatusFilter && !empty($statut)) {
+                    // throw new Exception($filterContext, 1);
 
-    $query->where(function ($q) use ($roleId, $statut) {
+                    $query->whereHas("workflowInstance", function ($q) use (
+                        $statut
+                    ) {
+                        $q->where("status", "PENDING");
+                    });
+                }
+            }
 
-        $q->whereHas('assignments', function ($a) use ($roleId) {
-            $a->where('role_id', $roleId)
-              ->where('decision', 'PENDING');
-        })
-        ->where('status', $statut);
-    });
-}
+            if ($filterContext === self::FILTER_COMPLETE) {
+                // throw new Exception($filterContext, 1);
 
-    /*
+                $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status", $statut);
+                });
+            }
+        
+
+        }
+
+        if ($validationContext === self::CONTEXT_VALIDATION) {
+            // throw new Exception($validationContext, 1);
+
+            
+
+            if ($filterContext === self::FILTER_PENDING) {
+
+
+            if ($applyStatusFilter && !empty($statut)) {
+                $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status", "PENDING");
+                });
+            }
+                // throw new Exception($filterContext, 1);
+
+                /*
     |--------------------------------------------------------------------------
-    | FILTRE DATE
+    | FILTRE ROLE (OPTIONNEL)
     |--------------------------------------------------------------------------
     */
-    if (!empty($date['from']) && !empty($date['to'])) {
 
-        $query->whereHas('workflowInstance.document', function ($q) use ($date) {
-            $q->whereBetween(
-                'created_at',
-                [$date['from'], $date['to']]
-            );
-        });
+                if ($applyRoleFilter) {
+                    $query->whereHas("assignments", function ($q) use (
+                        $roleId,
+                        $statut
+                    ) {
+                        $q->where("role_id", $roleId)->where(
+                            "decision","PENDING"
+                            // $statut != "COMPLETE" ? $statut : "APPROVED"
+                        );
+                    });
+                }
+
+                /*
+    |--------------------------------------------------------------------------
+    | FILTRE STATUT
+    |--------------------------------------------------------------------------
+    */
+                // if ($applyStatusFilter && !empty($statut)) {
+                //     // throw new Exception($filterContext, 1);
+
+                //     $query->whereHas("workflowInstance", function ($q) use (
+                //         $statut
+                //     ) {
+                //         $q->where("status", "PENDING");
+                //     });
+                // }
+
+                if ($applyStatusFilter && !empty($statut)) {
+                    $query->where(function ($q) use ($roleId, $statut) {
+                        $q->whereHas("assignments", function ($a) use (
+                            $roleId,
+                            $statut
+                        ) {
+                            $a->where("role_id", $roleId)->where(
+                                "decision","PENDING"
+                                // $statut != "COMPLETE" ? $statut : "APPROVED"
+                            );
+                        })->where("status", $statut);
+                    });
+                }
+            }
+
+            if ($filterContext === self::FILTER_IN_PROGRESS) {
+             
+            
+                if ($applyStatusFilter && !empty($statut)) {
+                    // throw new Exception($filterContext, 1);
+
+                    $query->whereHas("workflowInstance", function ($q) use (
+                        $statut
+                    ) {
+                        $q->where("status", "PENDING");
+                    });
+                }
+            }
+
+            //COMPLETE
+
+            if ($filterContext === self::FILTER_COMPLETE) {
+                // throw new Exception($filterContext, 1);
+
+                $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status", $statut);
+                });
+
+                
+
+            }
+
+            if ($filterContext === self::FILTER_ALL_DOCUMENTS) {
+            }
+        }
+
+        return $query
+            ->get()
+            ->pluck("workflowInstance.document_id")
+            ->filter()
+            ->unique()
+            ->values();
     }
-
-     
-    }
-
-    if ($context === self::CONTEXT_MY_DOCUMENTS) {
-
-    }
-
-    return $query
-        ->get()
-        ->pluck('workflowInstance.document_id')
-        ->filter()
-        ->unique()
-        ->values();
-}
 
     private function getDocumentStats(
-    array $documentTypes,
-    string $context
-): array {
+        array $documentTypes,
+        string $context
+    ): array {
+        $query = WorkflowInstance::query();
 
-    $query = WorkflowInstance::query();
+        $query->whereIn("document_type_id", $documentTypes);
 
-    $query->whereIn(
-        'document_type_id',
-        $documentTypes
-    );
+        return [
+            "total" => (clone $query)->count(),
 
-    return [
-        'total' => (clone $query)->count(),
+            "pending" => (clone $query)->where("status", "PENDING")->count(),
 
-        'pending' => (clone $query)
-            ->where('status', 'PENDING')
-            ->count(),
+            "complete" => (clone $query)->where("status", "COMPLETE")->count(),
 
-        'complete' => (clone $query)
-            ->where('status', 'COMPLETE')
-            ->count(),
-
-        'rejected' => (clone $query)
-            ->where('status', 'REJECTED')
-            ->count(),
-    ];
-}
-
-
+            "rejected" => (clone $query)->where("status", "REJECTED")->count(),
+        ];
+    }
 
     protected function fetchDocuments(
         $documentIds,
@@ -614,15 +657,17 @@ private function getDocumentIds(
 
         $isOwner = $doc["created_by"] === $userId;
 
-        $isActor = isset($doc['beneficiary']) ? $doc['beneficiary']['id'] === $userId : $doc['actor']['id'] === $userId;
-
+        $isActor = isset($doc["beneficiary"])
+            ? $doc["beneficiary"]["id"] === $userId
+            : $doc["actor"]["id"] === $userId;
 
         // throw new Exception(json_encode($doc), 1);
 
-
         $isSameDepartment = $this->checkSameDepartment(
             // $doc["created_by"],
-            isset($doc['beneficiary']) ? $doc['beneficiary']['id'] : $doc['actor']['id'],
+            isset($doc["beneficiary"])
+                ? $doc["beneficiary"]["id"]
+                : $doc["actor"]["id"],
             // $doc['actor']['id'] ?? 0,//id de la personne concernee par le document ( agent de mission par exemple )
             $userId
         );
@@ -641,7 +686,11 @@ private function getDocumentIds(
          * 🧾 À VALIDER
          * =========================
          */
-        if ($context === "TO_VALIDATE") {
+        if (
+            $context === "TO_VALIDATE" ||
+            $context === "IN_PROGRESS" ||
+            $context === "COMPLETE"
+        ) {
             return ($permissions["view_department"] && $isSameDepartment) ||
                 $permissions["view_all"];
         }

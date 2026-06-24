@@ -3,6 +3,7 @@
 namespace App\Services\Workflow\Event;
 
 use App\Models\WorkflowActionStepEvent;
+use App\Models\WorkflowEvent;
 use App\Models\WorkflowInstanceStep;
 use App\Services\Document\DocumentServiceClient;
 use Exception;
@@ -29,15 +30,17 @@ class WorkflowEventEngine
         WorkflowInstanceStep $instance,
         string $actionStepId
     ) {
-        $events = WorkflowActionStepEvent::where(
+        $actionStepEvents = WorkflowActionStepEvent::where(
             "workflow_action_step_id",
             $actionStepId
         )
+        ->with(['event.handlers'])
             ->where("is_active", true)
             ->orderBy("execution_order")
             ->get();
-
       
+        // throw new Exception(json_encode($events), 1);
+
         
 
         $document = $this->documentClient->getDocument($documentId);
@@ -46,15 +49,25 @@ class WorkflowEventEngine
 
         // throw new Exception(json_encode($document), 1);
 
-        foreach ($events as $event) {
+        foreach ($actionStepEvents as $actionStepEvent) {
             /**
              * =========================================
              * 1️⃣ Exécution métier
              * =========================================
              */
-            $handler = app($event->handler_class);
+            $event = $actionStepEvent -> event;
+            $handlers = $event -> handlers;
 
-            $result = $handler->execute(
+        // throw new Exception(json_encode($handlers), 1);
+
+        foreach ($handlers as $handler) {
+           
+        
+            $handler_class = app($handler->handler_class);
+
+        
+
+            $result = $handler_class->execute(
                 $documentId,
                 $instance,
                 $document,
@@ -85,7 +98,11 @@ class WorkflowEventEngine
         $result
     );
 
+        }
+
     return;
+
+
 
             /**
              * =========================================
@@ -142,9 +159,9 @@ class WorkflowEventEngine
   
 
     private function dispatchNotifications(
-    $event,
+    WorkflowEvent $event,
     array $audiences,
-    $instance,
+    WorkflowInstanceStep $instance,
     int $documentId,
     array $result
 )
@@ -175,7 +192,7 @@ class WorkflowEventEngine
                     [
                         'document_id' => $documentId,
 
-                        'workflow_instance_id' =>$instance->id,
+                        // 'workflow_instance_id' =>$instance->id,
                     ],
                     $result['data'] ?? []
                 ),

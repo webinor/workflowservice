@@ -3,7 +3,9 @@
 namespace App\Services\Workflow\Event;
 
 use App\Models\WorkflowActionStepEvent;
+use App\Models\WorkflowEvent;
 use App\Models\WorkflowEventAudience;
+use App\Models\WorkflowInstanceStep;
 use App\Services\User\UserServiceClient;
 use App\Services\Department\DepartmentServiceClient;
 
@@ -23,10 +25,10 @@ class WorkflowAudienceResolver
     /**
      * Résolution complète des audiences
      */
-    public function resolve(WorkflowActionStepEvent $event, $instance , array $document)//: array
+    public function resolve(WorkflowEvent $event, WorkflowInstanceStep $instance , array $document)//: array
     {
         $audiences = WorkflowEventAudience::where(
-            'workflow_action_step_event_id',
+            'workflow_event_id',
             $event->id
         )
         ->where('active', true)
@@ -54,7 +56,6 @@ class WorkflowAudienceResolver
 
                    $recipients = $this->resolveActor(
                         $audience->target_value,
-                        $instance,
                         $actor_details["id"]
                     );
 
@@ -182,7 +183,6 @@ $results[$channel][$recipientType] = array_merge(
      */
     private function resolveActor(
         string $actor,
-        $instance,
         int $actor_id
     )//: array 
     {

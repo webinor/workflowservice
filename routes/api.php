@@ -9,6 +9,7 @@ use App\Http\Controllers\WorkflowActionTypeController;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkflowInstanceController;
 use App\Http\Controllers\WorkflowInstanceStepController;
+use App\Http\Controllers\WorkflowParticipantController;
 use App\Http\Controllers\WorkflowStepController;
 use App\Http\Controllers\WorkflowTransferController;
 use App\Http\Controllers\WorkflowValidationController;
@@ -121,6 +122,12 @@ Route::post(
     WorkflowValidationController::class,
     "getDocuments"
 ]);
+
+
+Route::get(
+    '/documents/{documentId}/participants',
+    [WorkflowParticipantController::class, 'index']
+);
 
         // WorkflowValidationController
         // Route::get("/documents-to-validate", [

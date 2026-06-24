@@ -11,4 +11,12 @@ class WorkflowEventAudience extends Model
 
     protected $guarded = [];
 
+    public function workflowEvent()
+{
+    return $this->belongsTo(
+        WorkflowEvent::class,
+        'workflow_event_id'
+    );
+}
+
 }

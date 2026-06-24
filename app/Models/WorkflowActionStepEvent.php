@@ -22,4 +22,12 @@ public function workflowEventAudiences(): HasMany
 {
     return $this->hasMany(WorkflowEventAudience::class);
 }
+
+public function event()
+{
+    return $this->belongsTo(
+        WorkflowEvent::class,
+        'event_id'
+    );
+}
 }
