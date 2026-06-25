@@ -429,7 +429,7 @@ class WorkflowInstanceController extends Controller
 
             $documentData = $this->getDocumentData($workflowInstance, $request);
 
-            // throw new Exception(gettype($validated["steps"]));
+            throw new Exception(json_encode($documentData));
 
             $validated["steps"];
 
@@ -1315,48 +1315,6 @@ class WorkflowInstanceController extends Controller
         }
     }
 
-    //    public function getDocumentData(WorkflowInstance $instance, $request): array
-    // {
-    //     $user = $request->get("user");
-
-    //     // throw new Exception(json_encode($user), 1);
-
-    //     $response = Http::withToken($request->bearerToken())
-    //         ->acceptJson()
-    //         ->get(
-    //             config("services.document_service.base_url") .
-    //                 "/{$instance->document_id}"
-    //         );
-
-    //     if (!$response->successful()) {
-    //         throw new \Exception(
-    //             "Impossible de récupérer le document : " . $response->status()
-    //         );
-    //     }
-
-    //     $documentData = $response->json();
-
-    //     // 🔥 Roles → IDs uniquement
-    //     $roles = collect($user["roles"] ?? [])
-    //         ->pluck("id")
-    //         ->toArray();
-
-    //     // 🔥 Permissions → normaliser en noms ou IDs, flatten pour éviter doublons imbriqués
-    // $permissions = collect($user["effective_permissions"] ?? [])
-    //     ->map(fn($perm) => is_array($perm) ? ($perm["id"] ?? $perm["name"]) : $perm) // choisir id ou name
-    //     ->flatten()    // déplie tout tableau imbriqué
-    //     ->unique()     // supprime doublons
-    //     ->values()     // réindexe
-    //     ->toArray();   // retourne un vrai tableau PHP
-
-    //     $documentData["user"] = [
-    //         "id" => $user["id"] ?? null,
-    //         "roles" => $roles,
-    //         "permissions" => $permissions,
-    //     ];
-
-    //     return $documentData;
-    // }
 
     private function hasPermission(
         int $userId,
