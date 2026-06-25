@@ -1323,12 +1323,12 @@ class WorkflowController extends Controller
                 }
             }
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json(
                 [
-                    // "success" => true,
-                    "success" => false,
+                    "success" => true,
+                    // "success" => false,
                     "data" => [
                         "workflow" => $workflow->load(
                             "steps.workflowActionSteps.workflowActionStepEvents.workflowEventAudiences",

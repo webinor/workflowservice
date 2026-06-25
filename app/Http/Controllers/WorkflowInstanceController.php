@@ -1845,7 +1845,7 @@ class WorkflowInstanceController extends Controller
             $WorkflowEventEngine->handle(
                 $documentId,
                 $instance,
-                $currentStep,
+                // $currentStep,
                 $actionStepId
             );
 
