@@ -429,7 +429,7 @@ class WorkflowInstanceController extends Controller
 
             $documentData = $this->getDocumentData($workflowInstance, $request);
 
-            throw new Exception(json_encode($documentData));
+            // throw new Exception(json_encode($documentData));
 
             $validated["steps"];
 
