@@ -19,7 +19,7 @@ class WorkflowDynamicResolverService
 
         $slug = $document["document_type"]["relation_name"];
 
-        throw new Exception(json_encode($document[$slug]), 1);
+        // throw new Exception(json_encode($document[$slug]), 1);
         
 
         return $document[$slug][$mapper[$slug]];
