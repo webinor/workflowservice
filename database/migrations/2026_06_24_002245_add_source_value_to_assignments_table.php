@@ -8,7 +8,9 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('workflow_instance_step_assignments', function (Blueprint $table) {
-            $table->string('source_value')->after('source_type');
+            $table->string('source_value')
+            ->nullable()
+            ->after('source_type');
         });
     }
 

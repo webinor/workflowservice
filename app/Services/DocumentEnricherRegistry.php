@@ -26,6 +26,11 @@ class DocumentEnricherRegistry
             return new PurchaseEnricher();
         }
 
+
+        if ($type === "note-de-frais") {
+            return new PurchaseEnricher();
+        }
+
         throw new Exception(
             sprintf(
                 'Aucun DocumentEnricher enregistré pour le type "%s".',
