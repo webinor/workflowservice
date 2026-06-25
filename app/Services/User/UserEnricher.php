@@ -33,8 +33,7 @@ class UserEnricher
         return collect($items)
             ->map(function ($item) use ($usersById, $field) {
 
-                $item['user'] =
-                    $usersById[$item[$field]] ?? null;
+                $item['user'] =  $usersById[$item[$field]] ?? null;
 
                 return $item;
             })

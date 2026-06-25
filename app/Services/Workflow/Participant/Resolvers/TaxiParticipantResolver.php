@@ -126,14 +126,5 @@ class TaxiParticipantResolver implements ParticipantResolver
 }
 
 
-private function isVisibleSigner(array $participant): bool
-{
-    return in_array($participant['source_value'], [
-        'DIRECT_MANAGER',
-        'HEAD_OF_DEPARTMENT',
-        'SIGNATORY',
-        'DG',
-    ]);
-}
 
 }
