@@ -1996,7 +1996,7 @@ class WorkflowInstanceController extends Controller
                 WorkflowStatusHistory::create($historyData);
             }
 
-            // DB::commit();
+            DB::commit();
 
             DB::afterCommit(function () use (
     $instance,

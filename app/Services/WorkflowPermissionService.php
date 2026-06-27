@@ -57,6 +57,9 @@ class WorkflowPermissionService
             ["view_own", "view_all" , "view_department"] //, "validate"]
         );
 
+        // throw new \Exception(json_encode($payload), 1);
+        
+
         // Appel vers userservice
         $response = Http::withToken($request->bearerToken())
             ->acceptJson()

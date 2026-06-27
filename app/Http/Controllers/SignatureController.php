@@ -47,8 +47,8 @@ class SignatureController extends Controller
 {
     $request->validate([
         'document_id' => 'required|integer',
-        'employee_id' => 'required|integer',
-        'user_id' => 'required|integer',
+        'actor_type' => 'required|string',
+        'actor_id' => 'required|integer',
         'transaction_type_code' => 'required|string',
     ]);
 
@@ -80,8 +80,8 @@ class SignatureController extends Controller
         'document_id' => $request->document_id,
         'signature_type_id' => $signatureType -> id,
         'workflow_instance_step_id' => $instanceStep->id,
-        'employee_id' => $request->employee_id,
-        'user_id' => $request->user_id,
+        'actor_type' => $request->actor_type,
+        'actor_id' => $request->actor_id,
         'comment' => $request->comment,
         'signed_at' => now(),
     ]);

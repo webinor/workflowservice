@@ -15,7 +15,13 @@ class UserDashboardContextController extends Controller
     public function show(Request $request )
     {
         $userId = $request->get("user")["id"];
+
+        $actor_type = $request->get("actor_type");
+
+        $actor_id = $request->get("actor_id");
+
         $roles = $request->input("roles", []);
+
         $departmentId = $request->input("department_id");
 
         // 1. Récupérer workflows assignés à ces rôles
@@ -132,7 +138,9 @@ $mapping = DocumentTypeWorkflow::query()
 
         // 2. Signatures (employee-based)
         $signatures = Signature::query()
-            ->where("employee_id", $request->input("employee_id"))
+            // ->where("employee_id", $request->input("employee_id"))
+            ->whereActorType($actor_type)
+            ->whereActorId($actor_id)
             ->with("signatureType")
             ->get()
             ->map(
