@@ -33,15 +33,23 @@ class WorkflowValidationController extends Controller
         $filterContext = $request->query("filterContext", "");
         $validationContext = $request->query("validationContext", "");
         $filters = $request->query("filters" , []);
+        $currentPage = $request->query("currentPage" , 1);
+        $per_page = $request->query("per_page" , 10);
+        $isStat = (bool)$request->query("isStat" , 0);
 
         return $this->documentWorkflowService->getDocuments(
             [
+                "employeeId" => $user["employee_id"],
                 "userId" => $user["id"],
                 "roleId" => $user["role_id"],
                 "document_type" => $document_type,
                 "validationContext" => $validationContext,
                 "filterContext" => $filterContext,
                 "filters" => $filters,
+                "currentPage" => $currentPage,
+                "per_page" => $per_page,
+                "isStat" => $isStat,
+                
             ],
             $request,
             $this->workflowPermissionService

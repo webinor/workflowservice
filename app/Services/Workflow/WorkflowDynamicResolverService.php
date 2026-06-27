@@ -14,15 +14,15 @@ class WorkflowDynamicResolverService
             "purchase_request" => "actor_details",
             "taxi_paper" => "actor_details",
             "fee_note" => "actor_details",
-            // "mission"=>"actor_id",
+            //"mission"=>"actor_id",
         ];
 
         $slug = $document["document_type"]["relation_name"];
 
-        // throw new Exception(json_encode($document[$slug]), 1);
+        // throw new Exception(json_encode($document), 1);
         
 
-        return $document[$slug][$mapper[$slug]];
+        return $document[$mapper[$slug]];
 
         return $mapper[$documentTypeName];
     }
@@ -32,8 +32,11 @@ class WorkflowDynamicResolverService
         $rule = $step["assignment_rule"];
 
         $actor = $this->resolveActor($document);
+
+        // throw new Exception(    json_encode($actor, JSON_PRETTY_PRINT), 1);
+        
+        $employeeId = $actor["id"] ?? null;// employee_id
         $actorId = $actor["id"];
-        $employeeId = $actor["employee"]["id"];
 
         // throw new Exception(json_encode($actorId, JSON_PRETTY_PRINT), 1);
 
@@ -44,13 +47,13 @@ class WorkflowDynamicResolverService
              * =====================================
              */
             case "HEAD_OF_DEPARTMENT":
-                if (!$actorId) {
+                if (!$employeeId) {
                     return null;
                 }
 
-                $response = Http::get(
+                $response = Http::acceptJson()->get(
                     config("services.department_service.base_url") .
-                        "/user/{$actorId}/head-of-department"
+                        "/employee/{$employeeId}/head-of-department"
                 );
 
                 if ($response->ok()) {
@@ -86,20 +89,16 @@ class WorkflowDynamicResolverService
                         ]
                     );
 
-                // $response = Http::get(
-                //     config("services.user_service.base_url")
-                //     . "/{$actorId}/manager"
-                // );
-
-                // throw new Exception(config('services.department_service.base_url') . "/employee/{$employeeId}/relationships", 1);
-                // throw new Exception(json_encode($response->body()), 1);
-
+              
+                    
                 if ($response->ok()) {
-                    $data = $response->json()["related_employee"]["employee"][
-                        "user"
-                    ];
+                    $data = $response->json()["related_employee"]["employee"]["user"];
 
-                    // throw new Exception(json_encode($data), 1);
+                    
+
+                    if (!$data) {
+                        throw new Exception(json_encode($response->json()), 1);
+                    }
 
                     return $data;
                 }
@@ -109,7 +108,7 @@ class WorkflowDynamicResolverService
                 return null;
 
             case "MISSION_EXECUTOR":
-                $userData = $document["mission"]["actor_details"];
+                $userData = $document["actor_details"];
 
                 // throw new Exception(json_encode($document["mission"]['actor_details']), 1);
 
@@ -198,7 +197,7 @@ class WorkflowDynamicResolverService
         $users = [];
 
         foreach ($roleIds as $roleId) {
-            $response = Http::get(
+            $response = Http::acceptJson()-> get(
                 config("services.user_service.base_url") . "/by-role/{$roleId}"
             );
 

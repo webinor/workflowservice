@@ -112,6 +112,7 @@ class WorkflowPermissionService
                         "doc_id" => $doc["id"],
                         "id" => $doc["document_type_id"],
                         "type" => $doc["document_type"]["name"] ?? "Unknown",
+                        
                     ];
                 })
                 ->toArray(),

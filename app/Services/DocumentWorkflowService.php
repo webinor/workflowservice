@@ -6,6 +6,7 @@ use App\Models\Signature;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStatusLabel;
+use App\Services\Document\DocumentServiceClient;
 use App\Services\DocumentEnricherRegistry;
 use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
@@ -17,6 +18,7 @@ class DocumentWorkflowService
 {
     protected WorkflowInstanceResolverService $resolver;
     protected DocumentEnricherRegistry $registry;
+    protected DocumentServiceClient $documentClient;
 
     const CONTEXT_VALIDATION = "TO_VALIDATE";
     const CONTEXT_MY_DOCUMENTS = "MY_DOCUMENTS";
@@ -29,10 +31,12 @@ class DocumentWorkflowService
 
     public function __construct(
         WorkflowInstanceResolverService $workflowInstanceResolverService,
-        DocumentEnricherRegistry $documentEnricherRegistry
+        DocumentEnricherRegistry $documentEnricherRegistry,
+        DocumentServiceClient $documentClient
     ) {
         $this->resolver = $workflowInstanceResolverService;
         $this->registry = $documentEnricherRegistry;
+         $this->documentClient = $documentClient;
     }
 
     public function getDocuments(
@@ -41,16 +45,20 @@ class DocumentWorkflowService
         WorkflowPermissionService $permissionService
     ): array {
         [
+            "employeeId" => $employeeId,
             "userId" => $userId,
             "roleId" => $roleId,
             "document_type" => $document_type,
             "validationContext" => $validationContext,
             "filters" => $filters,
             "filterContext" => $filterContext,
+            "currentPage" => $currentPage,
+            "per_page" => $per_page,
+            "isStat" => $isStat
         ] = $params;
 
         // return $params;
-        // throw new Exception(json_encode($filters), 1);
+        // throw new Exception(json_encode($document_type), 1);
 
         /*
     |--------------------------------------------------------------------------
@@ -64,7 +72,7 @@ class DocumentWorkflowService
     | Documents filtrés
     |--------------------------------------------------------------------------
     */
-        $documentIds = $this->getDocumentIds(
+        $documentIdsNotPaginated = $this->getDocumentIds(
             $filterContext,
             clone $baseQuery,
             $roleId,
@@ -74,40 +82,114 @@ class DocumentWorkflowService
             !empty($filters["statut"])
         );
 
-        // throw new Exception(json_encode($documentIds), 1);
 
-        /*
+
+        // $documentIds = collect($documentIdsNotPaginated->items())
+        $documentIds = collect($documentIdsNotPaginated)
+    ->pluck('document_id');
+
+    $flatDocuments = $this->documentClient
+    ->getDocumentTypesByIds($documentIds->toArray());
+
+
+
+        // throw new Exception(json_encode($flatDocuments), 1);
+
+      $permissionsByDocType = $this->getPermissions(
+            $flatDocuments,
+            $userId,
+            $roleId,
+            $request,
+            $permissionService
+        );
+
+        // throw new Exception(json_encode(collect($flatDocuments)->pluck("document_type.slug")->unique()), 1);
+
+
+
+    $filteredDocuments =  collect($flatDocuments)
+            ->filter(
+                fn($doc) => $this->canView(
+                    $doc,
+                    $permissionsByDocType,
+                    $employeeId,
+                    $userId,
+                    $validationContext,
+                    $document_type
+                )
+            )->values();
+
+
+        // throw new Exception(json_encode($isStat === "false"  ), 1);
+
+    
+            $page = max((int) $currentPage, 1);
+            $perPage = max((int) $per_page, 1);
+
+            $total = $filteredDocuments->count();
+
+            $pagedDocuments = $filteredDocuments
+                ->slice(($page - 1) * $perPage, $perPage)
+                ->values();
+
+
+    // $isStat = (bool)$isStat;
+    // throw new Exception(json_encode($isStat  ), 1);
+
+
+    /*
     |--------------------------------------------------------------------------
     | Documents
     |--------------------------------------------------------------------------
     */
 
-        //    if ($documentIds->isEmpty()) {
+    if ($isStat) {
 
-        //      return [
-        //     'data' => [],
-        // ];
+    // throw new Exception(json_encode("oui"), 1);
 
-        // }
+    $filteredDocumentIds = $filteredDocuments->pluck('id')  ;
 
-        //  return [
-        //             "ids" => $documentIds->toArray(),
-        //             "documentTypes" => $document_type,
-        //             "filters" => $filters,
-        //         ];
+    } else {
 
-        $documents = $this->fetchDocuments(
-            $documentIds,
+    // throw new Exception(json_encode("non"), 1);
+
+    $filteredDocumentIds = $pagedDocuments->pluck('id');
+
+    }
+    
+
+
+    //throw new Exception(json_encode($filteredDocumentIds), 1);
+
+     
+    $documents = $this->fetchDocuments(
+            $filteredDocumentIds,
             $document_type,
             $filters,
             $request
-        );
+    );
 
-        // throw new Exception(json_encode(sizeof($documents)), 1);
+    
+        // throw new Exception(json_encode($documents), 1);
+
+
+    $pagination = [
+    "current_page" => $page,
+    "per_page" => $perPage,
+    "total" => $total,
+    "last_page" => max(1, (int) ceil($total / $perPage)),
+];
+
+        
+      
+
+
+        // throw new Exception(json_encode(($documents)), 1);
 
         if (collect($documents)->isEmpty()) {
             return [
-                "data" => [],
+        "data" => [],
+        "pagination" => $pagination,
             ];
         }
 
@@ -140,15 +222,15 @@ class DocumentWorkflowService
     | Permissions
     |--------------------------------------------------------------------------
     */
-        $permissionsByDocType = $this->getPermissions(
-            $documents,
-            $userId,
-            $roleId,
-            $request,
-            $permissionService
-        );
+        // $permissionsByDocType = $this->getPermissions(
+        //     $documents,
+        //     $userId,
+        //     $roleId,
+        //     $request,
+        //     $permissionService
+        // );
 
-        // throw new Exception(json_encode($documents), 1);
+        // throw new Exception(json_encode($permissionsByDocType), 1);
 
         /*
     |--------------------------------------------------------------------------
@@ -186,6 +268,7 @@ class DocumentWorkflowService
             $permissionsByDocType,
             $workflowInstances,
             $actionableSteps,
+            $employeeId,
             $userId,
             $validationContext
         );
@@ -194,22 +277,28 @@ class DocumentWorkflowService
 
         return [
             "data" => $documents,
-            // 'stats' => $statDocuments,
+            "pagination" => $pagination,
         ];
     }
 
     private function buildWorkflowQuery(string $validationContext)
     {
-        $query = WorkflowInstanceStep::query()->with("workflowInstance");
+        // $query = WorkflowInstanceStep::query()->with("workflowInstance");
+
+        $query = WorkflowInstanceStep::query()
+    ->join(
+        'workflow_instances',
+        'workflow_instance_steps.workflow_instance_id',
+        '=',
+        'workflow_instances.id'
+    );
 
         if ($validationContext === self::CONTEXT_VALIDATION) {
-            // $query->where('status', 'PENDING');
+           
         }
 
         if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
-            // $query->whereHas("workflowInstance", function ($q) {
-            //     // filtre métier global (optionnel)
-            // });
+          
         }
 
         return $query;
@@ -217,9 +306,15 @@ class DocumentWorkflowService
 
     private function enrichDocument(array $doc, ?array $context): array
     {
-        // throw new Exception(json_encode($doc), 1);
 
-        $resolver = $this->registry->resolve($doc["document_type_slug"]);
+        if (!isset($doc["document_type_slug"])) {
+            
+        // throw new Exception(json_encode($doc), 1);
+        
+
+        }
+
+        $resolver = $this->registry->resolve($doc["document_type"]["slug"]);
 
         return $resolver->enrich($doc, $context);
     }
@@ -337,7 +432,8 @@ class DocumentWorkflowService
         string $validationContext,
         array $filters = [],
         bool $applyStatusFilter = true,
-        bool $applyRoleFilter = true
+        bool $applyRoleFilter = true,
+        int $count = 10
     ) {
         // $filterContext = $filters["statut"];
         $statut = $filters["statut"] ?? null;
@@ -422,14 +518,14 @@ class DocumentWorkflowService
             if ($filterContext === self::FILTER_PENDING) {
 
 
-            if ($applyStatusFilter && !empty($statut)) {
-                $query->whereHas("workflowInstance", function ($q) use (
-                    $statut
-                ) {
-                    $q->where("status", "PENDING");
-                });
-            }
-                // throw new Exception($filterContext, 1);
+            // if ($applyStatusFilter && !empty($statut)) {
+            //     $query->whereHas("workflowInstance", function ($q) use (
+            //         $statut
+            //     ) {
+            //         $q->where("status", "PENDING");
+            //     });
+            // }
+               
 
                 /*
     |--------------------------------------------------------------------------
@@ -438,14 +534,16 @@ class DocumentWorkflowService
     */
 
                 if ($applyRoleFilter) {
-                    $query->whereHas("assignments", function ($q) use (
+            // throw new Exception($validationContext, 1);
+
+                    $query
+                    ->where('workflow_instance_steps.status', 'PENDING')
+                    ->whereHas("assignments", function ($q) use (
                         $roleId,
                         $statut
                     ) {
-                        $q->where("role_id", $roleId)->where(
-                            "decision","PENDING"
-                            // $statut != "COMPLETE" ? $statut : "APPROVED"
-                        );
+                        $q->where("role_id", $roleId)
+                          ->where("decision","PENDING");
                     });
                 }
 
@@ -454,29 +552,17 @@ class DocumentWorkflowService
     | FILTRE STATUT
     |--------------------------------------------------------------------------
     */
-                // if ($applyStatusFilter && !empty($statut)) {
-                //     // throw new Exception($filterContext, 1);
 
-                //     $query->whereHas("workflowInstance", function ($q) use (
-                //         $statut
-                //     ) {
-                //         $q->where("status", "PENDING");
+                // if ($applyStatusFilter && !empty($statut)) {
+                //     $query->where(function ($q) use ($roleId, $statut) {
+                //         $q->whereHas("assignments", function ($a) use (
+                //             $roleId,
+                //             $statut
+                //         ) {
+                //             $a->where("role_id", $roleId)->where("decision","PENDING");
+                //         })->where("status", $statut);
                 //     });
                 // }
-
-                if ($applyStatusFilter && !empty($statut)) {
-                    $query->where(function ($q) use ($roleId, $statut) {
-                        $q->whereHas("assignments", function ($a) use (
-                            $roleId,
-                            $statut
-                        ) {
-                            $a->where("role_id", $roleId)->where(
-                                "decision","PENDING"
-                                // $statut != "COMPLETE" ? $statut : "APPROVED"
-                            );
-                        })->where("status", $statut);
-                    });
-                }
             }
 
             if ($filterContext === self::FILTER_IN_PROGRESS) {
@@ -511,6 +597,14 @@ class DocumentWorkflowService
             if ($filterContext === self::FILTER_ALL_DOCUMENTS) {
             }
         }
+
+   
+
+        return $query
+    ->select('workflow_instances.document_id')
+    ->distinct()
+    ->get();
+    // ->paginate($count);
 
         return $query
             ->get()
@@ -579,6 +673,9 @@ class DocumentWorkflowService
             "documents" => $documents,
         ];
 
+        // throw new Exception("Error Processing Request", 1);
+        
+
         $permissions = $workflowPermissionService->checkPermissions2(
             $data,
             $request
@@ -592,11 +689,13 @@ class DocumentWorkflowService
         return collect($permissions)->keyBy("documentId");
     }
 
-    protected function enrichDocuments(
+
+        protected function enrichDocuments(
         array $documents,
         $permissionsByDocType,
         $workflowInstances,
         $actionableSteps,
+        int $employeeId,
         int $userId,
         string $context
     ): array {
@@ -605,14 +704,15 @@ class DocumentWorkflowService
         // throw new Exception(json_encode($documents), 1);
 
         return collect($documents)
-            ->filter(
-                fn($doc) => $this->canView(
-                    $doc,
-                    $permissionsByDocType,
-                    $userId,
-                    $context
-                )
-            )
+            // ->filter(
+            //     fn($doc) => $this->canView(
+            //         $doc,
+            //         $permissionsByDocType,
+            //         $employeeId,
+            //         $userId,
+            //         $context
+            //     )
+            // )
             ->map(function ($doc) use (
                 $workflowInstances,
                 $actionableSteps,
@@ -622,6 +722,9 @@ class DocumentWorkflowService
 
                 $doc["workflow_status"] = null;
                 $doc["can_validate"] = false;
+
+        // throw new Exception(json_encode($doc), 1);
+
 
                 if ($instance) {
                     $doc["workflow_status"] =
@@ -641,12 +744,24 @@ class DocumentWorkflowService
             ->toArray();
     }
 
+   
+
     protected function canView(
         array $doc,
         $permissionsByDocType,
+        int $employeeId,
         int $userId,
-        string $context
+        string $context,
+        array $currentDocTypeSlug
     ): bool {
+
+          if (!in_array( $doc["document_type"]["relation_name"] , $currentDocTypeSlug ) ) {
+            return false;
+        }
+
+            // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
+
+        
         $perm = $permissionsByDocType[$doc["document_type_id"]] ?? null;
 
         if (!$perm) {
@@ -657,19 +772,27 @@ class DocumentWorkflowService
 
         $isOwner = $doc["created_by"] === $userId;
 
-        $isActor = isset($doc["beneficiary"])
-            ? $doc["beneficiary"]["id"] === $userId
-            : $doc["actor"]["id"] === $userId;
+        $isActor = $doc["actor_type"] == "EMPLOYEE" && $doc["actor_id"] == $employeeId;
+        
+        // isset($doc["actor_type"]) && isset($doc["actor_id"])
+        //     ? $doc["beneficiary"]["id"] === $userId
+        //     : $doc["actor"]["id"] === $userId;
 
-        // throw new Exception(json_encode($doc), 1);
+        if ($doc["actor_id"] == 0 || $doc["actor_id"] == null) {
+
+        return false;
+            // throw new Exception(json_encode($doc), 1);
+          
+        }
+
+            // throw new Exception(json_encode($doc["document_type"]["slug"]), 1);
+
+
+      
 
         $isSameDepartment = $this->checkSameDepartment(
-            // $doc["created_by"],
-            isset($doc["beneficiary"])
-                ? $doc["beneficiary"]["id"]
-                : $doc["actor"]["id"],
-            // $doc['actor']['id'] ?? 0,//id de la personne concernee par le document ( agent de mission par exemple )
-            $userId
+            $doc["actor_id"],//employee_id
+            $employeeId
         );
 
         /**
@@ -709,47 +832,38 @@ class DocumentWorkflowService
         return false;
     }
 
-    protected function old_canView(
-        array $doc,
-        $permissionsByDocType,
-        int $userId
-    ): bool {
-        $perm = $permissionsByDocType[$doc["document_type_id"]] ?? null;
 
-        if (!$perm) {
-            return false;
-        }
+    
 
-        return $perm["permissions"]["view_all"] ||
-            ($perm["permissions"]["view_own"] &&
-                $doc["created_by"] === $userId) ||
-            ($perm["permissions"]["view_department"] &&
-                $this->checkSameDepartment($doc["created_by"], $userId));
+  protected function checkSameDepartment(?int $employee1, ?int $employee2): bool
+{
+    if (empty($employee1) || empty($employee2) || $employee1 == 0 || $employee2 == 0  ) {
+        return false;
     }
 
-    protected function checkSameDepartment($user_1, $user_2): bool
-    {
-        $response = Http::get(
-            config("services.department_service.base_url") .
-                "/users/same-department",
+    $response = Http::acceptJson()
+        ->get(
+            config("services.department_service.base_url") . "/employees/same-department",
             [
-                "user1_id" => $user_1,
-                "user2_id" => $user_2,
+                "employee1_id" => $employee1,
+                "employee2_id" => $employee2,
             ]
         );
 
-        $data = $response->json();
-
-        // throw new Exception(json_encode($data), 1);
-
-        if ($data["same_department"]) {
-            // Ils sont dans le même département
-            return true;
-        } else {
-            // Pas dans le même département
-            return false;
-        }
+    if (!$response->successful()) {
+          throw new Exception(json_encode([
+                "employee1_id" => $employee1,
+                "employee2_id" => $employee2,
+            ]), 1);
+        return false;
     }
+
+    return (bool) data_get(
+        $response->json(),
+        'same_department',
+        false
+    );
+}
 
     protected function statusTranslations(): array
     {

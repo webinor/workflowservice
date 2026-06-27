@@ -2,6 +2,7 @@
 
 namespace App\Services\Document;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class DocumentServiceClient
@@ -10,8 +11,7 @@ class DocumentServiceClient
 
     public function __construct()
     {
-        $this->baseUrl =
-            rtrim(env('DOCUMENT_SERVICE_URL'), '/');
+        $this->baseUrl = rtrim(env("DOCUMENT_SERVICE_URL"), "/");
     }
 
     /**
@@ -24,30 +24,21 @@ class DocumentServiceClient
         int $instanceId,
         string $context
     ) {
-
-        $response = Http::withToken(
-                request()->bearerToken()
-            )
+        $response = Http::withToken(request()->bearerToken())
             ->acceptJson()
             ->post(
-
-                config("services.document_service.base_url")
-                . "/missions/generate",
+                config("services.document_service.base_url") .
+                    "/missions/generate",
 
                 [
                     "document_id" => $documentId,
                     "instance_id" => $instanceId,
-                    "context" => $context
-                        ?? "logistics_validation",
+                    "context" => $context ?? "logistics_validation",
                 ]
             );
 
         if (!$response->successful()) {
-
-            throw new \Exception(
-                "DocumentService error: "
-                . $response->body()
-            );
+            throw new \Exception("DocumentService error: " . $response->body());
         }
 
         return $response->json();
@@ -58,28 +49,34 @@ class DocumentServiceClient
      * Récupérer un document
      * =========================================
      */
-    public function getDocument(
-        int $documentId
-    ): array {
-
-        $response = Http::withToken(
-                request()->bearerToken()
-            )
+    public function getDocument(int $documentId): array
+    {
+        $response = Http::withToken(request()->bearerToken())
             ->acceptJson()
             ->get(
-
-                config("services.document_service.base_url")
-                . "/{$documentId}"
+                config("services.document_service.base_url") . "/{$documentId}"
             );
 
         if (!$response->successful()) {
-
-            throw new \Exception(
-                "DocumentService error: "
-                . $response->body()
-            );
+            throw new \Exception("DocumentService error: " . $response->body());
         }
 
         return $response->json();
+    }
+
+    public function getDocumentTypesByIds(array $documentIds): array
+    {
+        $url = config("services.document_service.base_url");
+
+        $response = Http::timeout(20)->acceptJson()->withToken(request()->bearerToken()) ->post("{$url}/types-by-ids", [
+            "ids" => $documentIds,
+        ]);
+
+        if (!$response->ok()) {
+            throw new Exception($response->url(), 1);
+            return [];
+        }
+
+        return $response->json("data") ?? [];
     }
 }

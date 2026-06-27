@@ -431,7 +431,7 @@ class WorkflowInstanceController extends Controller
 
             // throw new Exception(json_encode($documentData));
 
-            $validated["steps"];
+            // $validated["steps"];
 
             //  throw new Exception(json_encode(collect($validated["steps"])->pluck('id')  , JSON_PRETTY_PRINT), 1);
 
@@ -463,10 +463,16 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 );
 
+            
+                if ($stepRoles == []) {
+                //    throw new Exception(json_encode($stepRoles));
+                }
+
+
                 $initialStatus =
                     $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
 
-                $this->activateStep(
+              $a =  $this->activateStep(
                     $step,
                     $stepRoles,
                     $initialStatus,
@@ -476,69 +482,11 @@ class WorkflowInstanceController extends Controller
                     $userConnected
                 );
 
-                // // if ($step["assignment_mode"] === "DYNAMIC") {
-                // $initialStatus =
-                //     $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
+                //    throw new Exception(json_encode($a));
 
-                // // =====================================
-                // // INSTANCE STEP
-                // // =====================================
-                // $stepInstance = WorkflowInstanceStep::create([
-                //     "workflow_instance_id" => $workflowInstance->id,
-                //     "workflow_step_id" => $step["id"],
-                //     "status" => $initialStatus,
-                //     "due_date" => now()->addHours($step["delay_hours"] ?? 24),
-                //     "position" => $step["position"],
-                // ]);
 
-                // $stepInstance->load("workflowStep.workflowStatusLabel");
-
-                // $instanceSteps[$step["id"]] = $stepInstance;
-
-                // // =====================================
-                // // ASSIGNMENTS
-                // // =====================================
-                // $assignmentIds = [];
-
-                // foreach ($stepRoles as $roleId) {
-                //     $assignment = WorkflowInstanceStepAssignment::create([
-                //         "instance_step_id" => $stepInstance->id,
-                //         "user_id" => $agent_user_id ?? null,
-                //         "role_id" => $roleId,
-                //         "source_type" => $step["assignment_mode"],
-                //         "decision" => "PENDING",
-                //         "can_validate" => true,
-                //         "can_reject" => true,
-                //     ]);
-
-                //     $assignmentIds[] = $assignment;
-
-                //     // =====================================
-                //     // AUTO VALIDATION PREMIERE ETAPE
-                //     // =====================================
-                //     if ($index === 0 && $roleId === $userConnected["role_id"]) {
-                //         $assignment->update([
-                //             "user_id" => $userConnected["id"],
-                //             "decision" => "APPROVED",
-                //             "validated_at" => now(),
-                //         ]);
-                //     }
-                // }
-
-                // $hasApproved = WorkflowInstanceStepAssignment::where(
-                //     "instance_step_id",
-                //     $stepInstance->id
-                // )
-                //     ->where("decision", "APPROVED")
-                //     ->exists();
-
-                // if ($index === 0 && $hasApproved) {
-                //     $stepInstance->status = $STATUS_COMPLETE;
-                //     $stepInstance->executed_at = now();
-                //     $stepInstance->save();
-                // }
-                // }
             }
+            
 
             // $documentData = $this->getDocumentData($workflowInstance, $request);
 
@@ -638,10 +586,19 @@ class WorkflowInstanceController extends Controller
                 //il faut ue fonction qui prends en parametre le role et retourne le departement
 
                 //return [$userConnected['id']];
-                $departmentId = $this->getDepartmentByUsers([
-                    $userConnected["id"],
-                ])["department_id"];
+
+
+                // $departmentId = $this->getDepartmentByUsers([
+                //     $userConnected["id"],
+                // ])["department_id"];
+
+
+
             } elseif ($step["assignment_rule"] === "DIRECT_MANAGER") {
+
+                // throw new Exception(json_encode($stepRoles), 1);
+
+
                 $actor = $resolver->resolveActor($documentData); //  $documentData[$documentData["document_type"]["slug"]]["actor_details"];
                 // $validatorRole = $this->getRoleValidator($departmentId);
                 // throw new Exception(json_encode($step["assignment_rule"]), 1);
@@ -656,10 +613,17 @@ class WorkflowInstanceController extends Controller
                 }
                 // throw new Exception(json_encode($stepRoles), 1);
             } elseif ($step["assignment_rule"] === "HEAD_OF_DEPARTMENT") {
+
+                // throw new Exception(json_encode($stepRoles), 1);
+
+
                 $dynamicUser = $resolver->resolveHeadStepRole(
                     $step,
                     $documentData
                 );
+
+                // throw new Exception(json_encode($dynamicUser), 1);
+
 
                 $user = $resolver->resolveUser($dynamicUser["user_id"]);
 
@@ -673,10 +637,7 @@ class WorkflowInstanceController extends Controller
             } elseif ($step["assignment_rule"] === "MISSION_EXECUTOR") {
                 $missionExecutor = $resolver->resolveActor($documentData);
 
-                $agent_user_id =
-                    $documentData[$documentData["document_type"]["slug"]][
-                        "actor_details"
-                    ]["id"];
+                $agent_user_id =   $documentData["actor_details"]["id"];
 
                 // throw new Exception(json_encode($documentData[$documentData["document_type"]["slug"]]["actor_details"]), 1);
 
@@ -772,7 +733,6 @@ class WorkflowInstanceController extends Controller
         string $STATUS_COMPLETE,
         array $userConnected
     ): WorkflowInstanceStep {
-        //   $stepRoles =  $this->getStepRolesIds ($step , $userConnected , $resolver , $documentData);
 
         // $initialStatus = $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
 
