@@ -1473,6 +1473,7 @@ class WorkflowInstanceController extends Controller
                 "paid_amount" => $request->get("paid_amount"), // montant payé
                 "is_full_pay" => $request->get("is_full_pay"), // paiement total ou partiel
                 "payment_mode" => $request->get("payment_mode"),
+                "transaction_code" => $request->get("transaction_code"),
                 "user_id" => $user["id"], // qui effectue le paiement
             ];
 
@@ -1997,7 +1998,14 @@ class WorkflowInstanceController extends Controller
             }
 
 
-            DB::commit();
+               $this->registerPayment(
+        $instance,
+        $currentStep,
+        $request,
+        $user
+    );
+
+            // DB::commit();
 
             DB::afterCommit(function () use (
     $instance,
@@ -2030,19 +2038,18 @@ class WorkflowInstanceController extends Controller
         );
     }
 
-    // $WorkflowEventEngine->handle(
-    //     $documentId,
-    //     $instance,
-    //     $currentStep,
-    //     $actionStepId
-    // );
-});
-
     $WorkflowEventEngine->handle(
         $documentId,
         $currentStep,
         $actionStepId
     );
+});
+
+    // $WorkflowEventEngine->handle(
+    //     $documentId,
+    //     $currentStep,
+    //     $actionStepId
+    // );
 
 // DB::commit();
 

@@ -11,14 +11,25 @@ class WorkflowStatusLabelsSeeder extends Seeder
     {$statuses = [
     [
         'code' => 'UNDER_REVIEW',
-        'label' => 'Validation en cours',
+        'label' => 'En attente de validation',
         'emoji' => '🟡',
         'color' => 'warning',
         'is_configurable' => true,
         'status_type' => 'COMMON',
     ],
+
+        [
+
+        'code' => 'UNDER_APPROBATION',
+        'label' => "En attente d'approbation",
+        'emoji' => '🔵',
+        'color' => 'primary',
+        'is_configurable' => true,
+        'status_type' => 'COMMON',
+    ],
+
     [
-        'code' => 'WAITINGG_REGULARIZATION',
+        'code' => 'WAITING_REGULARIZATION',
         'label' => 'En attente de régularisation',
         'emoji' => '🛠️',
         'color' => 'info',

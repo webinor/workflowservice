@@ -34,7 +34,7 @@ class WorkflowInstanceResolverService
         $step = $currentStep->workflowStep;
 
         // étape paiement
-        if ($step->is_payment_step) {
+        if ($step->is_payment_step) { //cette fonction permet de savoir le status de paiement 
 
             $response = Http::withToken(request()->bearerToken())
                 ->get(
@@ -46,15 +46,24 @@ class WorkflowInstanceResolverService
 
             $paymentStatus = $response->json()['status'];
 
-            return WorkflowStatusLabel::where(
-                'code',
-                $paymentStatus
-            )->first();
+            // return WorkflowStatusLabel::where(
+            //     'code',
+            //     $paymentStatus
+            // )->first();
         }
+
+              
+
+
 
         // label configuré sur la step
         if ($step->workflowStatusLabel) {
             return $step->workflowStatusLabel;
+        }
+        else{
+
+        //   throw new \Exception(json_encode($step), 1);
+
         }
 
         return null;

@@ -17,21 +17,17 @@ class WorkflowInstanceService
         $departmentId = "",
         $stepRoles = []
     ) {
-        $step = $stepInstance->load("workflowStep")->workflowStep;
+        // $step = $stepInstance->load("workflowStep")->workflowStep;
         // $stepRoles = [];
-
-     
 
         // Vérifier si l'étape est PENDING
         if ($stepInstance->status !== "PENDING") {
             ///  return;
         }
 
-            //    throw new Exception(json_encode($stepRoles), 1);
-
 
         $workflowInstance = $stepInstance->workflowInstance;
-        $documentId = $workflowInstance->document_id;
+        $documentId = 668;// $workflowInstance->document_id;
         $stepName = $stepInstance->workflowStep->name;
 
         $workflowId = $workflowInstance->workflow_id;
@@ -57,24 +53,37 @@ class WorkflowInstanceService
                 config("services.document_service.base_url") . "/{$documentId}"
             );
 
-                
         //throw new Exception(json_encode($response->successful()), 1);
 
-            
-
+        $payload = [];
         if ($response->successful()) {
             $documentData = $response->json();
 
-            // supposer que l’API renvoie { "id": 123, "title": "Facture Proforma - Mars 2025", ... }
-            $documentTitle = $documentData["title"] ?? "Document sans titre";
+        // throw new Exception(json_encode($documentData), 1);
 
-            $message = sprintf(
-                //"📂 Vous êtes le prochain validateur pour l'étape '%s' du document #%d : « %s ».",
-                "📂 Vous avez un nouveau document à traiter : « %s ».",
-                // $stepName,
-                // $documentId,
-                $documentTitle
-            );
+
+
+
+
+            $messageRegistry = new WorkflowNotificationMessageRegistry();
+            $messageBuilder = $messageRegistry->resolve($documentData["document_type"]["slug"]);
+
+            $payload = $messageBuilder->build($documentData);
+
+        // throw new Exception(json_encode($payload), 1);
+
+
+
+            // // supposer que l’API renvoie { "id": 123, "title": "Facture Proforma - Mars 2025", ... }
+            // $documentTitle = $documentData["title"] ?? "Document sans titre";
+
+            // $message = sprintf(
+            //     //"📂 Vous êtes le prochain validateur pour l'étape '%s' du document #%d : « %s ».",
+            //     "📂 Vous avez un nouveau document à traiter : « %s ».",
+            //     // $stepName,
+            //     // $documentId,
+            //     $documentTitle
+            // );
         } else {
             // fallback si le service ne répond pas
             $message = sprintf(
@@ -86,14 +95,7 @@ class WorkflowInstanceService
         }
 
         // Si l'utilisateur est assigné (statique)
-        if ($stepInstance->user_idpppppp) {
-            Http::withToken($request->bearerToken())->post(
-                config("services.user_service.base_url") . "/notifications",
-                [
-                    "user_id" => $stepInstance->user_id,
-                    "message" => $message,
-                ]
-            );
+        if (false) {
         } else {
             // Si étape dynamique : récupérer tous les utilisateurs du rôle
             //$roleId =  $stepInstance->role_id;
@@ -106,22 +108,24 @@ class WorkflowInstanceService
                     ]
                 );
 
-       // throw new Exception(json_encode($response->successful()), 1);
+            // throw new Exception(json_encode($response->successful()), 1);
 
             if ($response->successful()) {
                 $users = $response->json()["data"];
 
-       // throw new Exception(json_encode($response->successful()), 1);
+                // throw new Exception(json_encode($response->successful()), 1);
 
                 // Récupérer juste les IDs
-                $userIds = collect($users)->pluck("id")->toArray();
+                $userIds = collect($users)
+                    ->pluck("id")
+                    ->toArray();
 
                 // Notifier en une seule requête
                 return Http::withToken($request->bearerToken())->post(
                     config("services.user_service.base_url") . "/notifications",
                     [
                         "user_ids" => $userIds,
-                        "message" => $message,
+                        "payload" => $payload,
                         "document_id" => $documentId,
                         "document_type_id" => $documentTypeId,
                     ]

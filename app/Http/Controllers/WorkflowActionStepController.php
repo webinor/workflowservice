@@ -179,14 +179,14 @@ class WorkflowActionStepController extends Controller
                 "workflow_action_step_id" => $actionStep->id,
                 "permission_required" => $actionStep->permission_required,
                 "transaction_type_code" => $actionStep->transaction_type_code,
-                "workflow_action_type" =>
-                    $actionStep->workflowAction->workflowActionType->code,
+                "workflow_action_type" => $actionStep->workflowAction->workflowActionType->code,
 
                 // ✔ UNIFIÉ (STATIC + DYNAMIC)
                 "role_ids" => $roleIds,
 
                 "transition_type" => $actionStep->transition->type ?? null,
                 "workflow_action_name" => $actionStep->workflowAction->name,
+                "workflow_action_step_message" => $actionStep->action_step_message,
                 "workflow_action_label" =>
                     $actionStep->workflowAction->action_label,
 

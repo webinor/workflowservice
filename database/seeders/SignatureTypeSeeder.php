@@ -40,6 +40,11 @@ class SignatureTypeSeeder extends Seeder
                 'name' => 'Validation de document',
                 'description' => 'Validation générique d\'un document',
             ],
+            [
+                'code' => 'FEE_NOTE_SETTLEMENT',
+                'name' => "Reception d'argent pour la note de frais",
+                'description' => "Signature attestant la réception du paiement d'une note de frais",
+            ],
         ];
 
         foreach ($signatureTypes as $type) {

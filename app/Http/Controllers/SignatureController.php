@@ -49,6 +49,8 @@ class SignatureController extends Controller
         'document_id' => 'required|integer',
         'actor_type' => 'required|string',
         'actor_id' => 'required|integer',
+        'actor_name' => 'required|string',
+        'actor_role' => 'required|string',
         'transaction_type_code' => 'required|string',
     ]);
 
@@ -82,6 +84,8 @@ class SignatureController extends Controller
         'workflow_instance_step_id' => $instanceStep->id,
         'actor_type' => $request->actor_type,
         'actor_id' => $request->actor_id,
+        'actor_name' => $request->actor_name,
+        'actor_role' => $request->actor_role,
         'comment' => $request->comment,
         'signed_at' => now(),
     ]);

@@ -88,12 +88,17 @@ class DocumentWorkflowService
         $documentIds = collect($documentIdsNotPaginated)
     ->pluck('document_id');
 
-    $flatDocuments = $this->documentClient
-    ->getDocumentTypesByIds($documentIds->toArray());
+      $flatDocuments = collect(
+    $this->documentClient->getDocumentTypesByIds($documentIds->toArray())
+)
+->sortByDesc('id')
+->values()
+->all();
 
 
 
-        // throw new Exception(json_encode($flatDocuments), 1);
+        // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
+        // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
 
       $permissionsByDocType = $this->getPermissions(
             $flatDocuments,
@@ -117,10 +122,14 @@ class DocumentWorkflowService
                     $validationContext,
                     $document_type
                 )
-            )->values();
+                
+            )
+                // ->sortByDesc('id')   // <-- ajoute ceci
+            // ->sortByDesc('created_ataa') // ou created_at
+            ->values();
 
 
-        // throw new Exception(json_encode($isStat === "false"  ), 1);
+        // throw new Exception(json_encode($filteredDocuments ), 1);
 
     
             $page = max((int) $currentPage, 1);
@@ -131,6 +140,13 @@ class DocumentWorkflowService
             $pagedDocuments = $filteredDocuments
                 ->slice(($page - 1) * $perPage, $perPage)
                 ->values();
+
+
+//     throw new Exception(json_encode([
+//     'page' => $page,
+//     'perPage' => $perPage,
+//     'filtered' => $filteredDocuments->pluck('id')->toArray(),
+// ]));
 
 
     // $isStat = (bool)$isStat;
@@ -170,7 +186,7 @@ class DocumentWorkflowService
     );
 
     
-        // throw new Exception(json_encode($documents), 1);
+        // throw new Exception(json_encode(collect($documents)->pluck('id')->toArray()), 1);
 
 
     $pagination = [
@@ -199,10 +215,11 @@ class DocumentWorkflowService
     |--------------------------------------------------------------------------
     */
         $availabilityContexts = $this->availabilityContexts(
-            $documentIds->toArray()
+            // $documentIds->toArray()
+            $filteredDocumentIds->toArray()
         );
 
-        // throw new Exception(json_encode(sizeof($availabilityContexts)), 1);
+        // throw new Exception(json_encode(($availabilityContexts)), 1);
 
         $contextsByDocId = collect($availabilityContexts)->keyBy("document_id");
 
@@ -371,6 +388,9 @@ class DocumentWorkflowService
                 $docSteps = ($steps[$workflow->id] ?? collect())
                     ->map(fn($step) => $step->workflowStep->code)
                     ->values();
+
+                // throw new Exception(json_encode($workflow->status), 1);
+                
 
                 return [
                     "document_id" => $documentId,
@@ -723,19 +743,16 @@ class DocumentWorkflowService
                 $doc["workflow_status"] = null;
                 $doc["can_validate"] = false;
 
-        // throw new Exception(json_encode($doc), 1);
+                
+                
+                $status_label_resolved = $this->resolver->resolveWorkflowStatusLabel($instance) ?? "N/D";;
 
+                // throw new Exception(json_encode($status_label_resolved), 1);
 
                 if ($instance) {
-                    $doc["workflow_status"] =
-                        $translations[$instance->status] ?? null;
-                    $doc["workflow_label"] =
-                        $this->resolver->resolveWorkflowStatusLabel(
-                            $instance
-                        ) ?? "N/D";
-                    $doc["can_validate"] = isset(
-                        $actionableSteps[$instance->id]
-                    );
+                    // $doc["workflow_status"] = $translations[$instance->status] ?? null;
+                    $doc["workflow_status"] =  $status_label_resolved;
+                    $doc["can_validate"] = isset($actionableSteps[$instance->id]);
                 }
 
                 return $doc;
