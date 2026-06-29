@@ -13,6 +13,15 @@ class WorkflowInstanceResolverService
         WorkflowInstance $instance
     ): ?WorkflowInstanceStep {
 
+
+        if ($instance->status === 'COMPLETE') {
+        return $instance
+            ->instance_steps()
+            ->with(['workflowStep.workflowActionSteps'])
+            ->orderByDesc('position')
+            ->first();
+    }
+
         return $instance
             ->instance_steps()
             ->with(["workflowStep.workflowActionSteps"])
@@ -26,6 +35,8 @@ class WorkflowInstanceResolverService
     ): ?WorkflowStatusLabel {
 
         $currentStep = $this->getCurrentStep($instance);
+
+        //   throw new \Exception(json_encode($currentStep), 1);
 
         if (!$currentStep) {
             return null;

@@ -463,16 +463,14 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 );
 
-            
                 if ($stepRoles == []) {
-                //    throw new Exception(json_encode($stepRoles));
+                    //    throw new Exception(json_encode($stepRoles));
                 }
-
 
                 $initialStatus =
                     $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
 
-              $a =  $this->activateStep(
+                $a = $this->activateStep(
                     $step,
                     $stepRoles,
                     $initialStatus,
@@ -483,10 +481,7 @@ class WorkflowInstanceController extends Controller
                 );
 
                 //    throw new Exception(json_encode($a));
-
-
             }
-            
 
             // $documentData = $this->getDocumentData($workflowInstance, $request);
 
@@ -587,17 +582,11 @@ class WorkflowInstanceController extends Controller
 
                 //return [$userConnected['id']];
 
-
                 // $departmentId = $this->getDepartmentByUsers([
                 //     $userConnected["id"],
                 // ])["department_id"];
-
-
-
             } elseif ($step["assignment_rule"] === "DIRECT_MANAGER") {
-
                 // throw new Exception(json_encode($stepRoles), 1);
-
 
                 $actor = $resolver->resolveActor($documentData); //  $documentData[$documentData["document_type"]["slug"]]["actor_details"];
                 // $validatorRole = $this->getRoleValidator($departmentId);
@@ -613,9 +602,7 @@ class WorkflowInstanceController extends Controller
                 }
                 // throw new Exception(json_encode($stepRoles), 1);
             } elseif ($step["assignment_rule"] === "HEAD_OF_DEPARTMENT") {
-
                 // throw new Exception(json_encode($stepRoles), 1);
-
 
                 $dynamicUser = $resolver->resolveHeadStepRole(
                     $step,
@@ -623,7 +610,6 @@ class WorkflowInstanceController extends Controller
                 );
 
                 // throw new Exception(json_encode($dynamicUser), 1);
-
 
                 $user = $resolver->resolveUser($dynamicUser["user_id"]);
 
@@ -637,7 +623,7 @@ class WorkflowInstanceController extends Controller
             } elseif ($step["assignment_rule"] === "MISSION_EXECUTOR") {
                 $missionExecutor = $resolver->resolveActor($documentData);
 
-                $agent_user_id =   $documentData["actor_details"]["id"];
+                $agent_user_id = $documentData["actor_details"]["id"];
 
                 // throw new Exception(json_encode($documentData[$documentData["document_type"]["slug"]]["actor_details"]), 1);
 
@@ -733,7 +719,6 @@ class WorkflowInstanceController extends Controller
         string $STATUS_COMPLETE,
         array $userConnected
     ): WorkflowInstanceStep {
-
         // $initialStatus = $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
 
         // =====================================
@@ -1274,7 +1259,6 @@ class WorkflowInstanceController extends Controller
             );
         }
     }
-
 
     private function hasPermission(
         int $userId,
@@ -1997,61 +1981,53 @@ class WorkflowInstanceController extends Controller
                 WorkflowStatusHistory::create($historyData);
             }
 
-
-               $this->registerPayment(
-        $instance,
-        $currentStep,
-        $request,
-        $user
-    );
-
-            // DB::commit();
+            DB::commit();
 
             DB::afterCommit(function () use (
-    $instance,
-    $currentStep,
-    $request,
-    $user,
-    $nextStep,
-    $roleIdsToNotify,
-    $WorkflowEventEngine,
-    $documentId,
-    $actionStepId
-) {
+                $instance,
+                $currentStep,
+                $request,
+                $user,
+                $nextStep,
+                $roleIdsToNotify,
+                $WorkflowEventEngine,
+                $documentId,
+                $actionStepId
+            ) {
+                // =====================================
+                // PAYMENT
+                // =====================================
 
-    $this->registerPayment(
-        $instance,
-        $currentStep,
-        $request,
-        $user
-    );
+                $this->registerPayment(
+                    $instance,
+                    $currentStep,
+                    $request,
+                    $user
+                );
 
-    if (
-        $nextStep &&
-        !$nextStep->workflowStep->is_archived_step
-    ) {
-        $this->workflowInstanceService->notifyNextValidator(
-            $nextStep,
-            $request,
-            $request->get("department_id"),
-            $roleIdsToNotify
-        );
-    }
+                if ($nextStep && !$nextStep->workflowStep->is_archived_step) {
+                    $this->workflowInstanceService->notifyNextValidator(
+                        $nextStep,
+                        $request,
+                        $request->get("department_id"),
+                        $roleIdsToNotify
+                    );
+                }
 
-    $WorkflowEventEngine->handle(
-        $documentId,
-        $currentStep,
-        $actionStepId
-    );
-});
+                $WorkflowEventEngine->handle(
+                    $documentId,
+                    $currentStep,
+                    $actionStepId
+                );
+            });
 
-    // $WorkflowEventEngine->handle(
-    //     $documentId,
-    //     $currentStep,
-    //     $actionStepId
-    // );
+            // $WorkflowEventEngine->handle(
+            //     $documentId,
+            //     $currentStep,
+            //     $actionStepId
+            // );
 
-// DB::commit();
+            // DB::commit();
 
             return response()->json([
                 "success" => true,
@@ -2331,8 +2307,7 @@ class WorkflowInstanceController extends Controller
             ->where("condition_kind", "BLOCKING")
             ->get();
 
-            //  throw new Exception(json_encode($currentStep), 1);
-
+        //  throw new Exception(json_encode($currentStep), 1);
 
         foreach ($blockingRules as $rule) {
             //  return
@@ -2345,8 +2320,8 @@ class WorkflowInstanceController extends Controller
                 return [
                     "isValid" => false,
                     "data" => [
-                         'message' => $rule->error_message
-            ?? 'Condition non satisfaite.',
+                        "message" =>
+                            $rule->error_message ?? "Condition non satisfaite.",
                         "required_type" => $rule->required_type,
                     ],
                 ];
@@ -2616,39 +2591,26 @@ class WorkflowInstanceController extends Controller
 
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
+            if ($condition->required_id) {
+                // Convertir les chaînes en entiers si nécessaire
+                $haystack_int = array_map("intval", $condition->required_id);
 
-                            if ($condition->required_id) {
-                                
-                                    // Convertir les chaînes en entiers si nécessaire
-            $haystack_int = array_map("intval", $condition->required_id);
+                if (is_array($fieldValue)) {
+                    // throw new Exception(json_encode(array_diff($haystack_int, $fieldValue)), 1);
 
-            if (is_array($fieldValue)) {
-                // throw new Exception(json_encode(array_diff($haystack_int, $fieldValue)), 1);
+                    return !empty($fieldValue) &&
+                        //!empty(array_intersect($fieldValue, $haystack_int));
+                        empty(array_diff($haystack_int, $fieldValue));
+                } else {
+                    //throw new Exception(json_encode($fieldValue), 1);
+                    //throw new Exception(json_encode($haystack_int), 1);
+                    // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
 
-                return !empty($fieldValue) &&
-                    //!empty(array_intersect($fieldValue, $haystack_int));
-                    empty(array_diff($haystack_int, $fieldValue));
+                    return in_array($fieldValue, $haystack_int);
+                }
             } else {
-                //throw new Exception(json_encode($fieldValue), 1);
-                //throw new Exception(json_encode($haystack_int), 1);
-                // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
-
-                return in_array($fieldValue, $haystack_int);
+                return !empty($fieldValue);
             }
-
-                            
-                            }
-                            else{
-
-
-               return !empty($fieldValue);
-
-
-                            }
-
-
-                           
-            
         }
 
         // Si le type de condition est 'userRole' (exemple : vérifier le rôle du soumissionnaire)
