@@ -751,7 +751,7 @@ class WorkflowInstanceController extends Controller
                 "user_id" => $agent_user_id ?? null,
                 "role_id" => $roleId,
                 "source_type" => $step["assignment_mode"],
-                "source_value" => $step["assignment_rule"] ?? null,
+                "source_value" => $step["assignment_rule"] ?? $step["assignment_mode"],
                 "decision" => "PENDING",
                 "can_validate" => true,
                 "can_reject" => true,

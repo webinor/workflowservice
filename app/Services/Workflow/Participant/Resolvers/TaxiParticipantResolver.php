@@ -33,67 +33,64 @@ class TaxiParticipantResolver implements ParticipantResolver
         |--------------------------------------------------------------------------
         */
 
-        $instance_steps = $instance->instance_steps()
-            ->with(['assignments'])
-            ->orderBy('position')
+        $instance_steps = $instance
+            ->instance_steps()
+            ->with(["assignments"])
+            ->orderBy("position")
             ->get();
 
         foreach ($instance_steps as $instance_step) {
-
             foreach ($instance_step->assignments as $assignment) {
-
-                    $isApproved = $assignment->decision === 'APPROVED';
+                $isApproved = $assignment->decision === "APPROVED";
 
                 $participants[] = [
                     /*
                     | rôle métier réel issu du workflow
                     */
-                    'type' => $this->mapSourceValueToType(
+                    "type" => $this->mapSourceValueToType(
                         $assignment->source_value
                     ),
 
                     /*
                     | label dynamique (important pour PDF)
                     */
-                    'label' => $instance_step->name,
+                    "label" => $instance_step->name,
 
-                    'validated_at' => $assignment->validated_at,
-
+                    "validated_at" => $assignment->validated_at,
 
                     /*
-     * Règles de rendu
-     */
-    'signature_visibility' => $assignment->signature_visibility,
-    'signature_mode' => $assignment->signature_mode,
+                     * Règles de rendu
+                     */
+                    "signature_visibility" => $assignment->signature_visibility,
+                    "signature_mode" => $assignment->signature_mode,
 
-    'paraph_visibility' => $assignment->paraph_visibility,
-    'paraph_mode' => $assignment->paraph_mode,
-                    
+                    "paraph_visibility" => $assignment->paraph_visibility,
+                    "paraph_mode" => $assignment->paraph_mode,
 
                     /*
                     | utilisateur réel qui a exécuté
                     */
-                    'user_id' => $assignment->user_id,
-                    'role_id' => $assignment->role_id,
-                    'name' => $assignment->user->name ?? null,
+                    "user_id" => $assignment->user_id,
+                    "role_id" => $assignment->role_id,
+                    "name" => $assignment->user->name ?? null,
 
                     /*
                     | état du workflow
                     */
-                    'status' => $assignment->decision,
+                    "status" => $assignment->decision,
 
-                         /*
+                    /*
             |--------------------------------------------------------------------------
             | SIGNATURE LOGIC
             |--------------------------------------------------------------------------
             */
-            'signed' => $isApproved,
+                    "signed" => $isApproved,
 
                     /*
                     | traçabilité métier
                     */
-                    'source_type' => $assignment->source_type,
-                    'source_value' => $assignment->source_value,
+                    "source_type" => $assignment->source_type,
+                    "source_value" => $assignment->source_value,
                 ];
             }
         }
@@ -105,34 +102,27 @@ class TaxiParticipantResolver implements ParticipantResolver
         */
 
         if ($instance->final_signer_id) {
-
             $participants[] = [
-                'type' => 'SIGNER',
-                'label' => 'Signataire final',
-                'user_id' => $instance->final_signer_id,
-                'name' => $instance->finalSigner->name ?? null,
-                'status' => 'APPROVED',
+                "type" => "SIGNER",
+                "label" => "Signataire final",
+                "user_id" => $instance->final_signer_id,
+                "name" => $instance->finalSigner->name ?? null,
+                "status" => "APPROVED",
             ];
         }
-
-
-
 
         return $participants;
     }
 
- private function mapSourceValueToType(string $value): string
-{
-    $map = [
-        'DIRECT_MANAGER' => 'APPROVER',
-        'HEAD_OF_DEPARTMENT' => 'APPROVER',
-        'SIGNATORY' => 'SIGNER',
-        'OWNER' => 'PRIMARY_ACTOR',
-    ];
+    private function mapSourceValueToType(string $value): string
+    {
+        $map = [
+            "DIRECT_MANAGER" => "APPROVER",
+            "HEAD_OF_DEPARTMENT" => "APPROVER",
+            "SIGNATORY" => "SIGNER",
+            "OWNER" => "PRIMARY_ACTOR",
+        ];
 
-    return $map[$value] ?? 'APPROVER';
-}
-
-
-
+        return $map[$value] ?? "APPROVER";
+    }
 }

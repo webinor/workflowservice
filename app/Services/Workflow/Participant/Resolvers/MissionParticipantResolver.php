@@ -48,7 +48,7 @@ class MissionParticipantResolver implements ParticipantResolver
                     | rôle métier réel issu du workflow
                     */
                     "type" => $this->mapSourceValueToType(
-                        $assignment->source_value
+                        $assignment->source_value 
                     ),
 
                     /*

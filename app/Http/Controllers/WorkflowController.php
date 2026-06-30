@@ -1100,7 +1100,8 @@ class WorkflowController extends Controller
                     "assignment_mode" => $stepData["assignationMode"],
                     "is_payment_step" => $stepData["is_payment_step"],
                     "is_archived_step" => $stepData["is_archived_step"],
-                    "assignment_rule" => $stepData["assignmentRule"] ?? null,
+                    // "assignment_rule" => $stepData["assignmentRule"] ?? null,
+                    "assignment_rule" => $stepData["assignmentRule"] ?? $stepData["assignationMode"],
                     "position" => $stepData["stepPosition"],
 
                     // IMPORTANT
