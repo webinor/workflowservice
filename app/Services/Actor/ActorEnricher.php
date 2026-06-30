@@ -28,16 +28,16 @@ class ActorEnricher
         $actors = $client->get(
             'employees-by-ids',
             ['ids' => implode(',', $actorIds)]
-        )['data'] ?? [];
+        )['data']['data'] ?? [];
 
-        throw new \Exception(json_encode($actors), 1);
+        // throw new \Exception(json_encode($actors), 1);
 
 
         $actorsById = collect($actors)
             ->keyBy('id')
             ->toArray();
 
-        throw new \Exception(json_encode($actorsById), 1);
+        // throw new \Exception(json_encode($actorsById), 1);
 
 
         return collect($items)
