@@ -15,6 +15,7 @@ class HttpClientService
         "document" => "services.document_service.base_url",
         "workflow" => "services.workflow_service.base_url",
         "user" => "services.user_service.base_url",
+        "employee" => "services.user_service.base_url",
     ];
 
     protected static string $defaultBaseUrl = "";

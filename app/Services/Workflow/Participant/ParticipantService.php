@@ -41,7 +41,7 @@ class ParticipantService
 
     
 $businessSignatures = app(UserEnricher::class)
-    ->enrich($businessSignatures);
+    ->enrich($businessSignatures , "actor_id");
 
     return ["participants"=>$participants,
     "business_signatures"=>$businessSignatures];
