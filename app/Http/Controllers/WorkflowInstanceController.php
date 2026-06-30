@@ -556,9 +556,7 @@ class WorkflowInstanceController extends Controller
             "is_stict" => $step["assignment_mode"] === "DYNAMIC",
         ];
 
-        if ($step["assignment_mode"] === "STATIC") {
-            //  throw new Exception(json_encode($step), 1);
-        }
+      
         // return $step;
         // Déterminer les rôles à partir de assignationMode
         $stepRoles = [];
@@ -572,7 +570,13 @@ class WorkflowInstanceController extends Controller
         } elseif ($step["assignment_mode"] === "OWNER") {
             //   return
             $stepRoles = [$userConnected["role_ids"][0]];
-        } elseif ($step["assignment_mode"] === "DYNAMIC") {
+        } 
+        
+        elseif ($step["assignment_mode"] === "SYSTEM") {
+            //   return
+            $stepRoles = [];
+        } 
+        elseif ($step["assignment_mode"] === "DYNAMIC") {
             //  return "okay";
 
             // throw new Exception(json_encode($step), 1);
@@ -704,7 +708,7 @@ class WorkflowInstanceController extends Controller
                 );
             }
         } else {
-            throw new Exception("Aucun mode de traitement", 1);
+            throw new Exception("Aucun mode de traitement pour {$step["assignment_rule"]}", 1);
         }
 
         return $stepRoles;

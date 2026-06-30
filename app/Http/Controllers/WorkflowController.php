@@ -1119,78 +1119,61 @@ class WorkflowController extends Controller
                     // return $oldStep;
 
                     $oldActionSteps = WorkflowActionStep::with([
-                        "workflowActionStepEvents.workflowEventAudiences"
+                        "workflowActionStepEvents.workflowEventAudiences",
                     ])
-                    ->where(
-                        "workflow_step_id",
-                        $oldStep->id
-                    )->get();
+                        ->where("workflow_step_id", $oldStep->id)
+                        ->get();
 
                     foreach ($oldActionSteps as $oldActionStep) {
-
-                      $newActionStep =  WorkflowActionStep::create([
-                            "workflow_action_id" =>    $oldActionStep->workflow_action_id,
+                        $newActionStep = WorkflowActionStep::create([
+                            "workflow_action_id" =>
+                                $oldActionStep->workflow_action_id,
                             "workflow_step_id" => $step->id,
-                            "permission_required" =>  $oldActionStep->permission_required,
-                            "transaction_type_code" =>  $oldActionStep->transaction_type_code,
+                            "permission_required" =>
+                                $oldActionStep->permission_required,
+                            "transaction_type_code" =>
+                                $oldActionStep->transaction_type_code,
                         ]);
 
+                        foreach (
+                            $oldActionStep->workflowActionStepEvents
+                            as $oldEvent
+                        ) {
+                            if (!$newActionStep) {
+                                //      throw new Exception(json_encode($newActionStep), 1);
+                            }
 
+                            $newEvent = WorkflowActionStepEvent::create([
+                                "workflow_action_step_id" => $newActionStep->id,
+                                "code" => $oldEvent->code,
+                                "delivery_mode" => $oldEvent->delivery_mode,
+                                "handler_class" => $oldEvent->handler_class,
+                                "config" => $oldEvent->config,
+                                "is_active" => $oldEvent->is_active,
+                                "execution_order" => $oldEvent->execution_order,
+                            ]);
 
-                           foreach ($oldActionStep->workflowActionStepEvents as $oldEvent) {
-
-                           if (!$newActionStep) {
-
-                        //      throw new Exception(json_encode($newActionStep), 1);
-
-                           }
-
-
-        $newEvent = WorkflowActionStepEvent::create([
-            "workflow_action_step_id" => $newActionStep->id,
-            "code" => $oldEvent->code,
-            "delivery_mode" => $oldEvent->delivery_mode,
-            "handler_class" => $oldEvent->handler_class,
-            "config" => $oldEvent->config,
-            "is_active" => $oldEvent->is_active,
-            "execution_order" => $oldEvent->execution_order,
-        ]);
-
-      
-        
-
-
-                foreach ($oldEvent->workflowEventAudiences as $oldAudience) {
-
-            WorkflowEventAudience::create([
-                "workflow_action_step_event_id" => $newEvent->id,
-                "target_type" => $oldAudience->target_type,
-                "target_value" => $oldAudience->target_value,
-                "channel" => $oldAudience->channel,
-                "recipient_type" => $oldAudience->recipient_type,
-                "notification_template_id" => $oldAudience->notification_template_id,
-                "active" => $oldAudience->active,
-                "metadata" => $oldAudience->metadata,
-            ]);
-        }
-    
-
-
+                            foreach (
+                                $oldEvent->workflowEventAudiences
+                                as $oldAudience
+                            ) {
+                                WorkflowEventAudience::create([
+                                    "workflow_action_step_event_id" =>
+                                        $newEvent->id,
+                                    "target_type" => $oldAudience->target_type,
+                                    "target_value" =>
+                                        $oldAudience->target_value,
+                                    "channel" => $oldAudience->channel,
+                                    "recipient_type" =>
+                                        $oldAudience->recipient_type,
+                                    "notification_template_id" =>
+                                        $oldAudience->notification_template_id,
+                                    "active" => $oldAudience->active,
+                                    "metadata" => $oldAudience->metadata,
+                                ]);
+                            }
                         }
-
-
-
-
-
                     }
-
-
-
-                     
-
-
-
-                    
                 }
 
                 /*

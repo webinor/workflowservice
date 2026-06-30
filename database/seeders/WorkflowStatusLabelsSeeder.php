@@ -62,10 +62,10 @@ class WorkflowStatusLabelsSeeder extends Seeder
     ],
     [
         'code' => 'PAID',
-        'label' => 'Payée',
+        'label' => 'Payé(e)',
         'emoji' => '✅',
         'color' => 'success',
-        'is_configurable' => false,
+        'is_configurable' => true,
         'status_type' => 'INVOICE',
     ],
     [
