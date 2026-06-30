@@ -30,7 +30,7 @@ class ActorEnricher
             ['ids' => implode(',', $actorIds)]
         )['data'] ?? [];
 
-        // throw new \Exception(json_encode($actors), 1);
+        throw new \Exception(json_encode($actors), 1);
 
 
         $actorsById = collect($actors)
