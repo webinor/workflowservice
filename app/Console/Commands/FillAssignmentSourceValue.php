@@ -36,7 +36,7 @@ class FillAssignmentSourceValue extends Command
                     continue;
                 }
 
-                $assignmentRule = $step->assignment_rule ?? null;
+                $assignmentRule = $step->assignment_rule ?? $step->assignment_mode;
 
                 if (!$assignmentRule) {
                     $this->warn("Step {$step->id} has no assignment_rule");
