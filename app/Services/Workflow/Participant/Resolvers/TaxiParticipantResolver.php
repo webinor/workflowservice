@@ -60,6 +60,14 @@ class TaxiParticipantResolver implements ParticipantResolver
                     'validated_at' => $assignment->validated_at,
 
 
+                    /*
+     * Règles de rendu
+     */
+    'signature_visibility' => $assignment->signature_visibility,
+    'signature_mode' => $assignment->signature_mode,
+
+    'paraph_visibility' => $assignment->paraph_visibility,
+    'paraph_mode' => $assignment->paraph_mode,
                     
 
                     /*

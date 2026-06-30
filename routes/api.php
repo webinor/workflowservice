@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DocumentWorkflowController;
+use App\Http\Controllers\RoleUsageController;
 use App\Http\Controllers\SignatureController;
 use App\Http\Controllers\UserDashboardContextController;
 use App\Http\Controllers\WorkflowActionController;
@@ -128,6 +129,8 @@ Route::get(
     '/documents/{documentId}/participants',
     [WorkflowParticipantController::class, 'index']
 );
+
+Route::get('/roles/{roleId}/usage', [RoleUsageController::class, 'workflowUsage']);
 
         // WorkflowValidationController
         // Route::get("/documents-to-validate", [
