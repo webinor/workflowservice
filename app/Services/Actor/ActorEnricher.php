@@ -1,6 +1,7 @@
 <?php
 
-namespace App\Services\User;
+namespace App\Services\Actor;
+
 
 use App\Services\HttpClientService;
 

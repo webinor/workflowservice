@@ -4,6 +4,7 @@ namespace App\Services\Workflow\Participant;
 
 use App\Models\WorkflowInstance;
 use App\Services\HttpClientService;
+use App\Services\Actor\ActorEnricher;
 use App\Services\User\UserEnricher;
 use App\Services\Workflow\Signature\BusinessSignatureResolverFactory;
 
@@ -40,7 +41,7 @@ class ParticipantService
     ->enrich($participants);
 
     
-$businessSignatures = app(UserEnricher::class)
+$businessSignatures = app(ActorEnricher::class)
     ->enrich($businessSignatures , "actor_id");
 
     return ["participants"=>$participants,
