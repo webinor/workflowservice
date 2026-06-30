@@ -37,6 +37,9 @@ class ActorEnricher
             ->keyBy('id')
             ->toArray();
 
+        throw new \Exception(json_encode($actorsById), 1);
+
+
         return collect($items)
             ->map(function ($item) use ($actorsById, $field) {
 
