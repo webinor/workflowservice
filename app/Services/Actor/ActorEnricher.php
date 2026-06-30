@@ -20,7 +20,7 @@ class ActorEnricher
             return $items;
         }
 
-        throw new \Exception(json_encode($actorIds), 1);
+        // throw new \Exception(json_encode($actorIds), 1);
         
 
         $client = HttpClientService::service('employee');
@@ -29,6 +29,9 @@ class ActorEnricher
             'employees-by-ids',
             ['ids' => implode(',', $actorIds)]
         )['data'] ?? [];
+
+        throw new \Exception(json_encode($actors), 1);
+
 
         $actorsById = collect($actors)
             ->keyBy('id')
