@@ -70,7 +70,7 @@ class WorkflowInstanceService
 
             $payload = $messageBuilder->build($documentData);
 
-            // throw new Exception(json_encode($documentData), 1);
+            // throw new Exception(json_encode($documentData['mission']), 1);
 
 
 

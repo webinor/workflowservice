@@ -521,7 +521,7 @@ class WorkflowInstanceController extends Controller
                 );
             }
 
-            //    throw new Exception(json_encode('$stepsToNotify'), 1);
+            //    throw new Exception(json_encode($roleIdsToNotify), 1);
 
             DB::commit();
 

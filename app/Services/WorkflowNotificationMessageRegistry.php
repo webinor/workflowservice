@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Services\FeeNote\FeeNoteMessageBuilder;
 use App\Services\Mission\MissionEnricher;
+use App\Services\Mission\MissionMessageBuilder;
 use App\Services\Purchase\PurchaseEnricher;
 use App\Services\Taxi\TaxiPaperEnricher;
 use App\Services\Taxi\TaxiPaperMessageBuilder;
@@ -19,7 +20,7 @@ class WorkflowNotificationMessageRegistry
         }
 
         if ($type === 'mission') {
-            // return new MissionMessageBuilder();
+            return new MissionMessageBuilder();
         }
 
         if ($type === 'demande-achat') {
