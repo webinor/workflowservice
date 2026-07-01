@@ -68,6 +68,16 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'is_configurable' => true,
         'status_type' => 'INVOICE',
     ],
+
+     [
+        'code' => 'REGULARIZATION',
+        'label' => 'Regularisé(e)',
+        'emoji' => '✅',
+        'color' => 'success',
+        'is_configurable' => true,
+        'status_type' => 'INVOICE',
+    ],
+    
     [
         'code' => 'APPROVED',
         'label' => 'Approuvée',

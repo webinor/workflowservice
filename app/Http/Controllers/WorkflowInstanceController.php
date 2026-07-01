@@ -2764,7 +2764,7 @@ class WorkflowInstanceController extends Controller
         $keys = explode(".", $path);
         $value = $data;
 
-        // throw new Exception(json_encode($keys), 1);
+        // throw new Exception(json_encode($data), 1);
 
         foreach ($keys as $key) {
             //return $value;
@@ -2804,6 +2804,8 @@ class WorkflowInstanceController extends Controller
         }
 
         //  return "ok";
+
+                // throw new Exception(json_encode($value), 1);
 
         //  return is_array($value) ? $value : [$value];
         return $value;
