@@ -27,7 +27,7 @@ class WorkflowInstanceService
 
 
         $workflowInstance = $stepInstance->workflowInstance;
-        $documentId = 668;// $workflowInstance->document_id;
+        $documentId = $workflowInstance->document_id;
         $stepName = $stepInstance->workflowStep->name;
 
         $workflowId = $workflowInstance->workflow_id;
@@ -53,7 +53,7 @@ class WorkflowInstanceService
                 config("services.document_service.base_url") . "/{$documentId}"
             );
 
-        //throw new Exception(json_encode($response->successful()), 1);
+        // throw new Exception(json_encode($response->body()), 1);
 
         $payload = [];
         if ($response->successful()) {
@@ -70,7 +70,9 @@ class WorkflowInstanceService
 
             $payload = $messageBuilder->build($documentData);
 
-        // throw new Exception(json_encode($payload), 1);
+            // throw new Exception(json_encode($documentData), 1);
+
+
 
 
 
@@ -85,6 +87,12 @@ class WorkflowInstanceService
             //     $documentTitle
             // );
         } else {
+
+
+        // throw new Exception(json_encode($documentId), 1);
+
+        // throw new Exception(json_encode($response->body()), 1);
+
             // fallback si le service ne répond pas
             $message = sprintf(
                 //"📂 Vous êtes le prochain validateur pour l'étape '%s' du document #%d.",

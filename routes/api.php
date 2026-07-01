@@ -186,6 +186,11 @@ Route::get('/roles/{roleId}/usage', [RoleUsageController::class, 'workflowUsage'
             WorkflowActionController::class,
             "store",
         ]);
+
+        Route::get('/workflow-actions', [
+    WorkflowActionController::class,
+    'index',
+]);
         //Route::get("workflow-steps/{instanceStep}/actions", [
         Route::get(
             "/documents/{documentId}/workflow-steps/{instanceStep}/actions",

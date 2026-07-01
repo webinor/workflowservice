@@ -18,10 +18,35 @@ class WorkflowActionController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
-    {
-        //
-    }
+ public function index(Request $request)
+{
+    $actionSteps = WorkflowActionStep::query()
+        ->with([
+            'workflowAction.workflowActionType',
+            'workflowStep',
+            // 'transition',
+            'workflowActionStepEvents',
+        ])
+
+        ->when($request->filled('workflow_step_id'), function ($query) use ($request) {
+            $query->where('workflow_step_id', $request->workflow_step_id);
+        })
+        ->when($request->filled('workflow_id'), function ($query) use ($request) {
+            $query->whereHas('workflowStep', function ($q) use ($request) {
+                $q->where('workflow_id', $request->workflow_id);
+            });
+        })
+        ->orderBy(
+            WorkflowAction::select('position')
+                ->whereColumn('workflow_actions.id', 'workflow_action_steps.workflow_action_id')
+        )
+        ->get();
+
+    return response()->json([
+        'success' => true,
+        'data' => $actionSteps,
+    ]);
+}
 
     /**
      * Show the form for creating a new resource.
@@ -75,7 +100,8 @@ class WorkflowActionController extends Controller
      */
     public function store(StoreWorkflowActionRequest $request)
     {
-        $validated = $request->validated();
+    //  return   
+     $validated = $request->validated();
 
         try {
             DB::beginTransaction();
@@ -92,6 +118,9 @@ class WorkflowActionController extends Controller
                 "workflow_action_id" => $action->id,
                 "workflow_step_id" => $validated["workflow_step_id"],
                 "permission_required" => $validated["permission_required"],
+
+                "action_step_message" => $validated["action_step_message"],
+                "transaction_type_code" => $validated["transaction_type_code"] ?? null,
             ]);
 
             DB::commit();

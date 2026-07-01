@@ -14,6 +14,8 @@ class WorkflowActionStep extends Model
         "workflow_action_id",
         "workflow_step_id",
         "permission_required",
+        "action_step_message",
+        "transaction_type_code",
     ];
 
     public function workflowAction()
