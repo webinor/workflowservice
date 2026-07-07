@@ -1985,7 +1985,7 @@ class WorkflowInstanceController extends Controller
                 WorkflowStatusHistory::create($historyData);
             }
 
-            DB::commit();
+            // DB::commit();
 
             DB::afterCommit(function () use (
                 $instance,
@@ -2018,18 +2018,18 @@ class WorkflowInstanceController extends Controller
                     );
                 }
 
-                $WorkflowEventEngine->handle(
-                    $documentId,
-                    $currentStep,
-                    $actionStepId
-                );
+                // $WorkflowEventEngine->handle(
+                //     $documentId,
+                //     $currentStep,
+                //     $actionStepId
+                // );
             });
 
-            // $WorkflowEventEngine->handle(
-            //     $documentId,
-            //     $currentStep,
-            //     $actionStepId
-            // );
+            $WorkflowEventEngine->handle(
+                $documentId,
+                $currentStep,
+                $actionStepId
+            );
 
             // DB::commit();
 

@@ -8,6 +8,7 @@ use App\Models\WorkflowEventAudience;
 use App\Models\WorkflowInstanceStep;
 use App\Services\User\UserServiceClient;
 use App\Services\Department\DepartmentServiceClient;
+use Exception;
 
 class WorkflowAudienceResolver
 {
@@ -52,11 +53,16 @@ class WorkflowAudienceResolver
                  */
                 case 'ACTOR':
 
-                    $actor_details = $document[$document['document_type']['slug']]["actor_details"];
+                    $actor_details = $document['actor_details']['organization']['position'];
+                    // $document[$document['document_type']['slug']]["actor_details"];
+                    
+                    // $document['organization']['position']['position']['user_id]
+                    // throw new Exception(json_encode($actor_details), 1);
+                    
 
                    $recipients = $this->resolveActor(
                         $audience->target_value,
-                        $actor_details["id"]
+                        $actor_details["user_id"]
                     );
 
                     break;

@@ -46,7 +46,7 @@ class GenerateMissionDocumentsHandler
             'data' => [
 
                 'actor' =>
-                    $documentData["mission"]["actor_details"]['name'] ?? '',
+                    $documentData["actor_details"]['nom'] ?? '',
 
                 'mission_reference' =>
                     $documentData["mission"]['code'] ?? '',
