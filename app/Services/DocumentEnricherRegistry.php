@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Services\FeeNote\FeeNoteEnricher;
 use App\Services\Mission\MissionEnricher;
 use App\Services\Purchase\PurchaseEnricher;
 use App\Services\Taxi\TaxiPaperEnricher;
+use App\Services\Absence\AbsenceEnricher;
 use Exception;
 
 class DocumentEnricherRegistry
@@ -28,7 +30,11 @@ class DocumentEnricherRegistry
 
 
         if ($type === "note-de-frais") {
-            return new PurchaseEnricher();
+            return new FeeNoteEnricher();
+        }
+
+        if ($type === "demande-d-absence") {
+            return new AbsenceEnricher();
         }
 
         throw new Exception(

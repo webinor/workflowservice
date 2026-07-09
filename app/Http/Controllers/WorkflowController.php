@@ -647,7 +647,7 @@ class WorkflowController extends Controller
             if (count($workflowIds) == 0) {
                 // Pas de workflow pour ce type de document → on renvoie id null
                 return response()->json([
-                    "id" => null,
+                    "workflow" => null,
                     "message" => "Aucun workflow associé à ce type de document",
                 ]);
             }

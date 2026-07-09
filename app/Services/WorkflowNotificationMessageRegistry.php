@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Absence\AbsenceMessageBuilder;
 use App\Services\FeeNote\FeeNoteMessageBuilder;
 use App\Services\Mission\MissionEnricher;
 use App\Services\Mission\MissionMessageBuilder;
@@ -29,6 +30,10 @@ class WorkflowNotificationMessageRegistry
 
         if ($type === 'note-de-frais') {
             return new FeeNoteMessageBuilder();
+        }
+
+        if ($type === 'demande-d-absence') {
+            return new AbsenceMessageBuilder();
         }
 
         throw new Exception(

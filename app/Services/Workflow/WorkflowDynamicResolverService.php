@@ -14,6 +14,7 @@ class WorkflowDynamicResolverService
             "purchase_request" => "actor_details",
             "taxi_paper" => "actor_details",
             "fee_note" => "actor_details",
+            "absence_request" => "actor_details",
             //"mission"=>"actor_id",
         ];
 
