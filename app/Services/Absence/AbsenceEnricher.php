@@ -35,7 +35,7 @@ use Exception;
     ];
 
     $doc['availability'] = [
-        "can_download" =>$hasSignature,// $workflowCompleted && $hasSignature,
+        "can_download" =>$workflowCompleted,// $workflowCompleted && $hasSignature,
         "can_sign" => !$hasSignature,
     ];
 

@@ -45,6 +45,37 @@ class DocumentServiceClient
     }
 
     /**
+ * =========================================
+ * Déduction des jours de congé
+ * =========================================
+ */
+public function deductLeaveDays(
+    int $documentId,
+    int $instanceId,
+    string $context = 'workflow_validation'
+) {
+    $response = Http::withToken(request()->bearerToken())
+        ->acceptJson()
+        ->post(
+            config('services.document_service.base_url') .
+                '/leave-balances/deduct',
+            [
+                'document_id' => $documentId,
+                'instance_id' => $instanceId,
+                'context' => $context,
+            ]
+        );
+
+    if (!$response->successful()) {
+        throw new \Exception(
+            'EmployeeService error: '.$response->body()
+        );
+    }
+
+    return $response->json();
+}
+
+    /**
      * =========================================
      * Récupérer un document
      * =========================================

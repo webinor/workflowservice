@@ -2,6 +2,7 @@
 
 namespace App\Services\Workflow\Participant;
 
+use App\Services\Workflow\Participant\Resolvers\AbsenceParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\MissionParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\TaxiParticipantResolver;
 use Exception;
@@ -20,9 +21,13 @@ class ParticipantResolverFactory
             'papier-taxi':
               return  app(TaxiParticipantResolver::class);
 
+                      case
+            'demande-d-absence':
+              return  app(AbsenceParticipantResolver::class);
+
 
             default :
-            throw new Exception("Aucun resolver defini", 1);
+            throw new Exception("Aucun resolver defini pour : $type", 1);
             
             //    return app(DefaultParticipantResolver::class);
         };

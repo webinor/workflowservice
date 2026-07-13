@@ -869,6 +869,7 @@ class DocumentWorkflowService
 
     if (!$response->successful()) {
           throw new Exception(json_encode([
+                "body" => $response->body(),
                 "employee1_id" => $employee1,
                 "employee2_id" => $employee2,
             ]), 1);
