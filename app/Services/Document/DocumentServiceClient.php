@@ -75,6 +75,32 @@ public function deductLeaveDays(
     return $response->json();
 }
 
+public function generateLeaveDocuments(
+    int $documentId,
+    int $instanceId,
+    string $context
+)
+{
+    $response = Http::withToken(request()->bearerToken())
+        ->acceptJson()
+        ->post(
+            config('services.document_service.base_url') . '/leave/generate',
+            [
+                'document_id' => $documentId,
+                'instance_id' => $instanceId,
+                'context' => $context,
+            ]
+        );
+
+    if (!$response->successful()) {
+        throw new \Exception(
+            'DocumentService error : ' . $response->body()
+        );
+    }
+
+    return $response->json();
+}
+
     /**
      * =========================================
      * Récupérer un document

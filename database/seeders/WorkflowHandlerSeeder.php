@@ -5,8 +5,9 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\WorkflowEvent;
 use App\Models\WorkflowHandler;
+use App\Services\Workflow\Handlers\DeductLeaveDaysHandler;
+use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
 use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
-use App\Services\Workflow\Handlers\Leave\DeductLeaveDaysHandler;
 
 class WorkflowHandlerSeeder extends Seeder
 {
@@ -31,6 +32,13 @@ class WorkflowHandlerSeeder extends Seeder
                 'priority' => 1,
                 'is_async' => false,
             ],
+
+            [
+    'event' => 'GENERATE_LEAVE_DOCUMENTS',
+    'handler' => GenerateLeaveDocumentsHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+],
 
         ];
 

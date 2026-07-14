@@ -39,7 +39,7 @@ class WorkflowEventEngine
             ->orderBy("execution_order")
             ->get();
       
-        // throw new Exception(json_encode($actionStepEvents), 1);
+        throw new Exception(json_encode($actionStepEvents), 1);
 
         
 
