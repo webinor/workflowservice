@@ -3,6 +3,7 @@
 namespace App\Services\Workflow\Participant;
 
 use App\Services\Workflow\Participant\Resolvers\AbsenceParticipantResolver;
+use App\Services\Workflow\Participant\Resolvers\FeeNoteParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\MissionParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\TaxiParticipantResolver;
 use Exception;
@@ -24,6 +25,10 @@ class ParticipantResolverFactory
                       case
             'demande-d-absence':
               return  app(AbsenceParticipantResolver::class);
+
+                         case
+            'note-de-frais':
+              return  app(FeeNoteParticipantResolver::class);
 
 
             default :

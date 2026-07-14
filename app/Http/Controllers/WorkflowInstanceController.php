@@ -513,6 +513,7 @@ class WorkflowInstanceController extends Controller
                         $stepInstance->workflowStep->workflowStatusLabel->id ??
                         null,
                 ]);
+                
                 $this->workflowInstanceService->notifyNextValidator(
                     $nextStep,
                     $request,

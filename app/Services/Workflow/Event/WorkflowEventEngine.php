@@ -58,7 +58,6 @@ class WorkflowEventEngine
             $event = $actionStepEvent -> event;
             $handlers = $event -> handlers;
 
-        // throw new Exception(json_encode($handlers), 1);
 
         foreach ($handlers as $handler) {
            
@@ -88,7 +87,7 @@ class WorkflowEventEngine
                 $document
             );
 
-        throw new Exception(json_encode($audiences), 1);
+        // throw new Exception(json_encode($audiences), 1);
 
           $this->dispatchNotifications(
         $event,

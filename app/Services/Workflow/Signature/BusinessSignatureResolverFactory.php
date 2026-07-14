@@ -4,7 +4,7 @@ namespace App\Services\Workflow\Signature;
 
 use App\Services\Workflow\Signature\BusinessSignatureResolver;
 use App\Services\Workflow\Signature\TaxiBusinessSignatureResolver;
-
+use Exception;
 
 class BusinessSignatureResolverFactory
 {
@@ -17,8 +17,14 @@ class BusinessSignatureResolverFactory
             case 'papier-taxi':
                 return new TaxiBusinessSignatureResolver();
 
+               case 'note-de-frais':
+                return new FeeNoteBusinessSignatureResolver();
+
             default:
             return new TaxiBusinessSignatureResolver();
+
+            // throw new Exception("Aucun resolver defini pour : $documentType", 1);
+
             // case 'mission':
             //     // return new MissionBusinessSignatureResolver();
 

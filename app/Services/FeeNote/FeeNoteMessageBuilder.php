@@ -17,6 +17,8 @@ class FeeNoteMessageBuilder extends AbstractWorkflowNotificationMessageBuilder i
 
         $amount = $feeNote['amount'] ?? 0;
 
+        $view_route = ltrim($doc["document_type"]["view_route"], '/');
+
         return [
 
         "title" => "🧾 Nouvelle note de frais à valider",
@@ -34,7 +36,11 @@ class FeeNoteMessageBuilder extends AbstractWorkflowNotificationMessageBuilder i
             $this->greeting(),
             $beneficiary,
             $reason,
-            number_format($amount, 0, ',', ' ')
-        )];
+            number_format($amount, 0, ',', ' '),
+        ),
+
+         "view_route"=>$view_route
+        
+        ];
     }
 }

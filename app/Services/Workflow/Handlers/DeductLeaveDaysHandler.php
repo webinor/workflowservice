@@ -1,31 +1,20 @@
 <?php
 
-namespace App\Services\Workflow\Handlers\Leave;
+namespace App\Services\Workflow\Handlers;
+
 
 use App\Contracts\WorkflowEventHandlerInterface;
 use App\Services\Document\DocumentServiceClient;
-use App\Services\Leave\LeaveBalanceService;
 
 class DeductLeaveDaysHandler implements WorkflowEventHandlerInterface
 {
-
-
-//  private LeaveBalanceService $leaveBalanceService;
     protected DocumentServiceClient $documentClient;
 
     public function __construct(
         DocumentServiceClient $documentClient
-        // LeaveBalanceService $leaveBalanceService
-
     ) {
-
         $this->documentClient = $documentClient;
     }
-
-    //     public function handle(array $document): void
-    // {
-    //     $this->leaveBalanceService->applyLeaveDeduction($document);
-    // }
 
     public function execute(
         int $documentId,
@@ -34,37 +23,37 @@ class DeductLeaveDaysHandler implements WorkflowEventHandlerInterface
         array $config = []
     ): array {
 
-
-        $template = $config['template']
-            ?? 'logistics_validated';
-
-        $result = $this->documentClient
-            ->deductLeaveDays(
-                $documentId,
-                $instance->id,
-            );
-
-        // $dates = $this->buildMissionDates($documentData["mission"]);
-
+        $result = $this->documentClient->deductLeaveDays(
+            $documentId,
+            $instance->id
+        );
 
         return [
 
             'data' => [
+                'result'=>$result,
 
-                'actor' =>
-                    $documentData["actor_details"]['nom'] ?? '',
+                'actor' => $documentData['actor_details']['nom'] ?? '',
 
-                'mission_reference' =>
-                    $documentData["mission"]['code'] ?? '',
+                'document_reference' =>
+                    $documentData['reference'] ?? '',
 
-                'destination' =>
-                    $documentData["mission"]['destination'] ?? '',
+                'leave_type' =>
+                    $documentData['absence_request']['leave_type']['name']
+                    ?? 'Absence',
 
-                // 'period' =>   $dates['period'] ?? '',
+                'departure_date' =>
+                    $documentData['absence_request']['departure_date']
+                    ?? null,
+
+                'return_date' =>
+                    $documentData['absence_request']['return_date']
+                    ?? null,
+
             ],
 
-            'attachments' =>
-                $result['attachments'] ?? [],
+            'attachments' => [],
+
         ];
     }
 }

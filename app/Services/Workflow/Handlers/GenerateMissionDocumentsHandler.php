@@ -37,9 +37,6 @@ class GenerateMissionDocumentsHandler
 
         $dates = $this->buildMissionDates($documentData["mission"]);
 
-// $dates['expected_departure'];
-// $dates['expected_return'];
-// $dates['period'];
 
         return [
 

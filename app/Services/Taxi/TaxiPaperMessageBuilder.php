@@ -21,6 +21,8 @@ class TaxiPaperMessageBuilder extends AbstractWorkflowNotificationMessageBuilder
 
         $total = 0;
 
+        $view_route = ltrim($doc["document_type"]["view_route"], '/');
+
         foreach ($rides as $ride) {
             $total += $ride['montant'] ?? 0;
         }
@@ -54,6 +56,10 @@ if ($firstRide && sizeof($rides)>1) {
         "actionText" => "🚀 Cliquez sur le bouton ci-dessous pour accéder au papier taxi",
         "actionButtonText" => "Voir le papier taxi",
             
-        "message" => $message];
+        "message" => $message,
+
+         "view_route"=>$view_route
+        
+        ];
     }
 }

@@ -42,8 +42,7 @@ class WorkflowInstanceService
             ? $documentTypeWorkflow->document_type_id
             : null; // null si pas trouvé
 
-        // 🔎 Récupérer les infos du document depuis DocumentService
-        //return
+
 
         //["oui"];
 
@@ -70,7 +69,7 @@ class WorkflowInstanceService
 
             $payload = $messageBuilder->build($documentData);
 
-            // throw new Exception(json_encode($documentData['mission']), 1);
+            // throw new Exception(json_encode($payload), 1);
 
 
 
@@ -121,7 +120,7 @@ class WorkflowInstanceService
             if ($response->successful()) {
                 $users = $response->json()["data"];
 
-                // throw new Exception(json_encode($response->successful()), 1);
+                // throw new Exception(json_encode($users), 1);
 
                 // Récupérer juste les IDs
                 $userIds = collect($users)
@@ -129,7 +128,7 @@ class WorkflowInstanceService
                     ->toArray();
 
                 // Notifier en une seule requête
-                return Http::withToken($request->bearerToken())->post(
+                $notifyResponse = Http::withToken($request->bearerToken())->post(
                     config("services.user_service.base_url") . "/notifications",
                     [
                         "user_ids" => $userIds,
@@ -138,6 +137,21 @@ class WorkflowInstanceService
                         "document_type_id" => $documentTypeId,
                     ]
                 );
+
+                if (!$notifyResponse->ok()) {
+                    # code...
+                    throw new Exception(json_encode($notifyResponse->body()), 1);
+                }
+                else{
+
+                    // throw new Exception(json_encode($notifyResponse->ok()), 1);
+
+
+                }
+
+
+
+
             }
         }
     }
