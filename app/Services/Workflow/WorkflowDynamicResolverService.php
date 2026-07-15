@@ -15,7 +15,6 @@ class WorkflowDynamicResolverService
             "taxi_paper" => "actor_details",
             "fee_note" => "actor_details",
             "absence_request" => "actor_details",
-            //"mission"=>"actor_id",
         ];
 
         $slug = $document["document_type"]["relation_name"];
@@ -25,7 +24,6 @@ class WorkflowDynamicResolverService
 
         return $document[$mapper[$slug]];
 
-        return $mapper[$documentTypeName];
     }
     public function resolveHeadStepRole($step, $document)
     {

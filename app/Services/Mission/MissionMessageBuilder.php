@@ -70,7 +70,7 @@ $view_route = ltrim($doc["document_type"]["view_route"], '/');
         }
 
         return [
-            "title" => "✈️ Nouvelle demande de mission à valider",
+            "title" => "✈️ Nouvelle mission à valider",
             "bgColor" => "#2563eb",
             "actionText" => "🚀 Cliquez sur le bouton ci-dessous pour consulter la demande de mission.",
             "actionButtonText" => "Voir la mission",
