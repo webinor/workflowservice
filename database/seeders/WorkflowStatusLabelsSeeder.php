@@ -102,6 +102,15 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'is_configurable' => true,
         'status_type' => 'COMMON',
     ],
+
+    [
+    'code' => 'WAITING_FINALIZATION',
+    'label' => 'En attente de finalisation',
+    'emoji' => '⏳',
+    'color' => 'warning',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
 ];foreach ($statuses as $status) {
     DB::table('workflow_status_labels')->updateOrInsert(
         ['code' => $status['code']],
