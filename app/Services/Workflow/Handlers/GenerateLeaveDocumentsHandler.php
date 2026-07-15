@@ -5,6 +5,7 @@ namespace App\Services\Workflow\Handlers;
 
 use App\Contracts\WorkflowEventHandlerInterface;
 use App\Services\Document\DocumentServiceClient;
+use Illuminate\Support\Facades\Log;
 
 class GenerateLeaveDocumentsHandler implements WorkflowEventHandlerInterface
 {
@@ -26,6 +27,13 @@ class GenerateLeaveDocumentsHandler implements WorkflowEventHandlerInterface
         $context = $config['context']
             ?? 'leave_validated';
 
+            Log::info("L'utilisateur a généré les documents d'absence.", [
+    'document_id' => $documentData['id'],
+    'employee_id' => $documentData['actor_id'],
+    'generated_by' => auth()->id(),
+]);
+        
+    return [];
         $result = $this->documentClient->generateLeaveDocuments(
                 $documentId,
                 $instance->id,
