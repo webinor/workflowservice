@@ -1153,13 +1153,16 @@ class WorkflowInstanceController extends Controller
 
         $user = $request->get("user");
 
-        try {
+        // try {
             Log::info("Workflow: récupération document START", [
                 "trace_id" => $traceId,
                 "workflow_instance_id" => $instance->id,
                 "document_id" => $instance->document_id,
                 "user_id" => $user["id"] ?? null,
             ]);
+
+            //  throw new Exception(json_encode('$instance'));
+
 
             // 🔥 APPEL SERVICE DOCUMENT
             $response = Http::withToken($request->bearerToken())
@@ -1237,32 +1240,24 @@ class WorkflowInstanceController extends Controller
             ]);
 
             return $documentData;
-        } catch (Exception $e) {
-            // Log::error("Workflow: exception getDocumentData", [
-            //     "trace_id" => $traceId,
-            //     "workflow_instance_id" => $instance->id,
-            //     "document_id" => $instance->document_id,
-            //     "message" => $e->getMessage(),
-            //     "trace" => $e->getTraceAsString(),
-            // ]);
+        // } catch (Exception $e) {
 
-            Log::error(
-                "[WORKFLOW_SERVICE] Erreur lors de la récupération du document",
-                [
-                    "document_id" => $instance->document_id,
-                    // "message" => $e->getMessage(),
-                    "trace_id" => $traceId,
-                    "workflow_instance_id" => $instance->id,
-                    "file" => $e->getFile(),
-                    "line" => $e->getLine(),
-                    "trace" => $e->getTraceAsString(),
-                ]
-            );
-            // throw new Exception("Erreur lors de la récupération du document (trace: {$traceId})");
-            throw new Exception(
-                "Erreur lors de la récupération du document (trace: {$e->getMessage()})"
-            );
-        }
+        //     Log::error(
+        //         "[WORKFLOW_SERVICE] Erreur lors de la récupération du document 1",
+        //         [
+        //             "document_id" => $instance->document_id,
+        //             // "message" => $e->getMessage(),
+        //             "trace_id" => $traceId,
+        //             "workflow_instance_id" => $instance->id,
+        //             "file" => $e->getFile(),
+        //             "line" => $e->getLine(),
+        //             "trace" => $e->getTraceAsString(),
+        //         ]
+        //     );
+        //     throw new Exception(
+        //         "Erreur lors de la récupération du document 2(trace: {$e->getMessage()})"
+        //     );
+        // }
     }
 
     private function hasPermission(
@@ -1492,291 +1487,7 @@ class WorkflowInstanceController extends Controller
         }
     }
 
-    public function StablevalidateStep(
-        Request $request,
-        WorkflowEventEngine $WorkflowEventEngine,
-        $documentId
-    ) {
-        DB::beginTransaction();
 
-        try {
-            // =====================================
-            // CONTEXTE UTILISATEUR
-            // =====================================
-            $user = $request->get("user");
-            $actionStepId = Str::lower($request->get("actionStepId"));
-
-            // =====================================
-            // WORKFLOW INSTANCE
-            // =====================================
-            $instance = WorkflowInstance::whereDocumentId(
-                $documentId
-            )->firstOrFail();
-
-            $currentStep = $this->resolver->getCurrentStep($instance);
-
-            if (!$currentStep) {
-                return response()->json(
-                    [
-                        "success" => false,
-                        "message" => "Aucune étape en cours trouvée.",
-                    ],
-                    400
-                );
-            }
-
-            $oldStatus = $currentStep->status;
-            $historyDataArray = [];
-
-            $documentData = $this->getDocumentData($instance, $request);
-
-            // =====================================
-            // BLOCKING RULES
-            // =====================================
-            $blockingData = $this->checkBlockingRules(
-                $instance,
-                $currentStep,
-                $documentData
-            );
-
-            if (!$blockingData["isValid"] && false) {
-                return response()->json([
-                    "success" => false,
-                    "message" => $blockingData["data"]["message"],
-                    "currentStep" => $currentStep,
-                ]);
-            }
-
-            // =====================================
-            // VALIDATION VIA ASSIGNMENTS
-            // =====================================
-            $assignment = WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $currentStep->id
-            )
-                ->where("user_id", $user["id"])
-                ->first();
-
-            if (!$assignment) {
-                $assignment = WorkflowInstanceStepAssignment::where(
-                    "instance_step_id",
-                    $currentStep->id
-                )
-                    ->where("role_id", $user["role_id"])
-                    ->first();
-            }
-
-            if ($assignment) {
-                $assignment->update([
-                    "user_id" => $user["id"],
-                    "decision" => "APPROVED",
-                    "validated_at" => now(),
-                ]);
-            }
-
-            // =====================================
-            // RECALCUL STATUS STEP
-            // =====================================
-            $assignments = WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $currentStep->id
-            )->get();
-
-            $hasApproved = $assignments
-                ->where("decision", "APPROVED")
-                ->isNotEmpty();
-            $hasRejected = $assignments
-                ->where("decision", "REJECTED")
-                ->isNotEmpty();
-
-            if ($hasRejected) {
-                $currentStep->status = "REJECTED";
-            } elseif ($hasApproved) {
-                $currentStep->status = "COMPLETE";
-                $currentStep->executed_at = now();
-            } else {
-                $currentStep->status = "PENDING";
-            }
-
-            $currentStep->save();
-
-            // =====================================
-            // NEXT STEP LOGIC
-            // =====================================
-            $stepData = $this->getNextStep(
-                $instance,
-                $currentStep,
-                $documentData
-            );
-
-            $nextStep = $stepData["next_step"];
-            $isDynamic = $stepData["isDynamic"];
-
-            $instanceSteps = [];
-
-            // =====================================
-            // DYNAMIC NEXT STEP CREATION
-            // =====================================
-            // if ($isDynamic) {
-
-            //     $validatorRole = $this->getRoleValidator(
-            //         $request->get("department_id")
-            //     );
-
-            //     if ($validatorRole) {
-            //         $stepRoles = [$validatorRole["id"]];
-            //     }
-
-            //     $step = $currentStep->workflowStep;
-
-            //     $transitions = $step->outgoingTransitions;
-
-            //     $nextWorkflowStep = $transitions->map(function ($transition) {
-            //         return $transition->toStep;
-            //     })[0];
-
-            //     $stepInstance = WorkflowInstanceStep::create([
-            //         "workflow_instance_id" => $instance->id,
-            //         "workflow_step_id" => $nextWorkflowStep->id,
-            //         "role_id" => $validatorRole["id"],
-            //         "status" => "PENDING",
-            //         "due_date" => now()->addHours($nextWorkflowStep["delay_hours"] ?? 24),
-            //         "executed_at" => null,
-            //         "position" => $nextWorkflowStep->position,
-            //     ]);
-
-            //     $instanceSteps[$nextWorkflowStep->id][$validatorRole["id"]] = $stepInstance;
-
-            //     $nextStep = $stepInstance;
-
-            //     if ($nextWorkflowStep["assignment_mode"] === "DYNAMIC") {
-            //         WorkflowInstanceStepRoleDynamic::create([
-            //             "workflow_instance_step_id" => $stepInstance->id,
-            //             "role_id" => $validatorRole["id"],
-            //         ]);
-            //     }
-            // }
-
-            // =====================================
-            // PAYMENT
-            // =====================================
-            $result = $this->registerPayment(
-                $instance,
-                $currentStep,
-                $request,
-                $user
-            );
-
-            $newDoc = $result["document"] ?? null;
-
-            // =====================================
-            // WORKFLOW LABEL
-            // =====================================
-            $label = $this->resolver->resolveWorkflowStatusLabel($instance);
-
-            // =====================================
-            // NEXT STEP HANDLING
-            // =====================================
-            if ($nextStep) {
-                if ($nextStep->workflowStep->is_archived_step) {
-                    $nextStep->update([
-                        "status" => "COMPLETE",
-                        "executed_at" => now(),
-                    ]);
-
-                    WorkflowInstanceStepAssignment::where(
-                        "instance_step_id",
-                        $nextStep->id
-                    )->update([
-                        "decision" => "APPROVED",
-                        "validated_at" => now(),
-                        "user_id" => $user["id"],
-                    ]);
-
-                    $instance->update([
-                        "status" => "COMPLETE",
-                        "workflow_status_label_id" => $label->id ?? null,
-                    ]);
-                } else {
-                    $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
-
-                    $nextStep->update([
-                        "status" => "PENDING",
-                    ]);
-
-                    $instance->update([
-                        "status" => "PENDING",
-                        "workflow_status_label_id" => $label->id ?? null,
-                    ]);
-
-                    $this->workflowInstanceService->notifyNextValidator(
-                        $nextStep,
-                        $request,
-                        $request->get("department_id"),
-                        $roleIdsToNotify
-                    );
-                }
-            } else {
-                $instance->update([
-                    "status" => "COMPLETE",
-                    "status_label_id" => $label->id ?? null,
-                ]);
-            }
-
-            // =====================================
-            // HISTORY
-            // =====================================
-            $historyDataArray[] = [
-                "model_id" => $currentStep->id,
-                "model_type" => get_class($currentStep),
-                "changed_by" => $user["id"],
-                "old_status" => $oldStatus,
-                "new_status" => $currentStep->status,
-                "comment" => $request->get("comment"),
-            ];
-
-            $historyDataArray = array_map(
-                fn($data) => array_filter($data, fn($v) => !is_null($v)),
-                $historyDataArray
-            );
-
-            foreach ($historyDataArray as $historyData) {
-                WorkflowStatusHistory::create($historyData);
-            }
-
-            DB::commit();
-
-            // throw new Exception(json_encode($historyDataArray), 1);
-
-            // =====================================
-            // MINI ENGINE
-            // =====================================
-            $WorkflowEventEngine->handle(
-                $documentId,
-                $instance,
-                // $currentStep,
-                $actionStepId
-            );
-
-            return response()->json([
-                "success" => true,
-                "message" => "",
-                "currentStep" => $currentStep,
-                "nextStep" => $nextStep,
-                "instance" => $instance,
-            ]);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-
-            return response()->json(
-                [
-                    "success" => false,
-                    "message" => $th->getMessage(),
-                ],
-                500
-            );
-        }
-    }
 
     public function validateStep(
         Request $request,

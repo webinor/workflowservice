@@ -83,10 +83,11 @@ class DocumentWorkflowService
         );
 
 
-
+    
         // $documentIds = collect($documentIdsNotPaginated->items())
         $documentIds = collect($documentIdsNotPaginated)
     ->pluck('document_id');
+
 
       $flatDocuments = collect(
     $this->documentClient->getDocumentTypesByIds($documentIds->toArray())
@@ -108,7 +109,6 @@ class DocumentWorkflowService
             $permissionService
         );
 
-        // throw new Exception(json_encode(collect($flatDocuments)->pluck("document_type.slug")->unique()), 1);
 
 
 
@@ -797,12 +797,12 @@ class DocumentWorkflowService
 
         if ($doc["actor_id"] == 0 || $doc["actor_id"] == null) {
 
-        return false;
-            // throw new Exception(json_encode($doc), 1);
+            // throw new Exception(json_encode($doc["actor_id"]), 1);
+        // return false;
           
         }
 
-            // throw new Exception(json_encode($doc["document_type"]["slug"]), 1);
+            // throw new Exception(json_encode($context), 1);
 
 
       
@@ -831,8 +831,8 @@ class DocumentWorkflowService
             $context === "IN_PROGRESS" ||
             $context === "COMPLETE"
         ) {
-            return ($permissions["view_department"] && $isSameDepartment) ||
-                $permissions["view_all"];
+
+            return ($permissions["view_department"] && $isSameDepartment) || $permissions["view_all"];
         }
 
         /**

@@ -7,6 +7,7 @@ use App\Services\FeeNote\FeeNoteMessageBuilder;
 use App\Services\Mission\MissionEnricher;
 use App\Services\Mission\MissionMessageBuilder;
 use App\Services\Purchase\PurchaseEnricher;
+use App\Services\Purchase\PurchaseRequestMessageBuilder;
 use App\Services\Taxi\TaxiPaperEnricher;
 use App\Services\Taxi\TaxiPaperMessageBuilder;
 use Exception;
@@ -25,7 +26,7 @@ class WorkflowNotificationMessageRegistry
         }
 
         if ($type === 'demande-achat') {
-            // return new PurchaseMessageBuilder();
+            return new PurchaseRequestMessageBuilder();
         }
 
         if ($type === 'note-de-frais') {
@@ -35,6 +36,10 @@ class WorkflowNotificationMessageRegistry
         if ($type === 'demande-d-absence') {
             return new AbsenceMessageBuilder();
         }
+
+
+
+        
 
         throw new Exception(
             sprintf(
