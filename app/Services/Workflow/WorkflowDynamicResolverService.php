@@ -15,12 +15,10 @@ class WorkflowDynamicResolverService
             "taxi_paper" => "actor_details",
             "fee_note" => "actor_details",
             "absence_request" => "actor_details",
+            "regularization_sheet" => "actor_details",
         ];
 
-        $slug = $document["document_type"]["relation_name"];
-
-        // throw new Exception(json_encode($document), 1);
-        
+        $slug = $document["document_type"]["relation_name"];        
 
         return $document[$mapper[$slug]];
 

@@ -7,6 +7,7 @@ use App\Services\Mission\MissionEnricher;
 use App\Services\Purchase\PurchaseEnricher;
 use App\Services\Taxi\TaxiPaperEnricher;
 use App\Services\Absence\AbsenceEnricher;
+use App\Services\Regularization\RegularizationEnricher;
 use Exception;
 
 class DocumentEnricherRegistry
@@ -35,6 +36,10 @@ class DocumentEnricherRegistry
 
         if ($type === "demande-d-absence") {
             return new AbsenceEnricher();
+        }
+
+        if ($type === "fiche-a-regulariser") {
+            return new RegularizationEnricher();
         }
 
         throw new Exception(

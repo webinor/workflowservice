@@ -8,6 +8,7 @@ use App\Services\Mission\MissionEnricher;
 use App\Services\Mission\MissionMessageBuilder;
 use App\Services\Purchase\PurchaseEnricher;
 use App\Services\Purchase\PurchaseRequestMessageBuilder;
+use App\Services\Regularization\RegularizationMessageBuilder;
 use App\Services\Taxi\TaxiPaperEnricher;
 use App\Services\Taxi\TaxiPaperMessageBuilder;
 use Exception;
@@ -35,6 +36,10 @@ class WorkflowNotificationMessageRegistry
 
         if ($type === 'demande-d-absence') {
             return new AbsenceMessageBuilder();
+        }
+
+        if ($type === 'fiche-a-regulariser') {
+            return new RegularizationMessageBuilder();
         }
 
 
