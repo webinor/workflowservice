@@ -20,6 +20,9 @@ class PurchaseRequestMessageBuilder extends AbstractWorkflowNotificationMessageB
 
         $viewRoute = ltrim($doc['document_type']['view_route'], '/');
 
+        // throw new \Exception($viewRoute, 1);
+        
+
         $message = sprintf(
             "%s\n\n".
             "Vous avez une nouvelle demande d'achat à traiter.\n\n".
