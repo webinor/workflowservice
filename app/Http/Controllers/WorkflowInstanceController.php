@@ -259,15 +259,25 @@ class WorkflowInstanceController extends Controller
                 ) {
                     $agent_user_id = null;
 
+
+
                     if (
                         $instanceStep->workflowStep->assignment_rule ===
                         "MISSION_EXECUTOR"
                     ) {
-                        $agent_user_id =
-                            collect($assignments)->first(
+
+                        //   throw new Exception(json_encode("ok ok"));
+
+                        $agent_user_id = collect($assignments)->first(
                                 fn($a) => !is_null($a["user_id"])
                             )["user_id"] ?? null;
+
+                          throw new Exception(json_encode($agent_user_id));
+
                     } else {
+
+                        //   throw new Exception(json_encode("ok ok"));
+
                     }
 
                     $roleIds = $assignments
@@ -292,7 +302,6 @@ class WorkflowInstanceController extends Controller
                             ->filter(fn($users) => count($users) > 0)
                             ->toArray();
 
-                        //   throw new Exception(json_encode($usersByRoles));
                     }
 
                     $displayName = collect($usersByRoles)
@@ -628,13 +637,14 @@ class WorkflowInstanceController extends Controller
             } elseif ($step["assignment_rule"] === "MISSION_EXECUTOR") {
                 $missionExecutor = $resolver->resolveActor($documentData);
 
-                $agent_user_id = $documentData["actor_details"]["id"];
+                $agent_user_id = $documentData["actor_details"]["id"];//resolveActor
 
                 // throw new Exception(json_encode($documentData[$documentData["document_type"]["slug"]]["actor_details"]), 1);
+                // throw new Exception(json_encode($missionExecutor['user']), 1);
 
-                $stepRoles = $missionExecutor["role_ids"];
+                $stepRoles = $missionExecutor["user"]["role_ids"];
 
-                // throw new Exception(json_encode($agent_user_id), 1);
+                // throw new Exception(json_encode($stepRoles), 1);
 
                 // $validatorRole = $this->getRoleValidator($departmentId);
                 // $stepRoles = $documentData[$documentData["document_type"]["slug"]]["actor_details"]["employee"]["manager"]["user"]["role_ids"];

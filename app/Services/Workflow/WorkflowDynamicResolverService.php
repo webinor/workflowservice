@@ -18,6 +18,9 @@ class WorkflowDynamicResolverService
             "regularization_sheet" => "actor_details",
         ];
 
+                // throw new Exception(json_encode($document['actor_details']), 1);
+
+
         $slug = $document["document_type"]["relation_name"];        
 
         return $document[$mapper[$slug]];

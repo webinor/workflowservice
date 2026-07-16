@@ -42,8 +42,21 @@ class SignatureTypeSeeder extends Seeder
             ],
             [
                 'code' => 'FEE_NOTE_SETTLEMENT',
-                'name' => "Reception d'argent pour la note de frais",
-                'description' => "Signature attestant la réception du paiement d'une note de frais",
+                'name' => 'Réception du paiement de la note de frais',
+                'description' => 'Signature attestant la réception du paiement d\'une note de frais',
+            ],
+
+            // ===== FICHE À RÉGULARISER =====
+
+            [
+                'code' => 'REGULARIZATION_ADVANCE',
+                'name' => 'Paiement de la fiche à régulariser',
+                'description' => 'Signature attestant la réception de l\'avance ou du paiement lié à une fiche à régulariser',
+            ],
+            [
+                'code' => 'REGULARIZATION_SETTLEMENT',
+                'name' => 'Régularisation de la fiche',
+                'description' => 'Signature attestant la régularisation définitive d\'une fiche à régulariser',
             ],
         ];
 

@@ -22,15 +22,15 @@ class RegularizationMessageBuilder extends AbstractWorkflowNotificationMessageBu
 
         return [
 
-        "title" => "🧾 Nouvelle fiche de regularisation à valider",
+        "title" => "🧾 Nouvelle fiche à regulariser à valider",
         "bgColor" => "#2b3b62",
         
-        "actionText" => "🚀 Cliquez sur le bouton ci-dessous pour accéder à la fiche de regularisation",
-        "actionButtonText" => "Voir la fiche de regularisation",
+        "actionText" => "🚀 Cliquez sur le bouton ci-dessous pour accéder à la fiche à regulariser",
+        "actionButtonText" => "Voir la fiche à regulariser",
             
         "message" => sprintf(
             "%s\n\n".
-            "Vous avez une nouvelle fiche de regularisation à traiter.\n\n".
+            "Vous avez une nouvelle fiche à regulariser à traiter.\n\n".
             "👤 Collaborateur : %s\n".
             "📝 Motif : %s\n".
             "💰 Montant : %s FCFA",
