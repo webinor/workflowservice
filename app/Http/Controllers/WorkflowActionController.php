@@ -23,10 +23,13 @@ class WorkflowActionController extends Controller
     $actionSteps = WorkflowActionStep::query()
         ->with([
             'workflowAction.workflowActionType',
-            'workflowStep',
+            'workflowStep.workflow',
             // 'transition',
             'workflowActionStepEvents',
         ])
+         ->whereHas('workflowStep.workflow', function ($q) {
+            $q->where('active', true);
+        })
 
         ->when($request->filled('workflow_step_id'), function ($query) use ($request) {
             $query->where('workflow_step_id', $request->workflow_step_id);

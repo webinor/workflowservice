@@ -137,6 +137,7 @@ class WorkflowActionStepController extends Controller
             "assignments",
             "workflowStep.workflowActionSteps.workflowAction.workflowActionType",
             "workflowStep.workflowActionSteps.transition",
+            "workflowStep.workflow",
         ])->findOrFail($instanceStep->id);
 
         
