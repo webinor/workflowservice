@@ -20,6 +20,9 @@ class BusinessSignatureResolverFactory
                case 'note-de-frais':
                 return new FeeNoteBusinessSignatureResolver();
 
+                  case 'fiche-a-regulariser':
+                return new RegularizationBusinessSignatureResolver();
+
             default:
             return new TaxiBusinessSignatureResolver();
 

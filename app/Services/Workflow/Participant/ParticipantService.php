@@ -32,6 +32,8 @@ class ParticipantService
 
   $businessSignatures = $signatureResolver->resolve( $instance->document_id);
 
+//   throw new \Exception(json_encode($businessSignatures), 1);
+  
 
      $participants =  $participantResolver->resolve($instance);
 

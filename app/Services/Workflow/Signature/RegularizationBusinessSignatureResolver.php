@@ -9,6 +9,8 @@ class RegularizationBusinessSignatureResolver
 {
     public function resolve(int $documentId): array
     {
+        // throw new \Exception("ICI", 1);
+        
         return Signature::query()
             ->with('signatureType')
             ->where('document_id', $documentId)
