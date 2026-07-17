@@ -30,6 +30,10 @@ class ParticipantResolverFactory
             'note-de-frais':
               return  app(FeeNoteParticipantResolver::class);
 
+                          case
+            'fiche-a-regulariser':
+              return  app(FeeNoteParticipantResolver::class);
+
 
             default :
             throw new Exception("Aucun resolver defini pour : $type", 1);
