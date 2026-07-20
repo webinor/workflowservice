@@ -312,6 +312,7 @@ class WorkflowController extends Controller
     }
 
     public function getAvailabilityContext(
+
         DocumentWorkflowService $documentWorkflowService,
         int $documentId
     ) {
@@ -322,9 +323,13 @@ class WorkflowController extends Controller
         WorkflowInstanceResolverService $resolver,
         $documentId
     ) {
+
+
+
         Log::info("[WORKFLOW:STATUS] Start", [
             "document_id" => $documentId,
         ]);
+
 
         $instance = WorkflowInstance::where(
             "document_id",
@@ -363,6 +368,13 @@ class WorkflowController extends Controller
         }
 
         $step = $currentInstanceStep->workflowStep;
+        $permissions_required = $currentInstanceStep->workflowStep->workflowActionSteps->pluck('permission_required')->toArray() ?? [];
+        
+        $business_actions = [];
+
+        if (in_array("add_justificatif" , $permissions_required)) {
+            $business_actions[]="ADD_REGULARIZATION_ITEM";
+        }
 
         Log::info("[WORKFLOW:STATUS] Current step resolved", [
             "instance_id" => $instance->id,
@@ -385,6 +397,8 @@ class WorkflowController extends Controller
         $response = [
             "status" => $instance->status,
             "step" => $step->name,
+            "business_actions"=>$business_actions,
+            "permissions_required"=>$permissions_required,
             "transaction_types" => $transactionTypes,
         ];
 
