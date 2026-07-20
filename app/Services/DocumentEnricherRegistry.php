@@ -42,6 +42,10 @@ class DocumentEnricherRegistry
             return new RegularizationEnricher();
         }
 
+        if ($type === "facture-fournisseur") {
+            return new RegularizationEnricher();
+        }
+
         throw new Exception(
             sprintf(
                 'Aucun DocumentEnricher enregistré pour le type "%s".',

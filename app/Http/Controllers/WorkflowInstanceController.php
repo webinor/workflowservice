@@ -442,7 +442,9 @@ class WorkflowInstanceController extends Controller
     ) {
         DB::beginTransaction();
 
+
         try {
+            
             $validated = $request->validated();
             $userConnected = $validated["created_by"];
 
@@ -459,10 +461,11 @@ class WorkflowInstanceController extends Controller
                 "status" => $STATUS_PENDING,
             ]);
 
+            // return
             // 2️⃣ Créer toutes les étapes de l'instance
             $instanceSteps = [];
 
-            // return
+            
 
             $documentData = $this->getDocumentData($workflowInstance, $request);
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Services\Absence\AbsenceMessageBuilder;
 use App\Services\FeeNote\FeeNoteMessageBuilder;
+use App\Services\InvoiceProvider\InvoiceProviderMessageBuilder;
 use App\Services\Mission\MissionEnricher;
 use App\Services\Mission\MissionMessageBuilder;
 use App\Services\Purchase\PurchaseEnricher;
@@ -40,6 +41,10 @@ class WorkflowNotificationMessageRegistry
 
         if ($type === 'fiche-a-regulariser') {
             return new RegularizationMessageBuilder();
+        }
+
+        if ($type === 'facture-fournisseur') {
+            return new InvoiceProviderMessageBuilder();
         }
 
 

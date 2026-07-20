@@ -79,6 +79,17 @@ protected function buildDateTime($date, $time)
     return new DateTime($date);
 }
 
+protected function providerTypeLabel(?string $type): string
+{
+    $labels = [
+        'IT_PROVIDER'      => 'Prestataire informatique',
+        'MEDICAL_PROVIDER' => 'Prestataire médical',
+        'IT_SUPPLIER'      => 'Fournisseur informatique',
+        'MEDICAL_SUPPLIER' => 'Fournisseur médical',
+    ];
+
+    return $labels[$type] ?? 'Non défini';
+}
 
 protected function formatDuration($start, $end)
 {

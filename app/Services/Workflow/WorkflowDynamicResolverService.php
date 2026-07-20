@@ -16,6 +16,7 @@ class WorkflowDynamicResolverService
             "fee_note" => "actor_details",
             "absence_request" => "actor_details",
             "regularization_sheet" => "actor_details",
+            "invoice_provider" => "actor_details",
         ];
 
                 // throw new Exception(json_encode($document['actor_details']), 1);

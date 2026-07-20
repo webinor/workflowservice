@@ -15,7 +15,7 @@ class RegularizationMessageBuilder extends AbstractWorkflowNotificationMessageBu
         $regularization_sheet = $doc['regularization_sheet'] ?? [];
 
         $reason = $regularization_sheet['reason'] ?? 'Sans motif';
-
+        
         $amount = $regularization_sheet['amount'] ?? 0;
 
         $view_route = ltrim($doc["document_type"]["view_route"], '/');
