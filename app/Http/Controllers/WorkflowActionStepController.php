@@ -188,11 +188,9 @@ class WorkflowActionStepController extends Controller
                 "transition_type" => $actionStep->transition->type ?? null,
                 "workflow_action_name" => $actionStep->workflowAction->name,
                 "workflow_action_step_message" => $actionStep->action_step_message,
-                "workflow_action_label" =>
-                    $actionStep->workflowAction->action_label,
-
-                     "already_signed" => $hasSignature,
-    "can_execute" => !$hasSignature,
+                "workflow_action_label" => $actionStep->workflowAction->action_label,
+                "already_signed" => $hasSignature,
+                "can_execute" => !$hasSignature,
             ];
         }
 

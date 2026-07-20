@@ -231,9 +231,13 @@ class WorkflowInstanceController extends Controller
                     "APPROVED"
                 );
 
+                $knownAssignments = $assignments->whereNotNull(
+                    "user_id"
+                );
+
                 /**
                  * =======================================
-                 * CAS 1 : ETAPE EXECUTÉE
+                 * CAS 1 : ETAPE EXECUTÉE 
                  * =======================================
                  */
                 if (
@@ -272,7 +276,7 @@ class WorkflowInstanceController extends Controller
                                 fn($a) => !is_null($a["user_id"])
                             )["user_id"] ?? null;
 
-                          throw new Exception(json_encode($agent_user_id));
+                        //   throw new Exception(json_encode($agent_user_id));
 
                     } else {
 
@@ -310,9 +314,33 @@ class WorkflowInstanceController extends Controller
                         ->filter()
                         ->unique()
                         ->implode(" / ");
-                } /**
+                }
+                /**
                  * =======================================
-                 * CAS 3 : ETAPE STATIQUE
+                 * CAS 3 : ETAPE EN COURS MAIS ON CONNAIT LE USER QUI DEVRA EXECUTER
+                 * =======================================
+                 */
+                else if(  in_array($instanceStep->status, ["NOT_STARTED", "PENDING"]) &&
+                    $knownAssignments->isNotEmpty()){
+
+            // throw new Exception(json_encode("ici"));
+
+                    // utilisateur qui devra valider
+                    $displayName = $knownAssignments
+                        ->pluck("user_id")
+                        ->filter()
+                        ->unique()
+                        ->map(
+                            fn($id) => $users[$id]["name"] ??
+                                "Utilisateur inconnu"
+                        )
+                        ->implode(" / ");
+                }
+                
+                
+                /**
+                 * =======================================
+                 * CAS 4 : ETAPE STATIQUE
                  * =======================================
                  */ else {
                     $roleIds = $assignments
@@ -759,7 +787,7 @@ class WorkflowInstanceController extends Controller
         foreach ($stepRoles as $roleId) {
             $assignment = WorkflowInstanceStepAssignment::create([
                 "instance_step_id" => $stepInstance->id,
-                "user_id" => $agent_user_id ?? null,
+                "user_id" => $step["assignment_mode"] == "OWNER" ? $userConnected["id"] : null,
                 "role_id" => $roleId,
                 "source_type" => $step["assignment_mode"],
                 "source_value" => $step["assignment_rule"] ?? $step["assignment_mode"],
@@ -1475,7 +1503,7 @@ class WorkflowInstanceController extends Controller
                 WorkflowStatusHistory::create($historyData);
             }
 
-            DB::commit();
+            // DB::commit();
 
             DB::afterCommit(function () use (
                 $instance,
