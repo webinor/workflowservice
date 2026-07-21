@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkflowAction extends Model
 {
@@ -20,6 +21,16 @@ class WorkflowAction extends Model
     public function workflowActionType(): BelongsTo
     {
         return $this->belongsTo(WorkflowActionType::class);
+    }
+
+    /**
+     * Get all of the workflowActionSteps for the WorkflowAction
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function workflowActionSteps(): HasMany
+    {
+        return $this->hasMany(WorkflowActionStep::class,);
     }
 
 }

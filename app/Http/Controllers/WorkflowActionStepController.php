@@ -140,6 +140,23 @@ class WorkflowActionStepController extends Controller
             "workflowStep.workflow",
         ])->findOrFail($instanceStep->id);
 
+
+        $userAssignment = $instanceStep->assignments
+    ->first(function ($assignment) use ($userId, $userRoleId) {
+
+        if ($assignment->user_id) {
+            return $assignment->user_id == $userId;
+        }
+
+        return $assignment->role_id == $userRoleId;
+    });
+
+$alreadyValidated = $userAssignment && $userAssignment->decision === 'APPROVED';
+
+
+        // throw new Exception(json_encode($alreadyValidated), 1);
+
+
         
     
 
@@ -195,10 +212,11 @@ class WorkflowActionStepController extends Controller
         }
 
         $result = [
+            "alreadyValidated" => $alreadyValidated,
             "global" => [
                 "can_view_all_attachment" => $canViewAllAttachment,
             ],
-            "steps" => $stepActionsResult,
+            "steps" => !$alreadyValidated ? $stepActionsResult : [],
             "stepSignatures" => $stepSignatures 
         ];
 

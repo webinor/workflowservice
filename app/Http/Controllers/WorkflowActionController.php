@@ -172,11 +172,52 @@ class WorkflowActionController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function update(
-        UpdateWorkflowActionRequest $request,
-        WorkflowAction $workflowAction
-    ) {
-        //
+    UpdateWorkflowActionRequest $request,
+    WorkflowAction $workflowAction
+    
+) {
+    // return $workflowAction;
+    $validated = $request->validated();
+
+    try {
+
+        DB::beginTransaction();
+
+        // Mise à jour de l'action
+        $workflowAction->update([
+            'name' => $validated['actionName'],
+            'action_label' => $validated['actionLabel'],
+            'workflow_action_type_id' => $validated['workflow_action_type_id'],
+        ]);
+
+        // Relation étape
+        $workflowActionStep = WorkflowActionStep::where(
+            'workflow_action_id',
+            $workflowAction->id
+        )->firstOrFail();
+
+        $workflowActionStep->update([
+            'workflow_step_id' => $validated['workflow_step_id'],
+            'permission_required' => $validated['permission_required'],
+            'action_step_message' => $validated['action_step_message'],
+            'transaction_type_code' => $validated['transaction_type_code'] ?? null,
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Action mise à jour avec succès',
+            'data' => $workflowAction->load('workflowActionSteps'),
+        ]);
+
+    } catch (\Throwable $th) {
+
+        DB::rollBack();
+
+        throw $th;
     }
+}
 
     /**
      * Remove the specified resource from storage.

@@ -20,11 +20,12 @@ class WorkflowDynamicResolverService
         ];
 
                 // throw new Exception(json_encode($document['actor_details']), 1);
+                // throw new Exception(json_encode($document), 1);
 
 
         $slug = $document["document_type"]["relation_name"];        
 
-        return $document[$mapper[$slug]];
+        return $document[$mapper[$slug]] ?? null;
 
     }
     public function resolveHeadStepRole($step, $document)
@@ -36,8 +37,13 @@ class WorkflowDynamicResolverService
 
         // throw new Exception(    json_encode($actor, JSON_PRETTY_PRINT), 1);
         
-        $employeeId = $actor["id"] ?? null;// employee_id
-        $actorId = $actor["id"];
+        if ($actor) {
+       
+            $employeeId = $actor["id"] ?? null;// employee_id
+            $actorId = $actor["id"];
+            
+        }
+       
 
         // throw new Exception(json_encode($actorId, JSON_PRETTY_PRINT), 1);
 

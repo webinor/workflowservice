@@ -187,6 +187,11 @@ Route::get('/roles/{roleId}/usage', [RoleUsageController::class, 'workflowUsage'
             "store",
         ]);
 
+        Route::put("/workflow-actions/{workflowAction}", [
+            WorkflowActionController::class,
+            "update",
+        ]);
+
         Route::get('/workflow-actions', [
     WorkflowActionController::class,
     'index',

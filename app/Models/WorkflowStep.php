@@ -22,12 +22,15 @@ class WorkflowStep extends Model
         "is_archived_step",
         "is_payment_step",
         "status_label",
-        "workflow_status_label_id"
+        "workflow_status_label_id",
+            'completion_rule',
+    'completion_rule_config',
     ];
 
     protected $casts = [
         "is_archived_step" => "boolean",
         "is_payment_step" => "boolean",
+        'completion_rule_config' => 'array',
     ];
 
     public function workflow()
