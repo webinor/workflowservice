@@ -871,8 +871,7 @@ class WorkflowController extends Controller
                                 "condition_kind" => "BLOCKING",
                                 "condition_type" => $rule["type"] ?? null,
 
-                                "required_type" =>
-                                    $rule["existsTarget"] ?? null,
+                                "required_type" =>$rule["existsTarget"] ?? null,
                                 "required_id" => $rule["value"] ?? null,
 
                                 "field" =>
@@ -1267,30 +1266,38 @@ class WorkflowController extends Controller
             */
 
                 if (!empty($transitionData["blockingRuleGroups"])) {
-                    foreach ($transitionData["blockingRuleGroups"] as $group) {
-                        $groupId = $group["id"] ?? Str::uuid()->toString();
 
-                        foreach ($group["rules"] as $rule) {
-                            WorkflowCondition::create([
-                                "workflow_step_id" => $fromStep->id,
-                                "workflow_transition_id" =>
-                                    $workflowTransition->id,
-                                "group_id" => $groupId,
-                                "condition_kind" => "BLOCKING",
-                                "condition_type" => $rule["type"] ?? null,
-                                "required_type" =>
-                                    $rule["existsTarget"] ?? null,
-                                "required_id" => $rule["value"] ?? null,
-                                "field" =>
-                                    $rule["type"] === "exists"
-                                        ? "secondary_attachments.[].attachment_type_id"
-                                        : $rule["field"] ?? null,
-                                "operator" => $rule["operator"] ?? null,
-                                "value" => $rule["value"] ?? null,
-                            ]);
-                        }
-                    }
-                }
+    foreach ($transitionData["blockingRuleGroups"] as $group) {
+
+        $groupId = $group["id"] ?? Str::uuid()->toString();
+
+        foreach ($group["rules"] as $rule) {
+
+            WorkflowCondition::create([
+                "workflow_step_id" => $fromStep->id,
+                "workflow_transition_id" => $workflowTransition->id,
+                "group_id" => $groupId,
+                "condition_kind" => "BLOCKING",
+                "condition_type" => $rule["type"] ?? null,
+                "required_type" => $rule["existsTarget"] ?? null,
+                "required_id" => $rule["value"] ?? null,
+                "field" =>($rule["type"] === "exists" ? "secondary_attachments.[].attachment_type_id" : $rule["field"] ?? null),
+                "operator" => $rule["operator"] ?? null,
+                "value" => $rule["value"] ?? null,
+            ]);
+        }
+    }
+
+} else {
+
+    // Aucun blocking rule configuré
+    // Exemple : supprimer les anciennes règles si modification d'un workflow
+
+    WorkflowCondition::where("workflow_step_id", $fromStep->id)
+        ->where("workflow_transition_id", $workflowTransition->id)
+        ->where("condition_kind", "BLOCKING")
+        ->delete();
+}
 
                 /*
             |--------------------------------------------------------------------------
