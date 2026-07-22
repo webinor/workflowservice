@@ -16,7 +16,12 @@ class WorkflowActionStep extends Model
         "permission_required",
         "action_step_message",
         "transaction_type_code",
+        "requirements"
     ];
+
+    protected $casts = [
+    'requirements' => 'array',
+];
 
     public function workflowAction()
     {

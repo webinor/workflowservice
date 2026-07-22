@@ -1579,7 +1579,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             $instance = WorkflowInstance::whereDocumentId(
                 $documentId
             )->firstOrFail();
-
+// return
             $currentStep = $this->resolver->getCurrentStep($instance);
 
             if (!$currentStep) {
