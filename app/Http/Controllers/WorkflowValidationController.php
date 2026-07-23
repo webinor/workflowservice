@@ -30,12 +30,18 @@ class WorkflowValidationController extends Controller
         $user = $request->get("user");
 
         $document_type = $request->query("document_type", []);
-        $filterContext = $request->query("filterContext", "");
         $validationContext = $request->query("validationContext", "");
         $filters = $request->query("filters" , []);
         $currentPage = $request->query("currentPage" , 1);
         $per_page = $request->query("per_page" , 10);
         $isStat = (bool)$request->query("isStat" , 0);
+        // $filterContext = $request->query("filterContext", "");
+        // $filterContext = $filters["statut"];
+
+        $filterContext = $this->resolveFilterContext(
+    $validationContext,
+    $filters
+);
 
         return $this->documentWorkflowService->getDocuments(
             [
@@ -55,6 +61,31 @@ class WorkflowValidationController extends Controller
             $this->workflowPermissionService
         );
     }
+
+
+    private function resolveFilterContext(string $validationContext, array $filters): string
+{
+    $statut = $filters['statut'] ?? '';
+
+    $mapping = [
+        'TO_VALIDATE' => [
+            ''          => 'ALL_DOCUMENTS',
+            'ALL'          => 'ALL_DOCUMENTS',
+            'PENDING'   => 'PENDING',
+            'COMPLETE'  => 'COMPLETE',
+        ],
+
+        'MY_DOCUMENTS' => [
+            ''            => 'ALL_DOCUMENTS',
+            'ALL'            => 'ALL_DOCUMENTS',
+            'IN_PROGRESS' => 'IN_PROGRESS',
+            'COMPLETE'    => 'COMPLETE',
+        ],
+    ];
+
+    return $mapping[$validationContext][$statut] 
+        ?? 'ALL_DOCUMENTS';
+}
 
 
     /**

@@ -150,6 +150,18 @@ class DocumentWorkflowService
             // throw new Exception(json_encode("oui"), 1);
 
             $filteredDocumentIds = $filteredDocuments->pluck("id");
+
+             $documents = $this->fetchDocuments(
+            $filteredDocumentIds,
+            $document_type,
+            $filters,
+            $request
+        );
+
+    return ([
+        'count' => collect($documents)->count(),
+    ]);
+
         } else {
             // throw new Exception(json_encode("non"), 1);
 
