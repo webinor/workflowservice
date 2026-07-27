@@ -14,6 +14,8 @@ use App\Http\Controllers\WorkflowParticipantController;
 use App\Http\Controllers\WorkflowStepController;
 use App\Http\Controllers\WorkflowTransferController;
 use App\Http\Controllers\WorkflowValidationController;
+use App\Http\Controllers\WorkflowSearchController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +41,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware("jwt.check")
     ->prefix("workflows")
     ->group(function () {
+
+
+    
+    Route::get(
+    '/workflow-delay-documents',
+    [WorkflowSearchController::class, 'workflowDelayDocuments']
+);
         // WorkflowController
         Route::controller(WorkflowController::class)->group(function () {
             Route::get(
