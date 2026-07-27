@@ -26,7 +26,7 @@ class WorkflowEventEngine
      * Point d'entrée du moteur
      */
     public function handle(
-        $documentId,
+        $documentUuid,
         WorkflowInstanceStep $instance,
         string $actionStepId
     ) {
@@ -43,7 +43,7 @@ class WorkflowEventEngine
 
         
 
-        $document = $this->documentClient->getDocument($documentId);
+        $document = $this->documentClient->getDocument($documentUuid);
 
 
 
@@ -69,7 +69,7 @@ class WorkflowEventEngine
         
 
             $result = $handler_class->execute(
-                $documentId,
+                $documentUuid,
                 $instance,
                 $document,
                 $event->config ?? []
@@ -95,7 +95,7 @@ class WorkflowEventEngine
         $event,
         $audiences,
         $instance,
-        $documentId,
+        $documentUuid,
         $result
     );
 
@@ -136,7 +136,7 @@ class WorkflowEventEngine
                     // 'actor' => $actor,
                     // 'mission_reference' => $mission_reference,
                     // 'period' => $period,
-                    'document_id' => $documentId,
+                    'document_uuid' => $documentUuid,
                     'workflow_instance_id' => $instance->id,
                 ],
                 $result ?? []
@@ -163,7 +163,7 @@ class WorkflowEventEngine
     WorkflowEvent $event,
     array $audiences,
     WorkflowInstanceStep $instance,
-    int $documentId,
+    int $documentUuid,
     array $result
 )
 {
@@ -191,7 +191,7 @@ class WorkflowEventEngine
 
                 'data' => array_merge(
                     [
-                        'document_id' => $documentId,
+                        'document_uuid' => $documentUuid,
 
                         // 'workflow_instance_id' =>$instance->id,
                     ],

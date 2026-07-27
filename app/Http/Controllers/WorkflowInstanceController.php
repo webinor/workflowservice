@@ -68,6 +68,7 @@ class WorkflowInstanceController extends Controller
         $currentInstanceStep = WorkflowInstanceStep::with(["workflowInstance"])
             ->whereHas("workflowInstance", function ($query) use ($documentId) {
                 $query->where("document_id", $documentId);
+                $query->Orwhere("document_uuid", $documentId);
             })
             ->where("status", "PENDING") // ou 'in_progress' selon ton modèle
             ->first();
@@ -398,9 +399,11 @@ class WorkflowInstanceController extends Controller
         public function history(
         Request $request,
         WorkflowDynamicResolverService $resolver,
-        int $documentId
+        // int $documentId
+        string $documentUuid
     ) {
-        $workflowInstance = WorkflowInstance::where("document_id", $documentId)
+        // $workflowInstance = WorkflowInstance::where("document_id", $documentId)
+        $workflowInstance = WorkflowInstance::where("document_uuid", $documentUuid)
             ->with([
                 "instance_steps" => function ($q) {
                     $q->whereHas("workflowStep", function ($q2) {
@@ -659,7 +662,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             ->toArray();
 
         return response()->json([
-            "document_id" => $documentId,
+            // "document_id" => $documentId,
+            "document_uuid" => $documentUuid,
             "workflow_status" => $workflowInstance->status,
             "steps" => $instanceSteps,
         ]);
@@ -720,6 +724,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             $workflowInstance = WorkflowInstance::create([
                 "workflow_id" => $validated["workflow_id"],
                 "document_id" => $validated["document_id"],
+                "document_uuid" => $validated["document_uuid"],
                 "status" => $STATUS_PENDING,
             ]);
 
@@ -1380,7 +1385,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
 
     public function getCurrentWorkflowInstance($documentId): WorkflowInstance
     {
-        return WorkflowInstance::whereDocumentId($documentId)->firstOrFail();
+        // return WorkflowInstance::whereDocumentId($documentId)->firstOrFail();
+        return WorkflowInstance::whereDocumentUuid($documentId)->firstOrFail();
     }
 
     public function checkIfHasBlocker(Request $request, $documentId)
@@ -1562,7 +1568,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         Request $request,
         WorkflowEventEngine $WorkflowEventEngine,
         WorkflowCompletionEvaluator $completionEvaluator,
-        $documentId
+        $documentUuid
     ) {
         DB::beginTransaction();
 
@@ -1576,8 +1582,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             // =====================================
             // WORKFLOW INSTANCE
             // =====================================
-            $instance = WorkflowInstance::whereDocumentId(
-                $documentId
+            $instance = WorkflowInstance::whereDocumentUuid(
+                $documentUuid
             )->firstOrFail();
 // return
             $currentStep = $this->resolver->getCurrentStep($instance);
@@ -1791,7 +1797,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 $nextStep,
                 $roleIdsToNotify,
                 $WorkflowEventEngine,
-                $documentId,
+                $documentUuid,
                 $actionStepId
             ) {
                 // =====================================
@@ -1819,14 +1825,14 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 }
 
                 $WorkflowEventEngine->handle(
-                    $documentId,
+                    $documentUuid,
                     $currentStep,
                     $actionStepId
                 );
             });
 
             // $WorkflowEventEngine->handle(
-            //     $documentId,
+            //     $documentUuid,
             //     $currentStep,
             //     $actionStepId
             // );

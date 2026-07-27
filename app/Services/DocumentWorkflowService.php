@@ -105,6 +105,9 @@ class DocumentWorkflowService
             $permissionService
         );
 
+        // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
+
+
         $filteredDocuments = collect($flatDocuments)
             ->filter(
                 fn($doc) => $this->canView(
@@ -200,12 +203,9 @@ class DocumentWorkflowService
     | Availability Context
     |--------------------------------------------------------------------------
     */
-        $availabilityContexts = $this->availabilityContexts(
-            // $documentIds->toArray()
-            $filteredDocumentIds->toArray()
-        );
+        $availabilityContexts = $this->availabilityContexts($filteredDocumentIds->toArray());
 
-        // throw new Exception(json_encode(($availabilityContexts)), 1);
+        // throw new Exception(json_encode(($documents)), 1);
 
         $contextsByDocId = collect($availabilityContexts)->keyBy("document_id");
 
@@ -315,7 +315,104 @@ class DocumentWorkflowService
         return $resolver->enrich($doc, $context);
     }
 
+
     public function availabilityContexts(array $documentIds)
+{
+    // 1. Récupérer tous les workflows en une fois
+    $workflows = WorkflowInstance::query()
+        ->whereIn("document_id", $documentIds)
+        ->get()
+        ->keyBy("document_id");
+
+
+    // 2. Signatures en batch
+    $signatures = Signature::query()
+        ->whereIn("document_id", $documentIds)
+        ->with("signatureType")
+        ->get()
+        ->groupBy("document_id");
+
+
+    // 3. Steps en batch avec actions + permissions
+    $workflowIds = $workflows->pluck("id")->toArray();
+
+
+    $steps = WorkflowInstanceStep::query()
+        ->whereIn("workflow_instance_id", $workflowIds)
+        ->where("status", "COMPLETE")
+        ->with([
+            "workflowStep.workflowActionSteps.workflowAction"
+        ])
+        ->get()
+        ->groupBy("workflow_instance_id");
+
+
+
+    // 4. Build response
+    return collect($documentIds)
+        ->map(function ($documentId) use (
+            $workflows,
+            $signatures,
+            $steps
+        ) {
+
+
+            $workflow = $workflows[$documentId] ?? null;
+
+
+            if (!$workflow) {
+
+                return [
+                    "document_id" => $documentId,
+                    "workflow_status" => null,
+                    "signatures" => [],
+                    "completed_steps" => [],
+                ];
+
+            }
+
+
+
+            $docSignatures = ($signatures[$documentId] ?? collect())
+
+                ->map(function ($signature) {
+
+                    return [
+                        "code" => $signature->signatureType->code,
+                        "signed" => true,
+                        "signed_at" => $signature->signed_at,
+                    ];
+
+                })
+                ->values();
+
+
+
+            $docSteps  = $this->formatCompletedSteps(
+    $steps[$workflow->id] ?? collect()
+);
+
+
+
+            return [
+
+                "document_id" => $documentId,
+
+                "workflow_status" => $workflow->status,
+
+                "signatures" => $docSignatures,
+
+                "completed_steps" => $docSteps,
+
+            ];
+
+
+        })
+        ->values()
+        ->toArray();
+}
+
+    public function oldavailabilityContexts(array $documentIds)
     {
         // 1. Récupérer tous les workflows en une fois
         $workflows = WorkflowInstance::query()
@@ -382,46 +479,64 @@ class DocumentWorkflowService
     }
 
     public function availabilityContext(int $documentId)
-    {
-        $workflow = WorkflowInstance::where(
-            "document_id",
-            $documentId
-        )->first();
+{
+    $workflow = WorkflowInstance::where(
+        "document_id",
+        $documentId
+    )->first();
 
-        if (!$workflow) {
-            return response()->json([
-                "workflow_status" => null,
-                "signatures" => [],
-                "completed_steps" => [],
-            ]);
-        }
-
-        $signatures = Signature::query()
-            ->where("document_id", $documentId)
-            ->with("signatureType")
-            ->get()
-            ->map(function ($signature) {
-                return [
-                    "code" => $signature->signatureType->code,
-                    "signed" => true,
-                    "signed_at" => $signature->signed_at,
-                ];
-            });
-
-        $completedSteps = WorkflowInstanceStep::query()
-            ->where("workflow_instance_id", $workflow->id)
-            ->where("status", "COMPLETE")
-            ->with("workflowStep")
-            ->get()
-            ->map(fn($step) => $step->workflowStep->code)
-            ->values();
-
+    if (!$workflow) {
         return response()->json([
-            "workflow_status" => $workflow->status,
-            "signatures" => $signatures,
-            "completed_steps" => $completedSteps,
+            "workflow_status" => null,
+            "signatures" => [],
+            "completed_steps" => [],
         ]);
     }
+
+
+    $signatures = Signature::query()
+        ->where("document_id", $documentId)
+        ->with("signatureType")
+        ->get()
+        ->map(function ($signature) {
+
+            return [
+                "code" => $signature->signatureType->code,
+                "signed" => true,
+                "signed_at" => $signature->signed_at,
+            ];
+
+        });
+
+        
+
+    $completedSteps = WorkflowInstanceStep::query()
+        ->where("workflow_instance_id", $workflow->id)
+        ->where("status", "COMPLETE")
+        ->with([
+            "workflowStep.workflowActionSteps.workflowAction"
+        ])
+        ->get();
+
+                $docSteps  = $this->formatCompletedSteps(
+    $completedSteps ?? collect()
+);
+        
+
+
+
+    return response()->json([
+
+        "workflow_status" => $workflow->status,
+
+        "signatures" => $signatures,
+
+        "completed_steps" => $docSteps,
+
+    ]);
+}
+
+    
 
     private function getDocumentIds(
         string $filterContext,
@@ -724,6 +839,158 @@ class DocumentWorkflowService
             ->toArray();
     }
 
+    private function formatCompletedSteps($steps)
+{
+    return $steps
+        ->map(function ($step) {
+
+            return [
+
+                "code" => $step->workflowStep->code,
+
+                "name" => $step->workflowStep->name,
+
+                "actions" => $step->workflowStep
+                    ->workflowActionSteps
+                    ->map(function ($actionStep) {
+
+                        return [
+
+                            "action" => [
+                                "id" => $actionStep->workflowAction->id,
+                                "name" => $actionStep->workflowAction->name,
+                                "label" => $actionStep->workflowAction->action_label,
+                            ],
+
+                            "permission_required" =>
+                                $actionStep->permission_required,
+
+                            "message" =>
+                                $actionStep->action_step_message,
+
+                            "transaction_type_code" =>
+                                $actionStep->transaction_type_code,
+
+                            "requirements" =>
+                                $actionStep->requirements,
+
+                        ];
+
+                    })
+                    ->values(),
+
+            ];
+
+        })
+        ->values();
+}
+
+
+private function getCompletedStepsByPermissions(
+    array $completedSteps,
+    array $permissions
+): array
+{
+    return collect($completedSteps)
+        ->map(function ($instanceStep) use ($permissions) {
+
+            $matchedActions = collect(
+                $instanceStep['workflow_step']['workflow_action_steps'] ?? []
+            )
+            ->filter(function ($actionStep) use ($permissions) {
+
+                return in_array(
+                    $actionStep['permission_required'] ?? null,
+                    $permissions
+                );
+
+            })
+            ->map(function ($actionStep) {
+
+                return [
+                    "permission_required" => $actionStep['permission_required'],
+
+                    "message" => $actionStep['action_step_message'] ?? null,
+
+                    "transaction_type_code" =>
+                        $actionStep['transaction_type_code'] ?? null,
+
+                    "requirements" =>
+                        $actionStep['requirements'] ?? null,
+
+                    "action" => [
+                        "id" => $actionStep['workflow_action']['id'] ?? null,
+                        "name" => $actionStep['workflow_action']['name'] ?? null,
+                        "label" => $actionStep['workflow_action']['action_label'] ?? null,
+                    ],
+
+                ];
+
+            })
+            ->values();
+
+
+            if ($matchedActions->isEmpty()) {
+                return null;
+            }
+
+
+            return [
+                "step_id" => $instanceStep['workflow_step_id'],
+
+                "instance_step_id" => $instanceStep['id'],
+
+                "name" =>
+                    $instanceStep['workflow_step']['name'] ?? null,
+
+                "status" =>
+                    $instanceStep['status'],
+
+                "executed_at" =>
+                    $instanceStep['executed_at'],
+
+                "actions" => $matchedActions,
+
+            ];
+
+        })
+        ->filter()
+        ->values()
+        ->toArray();
+}
+
+
+protected function getEmployeeContext($employeeId){
+
+
+    $response = Http::withToken(request()->bearerToken())
+        ->acceptJson()
+        ->get(
+            config("services.department_service.base_url")
+            . "/employees/"
+            . $employeeId
+            . "/context"
+        );
+
+        $employeeContext = [];
+
+    if ($response->successful()) {
+
+        $employeeContext = $response->json();
+
+    }
+    else{
+        
+        throw new Exception(json_encode($response->body()), 1);
+
+
+    }
+
+    return $employeeContext;
+
+
+}
+
     protected function canView(
         array $doc,
         $permissionsByDocType,
@@ -740,6 +1007,67 @@ class DocumentWorkflowService
         ) {
             return false;
         }
+
+
+         $workflowInstance = WorkflowInstance::where(
+        "document_id",
+        $doc['id']
+    )->first();
+
+
+
+    $completedSteps = WorkflowInstanceStep::query()
+        ->where("workflow_instance_id", $workflowInstance->id)
+        ->where("status", "COMPLETE")
+        ->with([
+            "workflowStep.workflowActionSteps.workflowAction"
+        ])
+        ->get()->toArray();
+
+
+
+      $completedStepWithSignPermission =  $this->getCompletedStepsByPermissions(
+    $completedSteps,
+    [
+        'sign'
+    ]
+);
+
+
+$user = request()->get('user');
+
+$employeeContext = $this->getEmployeeContext($user["employee_id"]);
+
+$responsibilities = collect(
+    data_get($employeeContext, 'responsibilities', [])
+)
+    ->pluck('code')
+    ->filter()
+    ->values()
+    ->toArray();
+
+
+if (!empty($completedStepWithSignPermission)) {
+
+
+
+}
+else{
+
+
+ if (in_array("ACCOUNTING" , $responsibilities)) {
+        
+    return false;
+
+    
+    }
+
+
+
+}
+
+        
+
 
         // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
 

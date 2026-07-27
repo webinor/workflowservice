@@ -26,6 +26,7 @@ class StoreWorkflowInstanceRequest extends FormRequest
         return [
             "workflow_id" => "required|integer",
             "document_id" => "required|integer",
+            "document_uuid" => "required|string",
             "department_id" => "nullable|integer",
             "role_id" => "nullable|integer",
             "steps" => "required|array",

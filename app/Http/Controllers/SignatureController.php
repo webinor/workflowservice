@@ -47,6 +47,7 @@ class SignatureController extends Controller
 {
     $request->validate([
         'document_id' => 'required|integer',
+        'document_uuid' => 'required|string',
         'actor_type' => 'required|string',
         'actor_id' => 'required|integer',
         'actor_name' => 'required|string',
@@ -80,6 +81,7 @@ class SignatureController extends Controller
 
     Signature::create([
         'document_id' => $request->document_id,
+        'document_uuid' => $request->document_uuid,
         'signature_type_id' => $signatureType -> id,
         'workflow_instance_step_id' => $instanceStep->id,
         'actor_type' => $request->actor_type,

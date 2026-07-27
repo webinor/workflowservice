@@ -8,6 +8,7 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class WorkflowInstanceStepController extends Controller
 {
@@ -21,13 +22,31 @@ class WorkflowInstanceStepController extends Controller
         //
     }
 
-    public function getWorkflowComments(Request $request, $documentId)
+    public function getWorkflowComments(Request $request, $documentIdentifier)
     {
-        $workflowInstance = WorkflowInstance::whereDocumentId(
-            $documentId
+
+     if (Str::isUuid($documentIdentifier)) {
+
+
+     $workflowInstance = WorkflowInstance::whereDocumentUuid(
+            $documentIdentifier
         )->first();
 
-        $steps = WorkflowInstanceStep::whereWorkflowInstanceId(
+     
+} else {
+    
+
+$workflowInstance = WorkflowInstance::whereDocumentId(
+            $documentIdentifier
+        )->first();
+
+     
+
+
+}
+
+
+   $steps = WorkflowInstanceStep::whereWorkflowInstanceId(
             $workflowInstance->id
         )
             ->whereHas("histories", function ($query) {
@@ -37,6 +56,10 @@ class WorkflowInstanceStepController extends Controller
             ->orderBy("created_at", "asc")
             ->get();
 
+
+
+
+        
         // FlatMap pour obtenir un tableau plat de toutes les histories
        $histories = $steps
     ->flatMap(function ($step) use ($request) {

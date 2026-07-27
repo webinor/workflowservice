@@ -18,7 +18,7 @@ class GenerateMissionDocumentsHandler
     }
 
     public function execute(
-        int $documentId,
+         $documentId,
         $instance,
         array $documentData,
         array $config = []

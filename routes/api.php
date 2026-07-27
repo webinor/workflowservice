@@ -78,12 +78,18 @@ Route::post(
 
         // WorkflowController
         Route::controller(WorkflowController::class)->group(function () {
-            //Route::get("/workflow-steps/{stepId}/attachment-types", [
             Route::get(
                 "documents/{docId}/workflow-steps/{stepId}/attachment-types",
                 [WorkflowStepController::class, "attachmentTypes"]
             );
+
+           
         });
+
+         Route::get(
+                "documents/{docId}/workflow-steps/{stepId}/document-refenrence-types",
+                [WorkflowStepController::class, "refenrenceTypes"]
+            );
 
         // WorkflowInstanceController
         Route::controller(WorkflowInstanceController::class)->group(

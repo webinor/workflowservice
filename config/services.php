@@ -48,6 +48,8 @@ return [
             "DOCUMENT_SERVICE_BASE_URL",
             "http://localhost:8093/api/documents"
         ),
+
+        'token' => env('DOCUMENT_SERVICE_TOKEN'),
     ],
 
      "notification_service" => [

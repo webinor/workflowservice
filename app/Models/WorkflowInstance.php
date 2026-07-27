@@ -5,12 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WorkflowInstance extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['workflow_id', 'document_id', 'status' ,'workflow_status_label_id' ];
+    protected $fillable = ['workflow_id', 'document_id', 'status' ,'workflow_status_label_id' , 'document_uuid' ];
 
     public function instance_steps()
     {
@@ -35,6 +36,16 @@ class WorkflowInstance extends Model
     public function workflow(): BelongsTo
     {
         return $this->belongsTo(Workflow::class, );
+    }
+
+    /**
+     * Get all of the signatures for the WorkflowInstance
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function signatures(): HasMany
+    {
+        return $this->hasMany(Signature::class,);
     }
 
     // WorkflowInstance.php

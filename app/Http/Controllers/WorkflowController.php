@@ -331,10 +331,19 @@ class WorkflowController extends Controller
         ]);
 
 
+
+
+
+
         $instance = WorkflowInstance::where(
             "document_id",
             $documentId
         )->first();
+
+        $signatures = Signature::where(
+            "document_id",
+            $documentId
+        )->get();
 
         if (!$instance) {
             Log::warning("[WORKFLOW:STATUS] Workflow instance not found", [
@@ -396,6 +405,7 @@ class WorkflowController extends Controller
 
         $response = [
             "status" => $instance->status,
+            "signatures" => $signatures,
             "step" => $step->name,
             "business_actions"=>$business_actions,
             "permissions_required"=>$permissions_required,

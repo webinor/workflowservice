@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreWorkflowStepRequest;
 use App\Http\Requests\UpdateWorkflowStepRequest;
 use App\Models\WorkflowStep;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -61,6 +62,75 @@ class WorkflowStepController extends Controller
                     "attachment_type_required" => $attachmentTypeRequired,
                 ]
             );
+
+        if (!$response->ok()) {
+            
+            throw new Exception( $response->body(), 1);
+
+        }
+
+        /*
+        // On mappe pour retourner les IDs et éventuellement les infos détaillées
+        $attachmentTypes = $step->attachmentTypes->map(function ($pivot) {
+            // Appel au microservice Document pour récupérer les infos complètes
+            return $pivot->getAttachmentType(); // méthode définie dans WorkflowStepAttachmentType
+        })->filter(); // supprime les null si l'API échoue
+        */
+
+        $missingAttachmentTypes = $response->successful()
+            ? $response->json()
+            : [];
+
+        return response()->json($missingAttachmentTypes);
+    }
+
+    public function refenrenceTypes(Request $request, $docId, $stepId)
+    {
+        $documentId = $docId;// $request->input("documentId");
+
+        if (!$documentId) {
+            return response()->json(
+                [
+                    "message" => "document_id is required",
+                ],
+                400
+            );
+        }
+
+        $step = WorkflowStep::with("refenrenceTypes")->find($stepId);
+
+        if (!$step) {
+            return response()->json(
+                [
+                    "message" => "Workflow step not found",
+                ],
+                404
+            );
+        }
+
+        // Récupérer les IDs des attachment_types requis
+        $referenceTypesRequired = $step->refenrenceTypes
+            ->pluck("document_reference_type_id")
+            ->toArray();
+
+        // throw new Exception(json_encode($referenceTypesRequired), 1);
+        
+
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()
+            ->post(
+                config("services.document_service.base_url") .
+                    "/{$documentId}/missing-reference-types",
+                [
+                    "reference_types_required" => $referenceTypesRequired,
+                ]
+            );
+
+        if (!$response->ok()) {
+            
+            throw new Exception( $response->body(), 1);
+
+        }
 
         /*
         // On mappe pour retourner les IDs et éventuellement les infos détaillées

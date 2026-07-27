@@ -20,7 +20,7 @@ class DocumentServiceClient
      * =========================================
      */
     public function generateMissionDocuments(
-        int $documentId,
+         $documentUuid,
         int $instanceId,
         string $context
     ) {
@@ -31,7 +31,7 @@ class DocumentServiceClient
                     "/missions/generate",
 
                 [
-                    "document_id" => $documentId,
+                    "document_uuid" => $documentUuid,
                     "instance_id" => $instanceId,
                     "context" => $context ?? "logistics_validation",
                 ]
@@ -50,7 +50,7 @@ class DocumentServiceClient
  * =========================================
  */
 public function deductLeaveDays(
-    int $documentId,
+     $documentUuid,
     int $instanceId,
     string $context = 'workflow_validation'
 ) {
@@ -60,7 +60,7 @@ public function deductLeaveDays(
             config('services.document_service.base_url') .
                 '/leave-balances/deduct',
             [
-                'document_id' => $documentId,
+                'document_uuid' => $documentUuid,
                 'instance_id' => $instanceId,
                 'context' => $context,
             ]
@@ -76,7 +76,7 @@ public function deductLeaveDays(
 }
 
 public function generateLeaveDocuments(
-    int $documentId,
+    $documentUuid,
     int $instanceId,
     string $context
 )
@@ -86,7 +86,7 @@ public function generateLeaveDocuments(
         ->post(
             config('services.document_service.base_url') . '/leave/generate',
             [
-                'document_id' => $documentId,
+                'document_uuid' => $documentUuid,
                 'instance_id' => $instanceId,
                 'context' => $context,
             ]
@@ -106,12 +106,12 @@ public function generateLeaveDocuments(
      * Récupérer un document
      * =========================================
      */
-    public function getDocument(int $documentId): array
+    public function getDocument(string $documentUuid): array
     {
         $response = Http::withToken(request()->bearerToken())
             ->acceptJson()
             ->get(
-                config("services.document_service.base_url") . "/{$documentId}"
+                config("services.document_service.base_url") . "/{$documentUuid}"
             );
 
         if (!$response->successful()) {
@@ -121,12 +121,12 @@ public function generateLeaveDocuments(
         return $response->json();
     }
 
-    public function getDocumentTypesByIds(array $documentIds): array
+    public function getDocumentTypesByIds(array $documentUuids): array
     {
         $url = config("services.document_service.base_url");
 
         $response = Http::timeout(20)->acceptJson()->withToken(request()->bearerToken()) ->post("{$url}/types-by-ids", [
-            "ids" => $documentIds,
+            "ids" => $documentUuids,
         ]);
 
         if (!$response->ok()) {

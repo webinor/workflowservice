@@ -81,6 +81,11 @@ class WorkflowStep extends Model
         return $this->hasMany(WorkflowStepAttachmentType::class);
     }
 
+        public function refenrenceTypes()
+    {
+        return $this->hasMany(WorkflowStepReferenceType::class);
+    }
+
     /**
      * Get all of the workflowActionSteps for the WorkflowStep
      *

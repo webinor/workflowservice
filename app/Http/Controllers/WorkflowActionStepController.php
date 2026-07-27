@@ -108,7 +108,7 @@ class WorkflowActionStepController extends Controller
     // }
     public function getActionsByStep(
         Request $request,
-        int $documentId,
+        $documentId,
         WorkflowInstanceStep $instanceStep
     ) {
         $user = $request->get("user");
