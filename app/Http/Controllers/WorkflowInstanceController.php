@@ -2570,12 +2570,16 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         $keys = explode(".", $path);
         $value = $data;
 
-        // throw new Exception(json_encode($data), 1);
+        throw new Exception(json_encode($data['document_references']), 1);
+        // throw new Exception(json_encode($keys), 1);
 
         foreach ($keys as $key) {
             //return $value;
             // Cas spécial : [] signifie "appliquer à tous les éléments du tableau"
             if ($key === "[]") {
+
+        // throw new Exception(json_encode($key), 1);
+
                 if (!is_array($value)) {
                     return null;
                 }
@@ -2599,6 +2603,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             }
 
             // throw new Exception(json_encode(is_array($value) && array_key_exists($key, $value)), 1);
+            // throw new Exception(json_encode(is_array($value) && array_key_exists($key, $value)), 1);
+            // throw new Exception(json_encode($value), 1);
             // return  array_key_exists($key, $value);
             // Cas normal
             if (is_array($value) && array_key_exists($key, $value)) {
