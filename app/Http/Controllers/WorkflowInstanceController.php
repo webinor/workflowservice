@@ -2570,7 +2570,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         $keys = explode(".", $path);
         $value = $data;
 
-        throw new Exception(json_encode($data['document_references']), 1);
+        // throw new Exception(json_encode($data['document_references']), 1);
         // throw new Exception(json_encode($keys), 1);
 
         foreach ($keys as $key) {
