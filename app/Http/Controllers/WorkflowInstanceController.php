@@ -705,7 +705,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
 
                                     // throw new Exception(json_encode(collect($unreachableSteps)->count()));
                                     // throw new Exception(json_encode(collect($unreachableSteps)->pluck("name")));
-                                    // throw new Exception(json_encode(collect($reachableSteps)->pluck("name")));
+                                    throw new Exception(json_encode(collect($reachableSteps)->pluck("name")));
                                     // throw new Exception(json_encode(collect($unreachableSteps)));
 
 
