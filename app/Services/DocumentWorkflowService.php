@@ -825,6 +825,9 @@ class DocumentWorkflowService
                                     $actionStep->transaction_type_code,
 
                                 "requirements" => $actionStep->requirements,
+
+                                "visibility_requirements" => $actionStep->visibility_requirements,
+
                             ];
                         })
                         ->values(),
@@ -860,8 +863,9 @@ class DocumentWorkflowService
                             "transaction_type_code" =>
                                 $actionStep["transaction_type_code"] ?? null,
 
-                            "requirements" =>
-                                $actionStep["requirements"] ?? null,
+                            "requirements" =>    $actionStep["requirements"] ?? null,
+
+                            "visibility_requirements" => $actionStep->visibility_requirements ?? null,
 
                             "action" => [
                                 "id" =>
