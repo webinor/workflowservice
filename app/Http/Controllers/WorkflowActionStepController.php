@@ -196,6 +196,7 @@ $alreadyValidated = $userAssignment && $userAssignment->decision === 'APPROVED';
             $stepActionsResult[] = [
                 "workflow_action_step_id" => $actionStep->id,
                 "requirements"=>$actionStep->requirements,
+                "visibility_requirements" => $actionStep->visibility_requirements,
                 "permission_required" => $actionStep->permission_required,
                 "transaction_type_code" => $actionStep->transaction_type_code,
                 "workflow_action_type" => $actionStep->workflowAction->workflowActionType->code,

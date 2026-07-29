@@ -19,14 +19,12 @@ class WorkflowDynamicResolverService
             "invoice_provider" => "actor_details",
         ];
 
-                // throw new Exception(json_encode($document['actor_details']), 1);
-                // throw new Exception(json_encode($document), 1);
+        // throw new Exception(json_encode($document['actor_details']), 1);
+        // throw new Exception(json_encode($document), 1);
 
-
-        $slug = $document["document_type"]["relation_name"];        
+        $slug = $document["document_type"]["relation_name"];
 
         return $document[$mapper[$slug]] ?? null;
-
     }
     public function resolveHeadStepRole($step, $document)
     {
@@ -36,14 +34,11 @@ class WorkflowDynamicResolverService
         $actor = $this->resolveActor($document);
 
         // throw new Exception(    json_encode($actor, JSON_PRETTY_PRINT), 1);
-        
+
         if ($actor) {
-       
-            $employeeId = $actor["id"] ?? null;// employee_id
+            $employeeId = $actor["id"] ?? null; // employee_id
             $actorId = $actor["id"];
-            
         }
-       
 
         // throw new Exception(json_encode($actorId, JSON_PRETTY_PRINT), 1);
 
@@ -64,8 +59,7 @@ class WorkflowDynamicResolverService
                 );
 
                 if ($response->ok()) {
-
-                // throw new Exception(json_encode($response->body(), JSON_PRETTY_PRINT),1);
+                    // throw new Exception(json_encode($response->body(), JSON_PRETTY_PRINT),1);
 
                     return $response->json();
                 }
@@ -96,12 +90,10 @@ class WorkflowDynamicResolverService
                         ]
                     );
 
-              
-                    
                 if ($response->ok()) {
-                    $data = $response->json()["related_employee"]["employee"]["user"];
-
-                    
+                    $data = $response->json()["related_employee"]["employee"][
+                        "user"
+                    ];
 
                     if (!$data) {
                         throw new Exception(json_encode($response->json()), 1);
@@ -122,28 +114,53 @@ class WorkflowDynamicResolverService
                 return ["userData" => $userData];
 
             case "SIGNATORY":
-
-   $response = Http::acceptJson()
-    ->withToken(request()->bearerToken())
-    ->get(
-        config("services.user_service.base_url") . "/by-permissions",
-        [
-            'actions' => ['sign'],
-            'document_type_id' => $document['document_type_id'],
-        ]
-    );
+                $response = Http::acceptJson()
+                    ->withToken(request()->bearerToken())
+                    ->get(
+                        config("services.user_service.base_url") .
+                            "/by-permissions",
+                        [
+                            "actions" => ["sign"],
+                            "document_type_id" => $document["document_type_id"],
+                        ]
+                    );
 
                 // throw new Exception(json_encode(["ok"]), 1);
 
+                if ($response->ok()) {
+                    return $response->json("data");
+                }
 
-    if ($response->ok()) {
-        return $response->json("data");
-    }
+                throw new Exception(
+                    json_encode($response->body(), JSON_PRETTY_PRINT),
+                    1
+                );
 
-    throw new Exception(
-        json_encode($response->body(), JSON_PRETTY_PRINT),
-        1
-    );
+            case "OPERATOR":
+                $response = Http::acceptJson()
+                    ->withToken(request()->bearerToken())
+                    ->get(
+                        config("services.department_service.base_url") .
+                            "/by-responsibility",
+                        [
+                            "responsibility" => ["OPERATOR"],
+                        ]
+                    );
+
+                // throw new Exception(json_encode(["ok"]), 1);
+
+                if ($response->ok()) {
+                // throw new Exception(json_encode(["ok"]), 1);
+
+                    return $response->json("data");
+                }
+                // throw new Exception(json_encode(["ok"]), 1);
+
+
+                throw new Exception(
+                    json_encode($response->body(), JSON_PRETTY_PRINT),
+                    1
+                );
 
             default:
                 return null;
@@ -169,25 +186,24 @@ class WorkflowDynamicResolverService
     }
 
     public function resolveUsers(array $userIds): array
-{
-    if (empty($userIds)) {
-        return [];
-    }
+    {
+        if (empty($userIds)) {
+            return [];
+        }
 
-    $response = Http::acceptJson()
-        ->post(
+        $response = Http::acceptJson()->post(
             config("services.user_service.base_url") . "/batch",
             [
-                'user_ids' => array_values(array_unique($userIds))
+                "user_ids" => array_values(array_unique($userIds)),
             ]
         );
 
-    if (!$response->ok()) {
-        return [];
-    }
+        if (!$response->ok()) {
+            return [];
+        }
 
-    return $response->json()['users'] ?? [];
-}
+        return $response->json()["users"] ?? [];
+    }
 
     /**
      * Résout les utilisateurs à partir d'une liste de rôles
@@ -204,7 +220,7 @@ class WorkflowDynamicResolverService
         $users = [];
 
         foreach ($roleIds as $roleId) {
-            $response = Http::acceptJson()-> get(
+            $response = Http::acceptJson()->get(
                 config("services.user_service.base_url") . "/by-role/{$roleId}"
             );
 

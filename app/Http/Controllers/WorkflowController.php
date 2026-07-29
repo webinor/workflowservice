@@ -262,13 +262,13 @@ class WorkflowController extends Controller
                                                         $condition->field,
                                                     "operator" =>
                                                         $condition->operator,
-                                                    "value" =>
-                                                        $condition->condition_type ===
-                                                        "comparison"
-                                                            ? floatval(
-                                                                $condition->value
-                                                            )
-                                                            : $condition->value,
+                                                    "value" => $condition->value,
+                                                        // $condition->condition_type ===
+                                                        // "comparison"
+                                                        //     ? floatval(
+                                                        //         $condition->value
+                                                        //     )
+                                                        //     : $condition->value,
                                                     "nextStep" =>
                                                         $condition->next_step_id,
                                                 ];
@@ -314,7 +314,7 @@ class WorkflowController extends Controller
     public function getAvailabilityContext(
 
         DocumentWorkflowService $documentWorkflowService,
-        int $documentId
+         $documentId
     ) {
         return $documentWorkflowService->availabilityContext($documentId);
     }
@@ -325,9 +325,16 @@ class WorkflowController extends Controller
     ) {
 
 
+     if (Str::isUuid($documentId)) {
+    $documentKey = "document_uuid";
+} else {
+        $documentKey = "document_id";
+
+
+}
 
         Log::info("[WORKFLOW:STATUS] Start", [
-            "document_id" => $documentId,
+            $documentKey => $documentId,
         ]);
 
 
@@ -336,18 +343,18 @@ class WorkflowController extends Controller
 
 
         $instance = WorkflowInstance::where(
-            "document_id",
+            $documentKey,
             $documentId
         )->first();
 
         $signatures = Signature::where(
-            "document_id",
+            $documentKey,
             $documentId
         )->get();
 
         if (!$instance) {
             Log::warning("[WORKFLOW:STATUS] Workflow instance not found", [
-                "document_id" => $documentId,
+                $documentKey => $documentId,
             ]);
 
             return [
@@ -708,266 +715,7 @@ class WorkflowController extends Controller
         return $response->json() ?? null;
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \App\Http\Requests\StoreWorkflowRequest  $request
-     * @return \Illuminate\Http\Response
-     */
-
-    public function Stablestore(StoreWorkflowRequest $request)
-    {
-        DB::beginTransaction();
-
-        // return $request;
-
-        // throw new Exception(json_encode($this->getDocumentTypeData($request->document_type)), 1);
-
-        // $documentTypeData = $this->getDocumentTypeData($request->document_type);
-
-        try {
-            // Désactiver les workflows existants pour ce type de document
-            // Récupérer les workflow_id liés au type de document
-            $workflowIds = DocumentTypeWorkflow::where(
-                "document_type_id",
-                $request->document_type
-            )->pluck("workflow_id");
-
-            // Désactiver ces workflows
-            Workflow::whereIn("id", $workflowIds)
-                ->where("active", true)
-                ->update(["active" => false]);
-
-            // 1️⃣ Créer le workflow
-            $workflow = Workflow::create([
-                "name" => $request->name,
-            ]);
-
-            // 2️⃣ Associer le workflow au type de document
-            if ($request->document_type) {
-                DocumentTypeWorkflow::create([
-                    "workflow_id" => $workflow->id,
-                    "document_type_id" => $request->document_type,
-                ]);
-            }
-
-            $documentTypeData = $this->getDocumentTypeData(
-                $request->document_type
-            )["data"];
-
-            $child = explode(".", $documentTypeData["relation_name"])[0];
-
-            // Map UUID frontend -> ID BDD pour pouvoir relier les transitions
-            $stepIdMap = [];
-
-            // return $request->steps;
-
-            // 3️⃣ Créer les étapes
-            foreach ($request->steps as $index => $stepData) {
-                $step = WorkflowStep::create([
-                    "workflow_id" => $workflow->id,
-                    "name" => $stepData["stepName"],
-                    "workflow_status_label_id" =>
-                        $stepData["stepStatus"] ?? null,
-                    "assignment_mode" => $stepData["assignationMode"],
-                    "is_payment_step" => $stepData["is_payment_step"],
-                    "is_archived_step" => $stepData["is_archived_step"],
-                    "assignment_rule" => !empty($stepData["assignmentRule"])
-                        ? $stepData["assignmentRule"]
-                        : null,
-                    //'role_id' => $stepData['roleId'] ?? null,
-                    "position" => $index,
-                ]);
-
-                $stepIdMap[$stepData["id"]] = $step->id;
-
-                // Sauvegarder les rôles associés (table pivot)
-                if (
-                    !empty($stepData["roleId"]) &&
-                    is_array($stepData["roleId"])
-                ) {
-                    foreach ($stepData["roleId"] as $roleId) {
-                        WorkflowStepRole::create([
-                            "workflow_step_id" => $step->id,
-                            "role_id" => $roleId,
-                        ]);
-                    }
-                }
-
-                // Sauvegarder les types de pièces jointes requis (table pivot)
-                if (
-                    !empty($stepData["attachmentTypeRequired"]) &&
-                    is_array($stepData["attachmentTypeRequired"])
-                ) {
-                    // return $stepData["attachmentTypeRequired"];
-
-                    foreach (
-                        $stepData["attachmentTypeRequired"]
-                        as $attachmentTypeId
-                    ) {
-                        $WorkflowStepAttachmentType = WorkflowStepAttachmentType::create(
-                            [
-                                "workflow_step_id" => $step->id,
-                                "attachment_type_id" => $attachmentTypeId,
-                            ]
-                        );
-
-                        // return $WorkflowStepAttachmentType;
-                    }
-                }
-            }
-
-            // return '$request->steps';
-
-            // 4️⃣ Créer les transitions envoyées par le frontend
-            foreach ($request->transitions as $transitionData) {
-                $fromStep = WorkflowStep::find(
-                    $stepIdMap[$transitionData["fromStep"]] ?? null
-                );
-                $toStep = WorkflowStep::find(
-                    $stepIdMap[$transitionData["toStep"]] ?? null
-                );
-
-                if (!$fromStep || !$toStep) {
-                    continue; // skip si step introuvable
-                }
-
-                $transitionName =
-                    Str::slug($fromStep->name, "_") .
-                    "_to_" .
-                    Str::slug($toStep->name, "_");
-
-                $workflowTransion = WorkflowTransition::create([
-                    "workflow_id" => $workflow->id,
-                    "from_step_id" => $fromStep->id,
-                    "to_step_id" => $toStep->id,
-                    "name" => $transitionName,
-                    "type" => strtolower($transitionData["conditionType"]), // NONE, RETURN, etc.
-                    "rules" => $transitionData["conditionExpression"] ?? null,
-                    "condition_id" => null,
-                ]);
-
-                // 5️⃣ Créer les conditions pour cette transition
-                // if (!empty($transitionData["blockingRules"])) {
-                //     foreach ($transitionData["blockingRules"] as $rule) {
-                //         //return $transitionData['blockingRules'];
-                //         //return($rule['value']);
-                //         WorkflowCondition::create([
-                //             "workflow_step_id" => $fromStep->id,
-                //             "workflow_transition_id" => $workflowTransion->id,
-                //             "condition_kind" => "BLOCKING",
-                //             "condition_type" => $rule["type"] ?? null,
-                //             "required_type" => $rule["existsTarget"], //=="attachment" ? "engagment-attachment"  : "payment-attachment", // "App\Models\Misc\AttachmentType",
-                //             "required_id" => $rule["value"],
-                //             "field" =>
-                //                 /*$rule["existsTarget"]==*/ "secondary_attachments.[].attachment_type_id", //: "invoice_provider.ledger_code.ledger_code_type_id",// $rule["field"] ?? null,
-                //             "operator" => $rule["operator"] ?? null,
-                //             "next_step_id" => null,
-                //         ]);
-                //     }
-                // }
-                if (!empty($transitionData["blockingRuleGroups"])) {
-                    foreach ($transitionData["blockingRuleGroups"] as $group) {
-                        $groupId = $group["id"] ?? Str::uuid()->toString();
-
-                        foreach ($group["rules"] as $rule) {
-                            WorkflowCondition::create([
-                                "workflow_step_id" => $fromStep->id,
-                                "workflow_transition_id" =>
-                                    $workflowTransion->id,
-
-                                "group_id" => $groupId, // 🔥 IMPORTANT
-
-                                "condition_kind" => "BLOCKING",
-                                "condition_type" => $rule["type"] ?? null,
-
-                                "required_type" =>$rule["existsTarget"] ?? null,
-                                "required_id" => $rule["value"] ?? null,
-
-                                "field" =>
-                                    $rule["type"] === "exists"
-                                        ? "secondary_attachments.[].attachment_type_id"
-                                        : $rule["field"] ?? null,
-
-                                "operator" => $rule["operator"] ?? null,
-                                "value" => $rule["value"],
-                                // : json_encode([$rule["value"]]),
-
-                                "next_step_id" => null,
-                            ]);
-                        }
-                    }
-                }
-
-                // if (!empty($transitionData["pathRules"])) {
-                //     foreach ($transitionData["pathRules"] as $rule) {
-                //         WorkflowCondition::create([
-                //             //'workflow_id' => $workflow->id,
-                //             "workflow_step_id" => $fromStep->id,
-                //             "workflow_transition_id" => $workflowTransion->id,
-                //             "condition_kind" => "PATH",
-                //             "condition_type" => $rule["type"] ?? null,
-                //             //'required' => $rule['required'] ?? 'yes',
-                //             "field" => $child.".".$rule["field"] ?? null,
-                //             "operator" => $rule["operator"] ?? null,
-                //             "value" => $rule["value"] ?? null,
-                //             "next_step_id" => $toStep->id, // $stepIdMap[$rule['nextStep']] ?? null,
-                //         ]);
-                //     }
-                // }
-
-                if (!empty($transitionData["pathRuleGroups"])) {
-                    foreach ($transitionData["pathRuleGroups"] as $group) {
-                        $groupId = $group["id"] ?? Str::uuid()->toString();
-
-                        foreach ($group["rules"] as $rule) {
-                            WorkflowCondition::create([
-                                "workflow_step_id" => $fromStep->id,
-                                "workflow_transition_id" =>
-                                    $workflowTransion->id,
-
-                                "group_id" => $groupId, // 🔥 IMPORTANT
-
-                                "condition_kind" => "PATH",
-                                "condition_type" => $rule["type"] ?? null,
-
-                                "field" => isset($rule["field"])
-                                    ? $child . "." . $rule["field"]
-                                    : null,
-
-                                "operator" => $rule["operator"] ?? null,
-                                "value" => isset($rule["value"])
-                                    ? (is_array($rule["value"])
-                                        ? $rule["value"]
-                                        : [$rule["value"]])
-                                    : null,
-
-                                "next_step_id" => $toStep->id,
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            DB::commit();
-
-            return response()->json(
-                [
-                    "success" => true,
-                    "data" => [
-                        "workflow" => $workflow->load(
-                            "steps",
-                            "transitions.conditions"
-                        ),
-                    ],
-                ],
-                201
-            );
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
-    }
+   
 
     public function store(StoreWorkflowRequest $request)
     {
@@ -1316,20 +1064,19 @@ class WorkflowController extends Controller
             */
 
                 if (!empty($transitionData["pathRuleGroups"])) {
+
                     foreach ($transitionData["pathRuleGroups"] as $group) {
+                        
                         $groupId = $group["id"] ?? Str::uuid()->toString();
 
                         foreach ($group["rules"] as $rule) {
                             WorkflowCondition::create([
                                 "workflow_step_id" => $fromStep->id,
-                                "workflow_transition_id" =>
-                                    $workflowTransition->id,
+                                "workflow_transition_id" => $workflowTransition->id,
                                 "group_id" => $groupId,
                                 "condition_kind" => "PATH",
                                 "condition_type" => $rule["type"] ?? null,
-                                "field" => isset($rule["field"])
-                                    ? $child . "." . $rule["field"]
-                                    : null,
+                                "field" => $rule["field"] ?? null,// isset($rule["field"]) ? $child . "." . $rule["field"] : null,
                                 "operator" => $rule["operator"] ?? null,
                                 "value" => $rule["value"] ?? null,
                                 "next_step_id" => $toStep->id,
