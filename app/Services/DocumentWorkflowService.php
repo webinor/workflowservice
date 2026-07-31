@@ -76,6 +76,7 @@ class DocumentWorkflowService
             $filterContext,
             clone $baseQuery,
             $roleId,
+            $userId,
             $validationContext,
             $filters,
             !empty($filters["statut"]),
@@ -285,6 +286,41 @@ class DocumentWorkflowService
             "pagination" => $pagination,
         ];
     }
+
+    private function applyVisibilityFilter(
+    Builder $query,
+    int $roleId,
+    int $userId
+){
+
+$query->where(function ($q) use ($roleId, $userId) {
+
+    // Étape actuelle
+    $q->where(function ($q) use ($roleId) {
+
+        $q->where("workflow_instance_steps.status", "PENDING")
+          ->whereHas("assignments", function ($a) use ($roleId) {
+              $a->where("role_id", $roleId)
+                ->where("decision", "PENDING");
+          });
+
+    })
+
+    // Historique personnel
+    ->orWhere(function ($q) use ($userId) {
+
+        $q->where("workflow_instance_steps.status", "COMPLETE")
+          ->whereHas("assignments", function ($a) use ($userId) {
+              $a->where("user_id", $userId)
+                ->where("decision", "APPROVED");
+          });
+
+    });
+
+});
+
+return $query;
+}
 
     private function buildWorkflowQuery(string $validationContext)
     {
@@ -499,6 +535,7 @@ class DocumentWorkflowService
         string $filterContext,
         Builder $query,
         int $roleId,
+        int $userId,
         string $validationContext,
         array $filters = [],
         bool $applyStatusFilter = true,
@@ -577,6 +614,12 @@ class DocumentWorkflowService
 
         if ($validationContext === self::CONTEXT_VALIDATION) {
             // throw new Exception($validationContext, 1);
+
+         
+
+          $query = $this->applyVisibilityFilter($query, $roleId , $userId);
+
+
 
             if ($filterContext === self::FILTER_PENDING) {
                 // if ($applyStatusFilter && !empty($statut)) {
@@ -661,12 +704,12 @@ class DocumentWorkflowService
             ->get();
         // ->paginate($count);
 
-        return $query
-            ->get()
-            ->pluck("workflowInstance.document_id")
-            ->filter()
-            ->unique()
-            ->values();
+        // return $query
+        //     ->get()
+        //     ->pluck("workflowInstance.document_id")
+        //     ->filter()
+        //     ->unique()
+        //     ->values();
     }
 
     private function getDocumentStats(
