@@ -17,6 +17,7 @@ use App\Http\Requests\UpdateWorkflowInstanceRequest;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\Signature;
 use App\Models\Workflow;
+use App\Models\WorkflowActionStep;
 use App\Models\WorkflowInstanceStepAssignment;
 use App\Models\WorkflowInstanceStepRoleDynamic;
 use App\Models\WorkflowStatusHistory;
@@ -1522,6 +1523,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             $instance = WorkflowInstance::whereDocumentUuid(
                 $documentUuid
             )->firstOrFail();
+
             $currentStep = $this->resolver->getCurrentStep($instance);
 
             if (!$currentStep) {
@@ -1794,6 +1796,126 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             );
         }
     }
+
+    public function returnForModification(
+    Request $request,
+    // WorkflowInstance $instance,
+    // WorkflowInstanceStep $currentStep,
+    string $documentUuid
+) {
+    DB::beginTransaction();
+
+    try {
+
+     $user = $request->get("user");
+            $actionStepId = (int)($request->get("actionStepId"));
+
+            $actionStep = WorkflowActionStep::findOrFail($actionStepId);
+
+            // return
+            // =====================================
+            // WORKFLOW INSTANCE
+            // =====================================
+            $instance = WorkflowInstance::whereDocumentUuid(
+                $documentUuid
+            )->firstOrFail();
+            
+            $currentStep = $this->resolver->getCurrentStep($instance);
+
+            if (!$currentStep) {
+                return response()->json(
+                    [
+                        "success" => false,
+                        "message" => "Aucune étape en cours trouvée.",
+                    ],
+                    400
+                );
+            }
+        /**
+         * 1. Déterminer la cible du retour
+         */
+        $targetStep = $this->resolver->resolveReturnTarget(
+            $instance,
+            $currentStep,
+            $actionStep
+        );
+
+        if (!$targetStep) {
+            throw new \Exception("Impossible de déterminer l'étape de retour.");
+        }
+
+        /**
+         * 2. Clôturer l'étape courante
+         */
+        $currentStep->update([
+            'status' => 'NOT_STARTED',
+            'executed_at' => now(),
+        ]);
+
+        /**
+ * 3. Réinitialiser les étapes suivantes
+ */
+$this->workflowInstanceService->resetInstanceSteps(
+    $instance,
+    $targetStep
+);
+
+/**
+ * 4. Réactiver l'étape cible
+ */
+$this->workflowInstanceService->resetTargetStep($targetStep);
+
+        /**
+         * 5. Mettre à jour l'instance
+         */
+        $instance->update([
+            'status' => 'PENDING',
+            // 'current_step_id' => $targetStep->id, // si tu utilises ce champ
+        ]);
+
+        /**
+         * 6. Historique
+         */
+        WorkflowStatusHistory::create([
+            'model_id' => $instance->id,
+            'model_type' => WorkflowInstance::class,
+            'old_status' => 'PENDING',
+            'new_status' => 'RETURNED_FOR_MODIFICATION',
+            'changed_by' => $user['id'],
+            'comment' => $request->get('comment'),
+        ]);
+
+        // DB::commit();
+
+        /**
+         * 7. Notifications
+         */
+        DB::afterCommit(function () use ($targetStep, $request) {
+
+            $this->notifyReturnedUser(
+                $targetStep,
+                $request
+            );
+
+        });
+
+        return response()->json([
+            'success' => true,
+            'instance' => $instance,
+            'currentStep' => $targetStep,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+        ],500);
+
+    }
+}
 
     public function rejectStep(Request $request, $documentId)
     {

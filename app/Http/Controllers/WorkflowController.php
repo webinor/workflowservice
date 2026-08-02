@@ -22,6 +22,7 @@ use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepAttachmentType;
 use App\Services\DocumentWorkflowService;
 use App\Services\Workflow\WorkflowInstanceResolverService;
+use App\Services\WorkflowInstanceService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,18 @@ use function PHPUnit\Framework\isEmpty;
 
 class WorkflowController extends Controller
 {
+
+
+ protected WorkflowInstanceService $workflowInstanceService;
+    // protected WorkflowInstanceResolverService $resolver;
+
+    public function __construct(
+        WorkflowInstanceService $workflowInstanceService
+        // WorkflowInstanceResolverService $workflowInstanceResolverService
+    ) {
+        $this->workflowInstanceService = $workflowInstanceService;
+        // $this->resolver = $workflowInstanceResolverService;
+    }
     /**
      * Display a listing of the resource.
      *
@@ -329,8 +342,6 @@ class WorkflowController extends Controller
     $documentKey = "document_uuid";
 } else {
         $documentKey = "document_id";
-
-
 }
 
         Log::info("[WORKFLOW:STATUS] Start", [
@@ -412,6 +423,7 @@ class WorkflowController extends Controller
 
         $response = [
             "status" => $instance->status,
+            'isReturnedForModification' => $this->workflowInstanceService->isReturnedForModification($instance),
             "signatures" => $signatures,
             "step" => $step->name,
             "business_actions"=>$business_actions,

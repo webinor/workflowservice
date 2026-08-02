@@ -41,6 +41,16 @@ class WorkflowInstanceStep extends Model
     return $this->hasMany(WorkflowInstanceStepAssignment::class, 'instance_step_id');
 }
 
+/**
+ * Get the user that owns the WorkflowInstanceStep
+ *
+ * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+ */
+public function workflowStatusLabel(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowStatusLabel::class);
+    }
+
     public function dynamicRoles()
     {
         return $this->hasMany(

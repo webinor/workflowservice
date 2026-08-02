@@ -100,6 +100,11 @@ Route::post(
                 [WorkflowStepController::class, "refenrenceTypes"]
             );
 
+              Route::get(
+                "documents/{docId}/workflow-steps/{stepId}/required-signatures",
+                [WorkflowStepController::class, "requiredSignatures"]
+            );
+
         // WorkflowInstanceController
         Route::controller(WorkflowInstanceController::class)->group(
             function () {
@@ -108,6 +113,12 @@ Route::post(
                     "/workflow-instances/{documentId}/validate",
                     "validateStep"
                 );
+
+                Route::post(
+                    "/workflow-instances/{documentId}/return",
+                    "returnForModification"
+                );
+
                 Route::post(
                     "/workflow-instances/{documentId}/reject",
                     "rejectStep"

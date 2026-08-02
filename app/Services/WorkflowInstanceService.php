@@ -2,14 +2,113 @@
 namespace App\Services;
 
 use App\Models\DocumentTypeWorkflow;
+use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
+use App\Models\WorkflowInstanceStepAssignment;
+use App\Models\WorkflowStatusHistory;
+use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepRole;
+use App\Services\Workflow\WorkflowInstanceResolverService;
 use Exception;
 use Illuminate\Support\Facades\Http;
 
 class WorkflowInstanceService
 {
     use ResolveDepartmentValidator;
+
+    protected WorkflowInstanceResolverService $resolver;
+
+    public function __construct(
+        WorkflowInstanceResolverService $workflowInstanceResolverService
+    ) {
+        $this->resolver = $workflowInstanceResolverService;
+    }
+
+
+    public function resetStep(
+    WorkflowInstanceStep $step
+): void
+{
+    $step->update([
+        'status' => 'PENDING',
+        'executed_at' => null,
+        // 'comments' => null,
+    ]);
+}
+
+public function resetInstanceSteps(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $targetStep
+): void
+{
+    WorkflowInstanceStep::where('workflow_instance_id', $instance->id)
+        ->where('position', '>', $targetStep->position)
+        ->each(function ($step) {
+
+            $step->update([
+                'status' => 'NOT_STARTED',
+                'executed_at' => null,
+                'comments' => null,
+            ]);
+
+            $this->resetAssignSteps($step);
+        });
+}
+
+public function resetTargetStep(
+    WorkflowInstanceStep $step
+): void
+{
+    $step->update([
+        'status' => 'PENDING',
+        'executed_at' => null,
+        'comments' => null,
+        'workflow_status_label_ido' => WorkflowStatusLabel::whereCode("RETURNED_FOR_MODIFICATION")->first()->id 
+
+    ]);
+
+    $this->resetAssignSteps($step);
+}
+
+private function resetAssignSteps(
+    WorkflowInstanceStep $instanceStep
+): void
+{
+    $data = $instanceStep->workflowStep->assignment_mode == "OWNER" ? ['decision' => "PENDING" , 'validated_at'=>null] : 
+    [
+        'user_id'=> null,
+        'decision' => "PENDING",
+         'validated_at'=>null
+    ];
+
+    WorkflowInstanceStepAssignment::where(
+        'instance_step_id',
+        $instanceStep->id
+    )
+    ->update($data);
+}
+
+
+public function isReturnedForModification(
+    WorkflowInstance $instance
+): bool
+{
+    $currentStep = $this->resolver->getCurrentStep($instance);
+
+    if (!$currentStep) {
+        return false;
+    }
+
+    if ($currentStep->position !== 0) {
+        return false;
+    }
+
+    return WorkflowStatusHistory::where('model_id', $instance->id)
+        ->where('model_type', WorkflowInstance::class)
+        ->where('new_status', 'RETURNED_FOR_MODIFICATION')
+        ->exists();
+}
+
 
     public function notifyNextValidator(
         WorkflowInstanceStep $stepInstance,

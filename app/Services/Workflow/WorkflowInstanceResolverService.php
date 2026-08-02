@@ -2,6 +2,7 @@
 
 namespace App\Services\Workflow;
 
+use App\Models\WorkflowActionStep;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStatusLabel;
@@ -17,14 +18,16 @@ class WorkflowInstanceResolverService
         if ($instance->status === 'COMPLETE') {
         return $instance
             ->instance_steps()
-            ->with(['workflowStep.workflowActionSteps'])
+            ->with(['workflowStep.workflowActionSteps',
+            'workflowStatusLabel'])
             ->orderByDesc('position')
             ->first();
     }
 
         return $instance
             ->instance_steps()
-            ->with(["workflowStep.workflowActionSteps"])
+            ->with(["workflowStep.workflowActionSteps",
+            'workflowStatusLabel'])
             ->where("status", "PENDING")
             ->orderBy("position", "asc")
             ->first();
@@ -65,6 +68,9 @@ class WorkflowInstanceResolverService
 
               
 
+        if ($currentStep->workflowStatusLabel) {
+            return $currentStep->workflowStatusLabel;
+        }
 
 
         // label configuré sur la step
@@ -79,4 +85,75 @@ class WorkflowInstanceResolverService
 
         return null;
     }
+
+    public function resolveReturnTarget(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $currentStep,
+    WorkflowActionStep $actionStep
+): ?WorkflowInstanceStep
+{
+    switch ($actionStep->return_target_type) {
+
+        case 'SUBMITTER':
+            return $this->resolveSubmitterStep($instance);
+
+        case 'PREVIOUS_STEP':
+            // return $this->resolvePreviousStep($instance, $currentStep);
+
+        case 'SPECIFIC_STEP':
+            // return $this->resolveSpecificStep(
+            //     $instance,
+            //     $actionStep->return_step_id
+            // );
+
+        case 'LAST_VALIDATOR':
+            // return $this->resolveLastValidatorStep($instance);
+
+        default:
+            
+            return $this->resolveSubmitterStep($instance);
+            
+            throw new \RuntimeException(
+                "Unsupported return target : {$actionStep->return_target_type}"
+            );
+    }
+}
+
+private function resolveSubmitterStep(
+    WorkflowInstance $instance
+): ?WorkflowInstanceStep
+{
+
+// SUBMITTER signifie aujourd'hui "retour à l'étape de soumission", et non "retour au créateur
+
+    return WorkflowInstanceStep::with("workflowStep")
+        ->where('workflow_instance_id', $instance->id)
+        ->where('position', 0)
+        ->first();
+
+    /*
+     * Évolution future :
+     *
+     * Ne plus se baser sur la position 0, mais sur le type de l'étape.
+     *
+     * Ajouter une colonne `step_type` dans `workflow_steps` avec par exemple :
+     *
+     * - SUBMISSION
+     * - APPROVAL
+     * - SIGNATURE
+     * - PAYMENT
+     * - ARCHIVE
+     *
+     * Puis remplacer la recherche par :
+     *
+     * return WorkflowInstanceStep::query()
+     *     ->where('workflow_instance_id', $instance->id)
+     *     ->whereHas('workflowStep', function ($query) {
+     *         $query->where('step_type', 'SUBMISSION');
+     *     })
+     *     ->first();
+     *
+     * Cette approche sera plus robuste si l'ordre des étapes devient configurable.
+     */
+}
 }

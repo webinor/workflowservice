@@ -48,6 +48,15 @@ class WorkflowStep extends Model
         return $this->hasMany(WorkflowActionStepEvent::class);
     }
 
+    public function requiredSignatures()
+{
+    return $this->hasMany(
+        WorkflowStepSignatureRequirement::class
+    );
+}
+
+
+
     /**
      * Get the workflowStatusLabel that owns the WorkflowStep
      *
@@ -85,6 +94,8 @@ class WorkflowStep extends Model
     {
         return $this->hasMany(WorkflowStepReferenceType::class);
     }
+
+    
 
     /**
      * Get all of the workflowActionSteps for the WorkflowStep

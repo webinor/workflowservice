@@ -18,6 +18,15 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'status_type' => 'COMMON',
     ],
 
+    [
+    'code' => 'RETURNED_FOR_MODIFICATION',
+    'label' => 'En attente de modification',
+    'emoji' => '✏️',
+    'color' => 'warning',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
         [
 
         'code' => 'UNDER_APPROBATION',

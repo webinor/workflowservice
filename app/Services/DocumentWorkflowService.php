@@ -421,71 +421,7 @@ return $query;
             ->toArray();
     }
 
-    public function oldavailabilityContexts(array $documentIds)
-    {
-        // 1. Récupérer tous les workflows en une fois
-        $workflows = WorkflowInstance::query()
-            ->whereIn("document_id", $documentIds)
-            ->get()
-            ->keyBy("document_id");
-
-        // 2. Signatures en batch
-        $signatures = Signature::query()
-            ->whereIn("document_id", $documentIds)
-            ->with("signatureType")
-            ->get()
-            ->groupBy("document_id");
-
-        // 3. Steps en batch (via workflow_instance_id)
-        $workflowIds = $workflows->pluck("id")->toArray();
-
-        $steps = WorkflowInstanceStep::query()
-            ->whereIn("workflow_instance_id", $workflowIds)
-            ->where("status", "COMPLETE")
-            ->with("workflowStep")
-            ->get()
-            ->groupBy("workflow_instance_id");
-
-        // 4. Build response
-        return collect($documentIds)
-            ->map(function ($documentId) use ($workflows, $signatures, $steps) {
-                $workflow = $workflows[$documentId] ?? null;
-
-                if (!$workflow) {
-                    return [
-                        "document_id" => $documentId,
-                        "workflow_status" => null,
-                        "signatures" => [],
-                        "completed_steps" => [],
-                    ];
-                }
-
-                $docSignatures = ($signatures[$documentId] ?? collect())
-                    ->map(function ($signature) {
-                        return [
-                            "code" => $signature->signatureType->code,
-                            "signed" => true,
-                            "signed_at" => $signature->signed_at,
-                        ];
-                    })
-                    ->values();
-
-                $docSteps = ($steps[$workflow->id] ?? collect())
-                    ->map(fn($step) => $step->workflowStep->code)
-                    ->values();
-
-                // throw new Exception(json_encode($workflow->status), 1);
-
-                return [
-                    "document_id" => $documentId,
-                    "workflow_status" => $workflow->status,
-                    "signatures" => $docSignatures,
-                    "completed_steps" => $docSteps,
-                ];
-            })
-            ->values()
-            ->toArray();
-    }
+  
 
     public function availabilityContext(int $documentId)
     {
@@ -826,7 +762,6 @@ return $query;
                 // throw new Exception(json_encode($status_label_resolved), 1);
 
                 if ($instance) {
-                    // $doc["workflow_status"] = $translations[$instance->status] ?? null;
                     $doc["workflow_status"] = $status_label_resolved;
                     $doc["can_validate"] = isset(
                         $actionableSteps[$instance->id]

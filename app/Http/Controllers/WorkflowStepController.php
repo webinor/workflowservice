@@ -147,6 +147,87 @@ class WorkflowStepController extends Controller
         return response()->json($missingAttachmentTypes);
     }
 
+    public function requiredSignatures(Request $request, $docId, $stepId)
+{
+    $documentId = $docId;
+
+    if (!$documentId) {
+        return response()->json(
+            [
+                "message" => "document_id is required",
+            ],
+            400
+        );
+    }
+
+
+    $step = WorkflowStep::with("requiredSignatures")
+        ->find($stepId);
+
+
+    if (!$step) {
+        return response()->json(
+            [
+                "message" => "Workflow step not found",
+            ],
+            404
+        );
+    }
+
+
+
+    /**
+     * Récupération des types de signatures attendus
+     *
+     * Exemple:
+     * [
+     *   "RECEIPT",
+     *   "SUPPLIER_INVOICE"
+     * ]
+     */
+    
+    $signatureTypesRequired = $step->requiredSignatures
+        ->pluck("signature_type")
+        ->toArray();
+
+
+
+    /**
+     * Appel Document Service
+     *
+     * Le document service connait :
+     * - les positions existantes
+     * - les signatures déjà ajoutées
+     * - les signatures manquantes
+     */
+    $response = Http::withToken(request()->bearerToken())
+        ->acceptJson()
+        ->post(
+            config("services.document_service.base_url") .
+                "/{$documentId}/missing-signature-types",
+            [
+                "signature_types_required" => $signatureTypesRequired,
+            ]
+        );
+
+
+
+    if (!$response->ok()) {
+
+        throw new Exception(
+            $response->body(),
+            1
+        );
+
+    }
+
+
+
+    return response()->json(
+        $response->json()
+    );
+}
+
     /**
      * Show the form for creating a new resource.
      *
