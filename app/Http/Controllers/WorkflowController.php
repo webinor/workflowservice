@@ -363,6 +363,9 @@ class WorkflowController extends Controller
             $documentId
         )->get();
 
+    // throw new \Exception(json_encode($instance), 1);
+
+
         if (!$instance) {
             Log::warning("[WORKFLOW:STATUS] Workflow instance not found", [
                 $documentKey => $documentId,
@@ -370,6 +373,7 @@ class WorkflowController extends Controller
 
             return [
                 "status" => null,
+            'isReturnedForModification' => false,
                 "step" => null,
                 "transaction_types" => [],
             ];
@@ -380,6 +384,9 @@ class WorkflowController extends Controller
             "status" => $instance->status,
         ]);
 
+    // throw new \Exception('iciiiiiiii', 1);
+
+
         $currentInstanceStep = $resolver->getCurrentStep($instance);
 
         if (!$currentInstanceStep) {
@@ -389,6 +396,7 @@ class WorkflowController extends Controller
 
             return [
                 "status" => $instance->status,
+            'isReturnedForModification' => false,
                 "step" => null,
                 "transaction_types" => [],
             ];
@@ -421,6 +429,8 @@ class WorkflowController extends Controller
             "transaction_types" => $transactionTypes,
         ]);
 
+
+
         $response = [
             "status" => $instance->status,
             'isReturnedForModification' => $this->workflowInstanceService->isReturnedForModification($instance),
@@ -430,6 +440,8 @@ class WorkflowController extends Controller
             "permissions_required"=>$permissions_required,
             "transaction_types" => $transactionTypes,
         ];
+
+
 
         Log::info("[WORKFLOW:STATUS] End", $response);
 
