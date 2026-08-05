@@ -31,7 +31,7 @@ class StoreWorkflowInstanceRequest extends FormRequest
 
             "document_type_id" => "required|integer",
             "document_type_slug" => "required|string|max:255",
-            "document_type_version" => "required|string|max:255",
+            "document_type_version" => "required|numeric|max:10",
 
             "department_id" => "nullable|integer",
             "role_id" => "nullable|integer",
