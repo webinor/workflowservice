@@ -11,8 +11,16 @@ class WorkflowInstance extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['workflow_id', 'document_id', 'status' ,'workflow_status_label_id' , 'document_uuid' ];
-
+protected $fillable = [
+    'workflow_id',
+    'document_id',
+    'document_uuid',
+    'document_type_id',
+    'document_type_slug',
+    'document_type_version',
+    'status',
+    'workflow_status_label_id',
+];
     public function instance_steps()
     {
         return $this->hasMany(WorkflowInstanceStep::class);
