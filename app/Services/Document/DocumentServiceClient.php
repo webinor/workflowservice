@@ -121,19 +121,60 @@ public function generateLeaveDocuments(
         return $response->json();
     }
 
-    public function getDocumentTypesByIds(array $documentUuids): array
-    {
-        $url = config("services.document_service.base_url");
+    // public function getDocumentTypesByIds(array $documentUuids , $token = null): array
+    // {
+    //     $url = config("services.document_service.base_url");
 
-        $response = Http::timeout(20)->acceptJson()->withToken(request()->bearerToken()) ->post("{$url}/types-by-ids", [
-            "ids" => $documentUuids,
+    //     $response = Http::timeout(20)->acceptJson()->withToken(request()->bearerToken()) ->post("{$url}/types-by-ids", [
+    //         "ids" => $documentUuids,
+    //     ]);
+
+    //     if (!$response->ok()) {
+    //         throw new Exception($response->url(), 1);
+    //         return [];
+    //     }
+
+    //     return $response->json("data") ?? [];
+    // }
+
+    public function getDocumentTypesByIds(array $documentUuids, ?string $token = null): array
+{
+    $url = config("services.document_service.base_url");
+
+
+    $http = Http::timeout(20)
+        ->acceptJson();
+
+
+    if ($token) {
+
+        $http = $http->withHeaders([
+            'X-Service-Token' => $token,
         ]);
 
-        if (!$response->ok()) {
-            throw new Exception($response->url(), 1);
-            return [];
-        }
+    } else {
 
-        return $response->json("data") ?? [];
+        $http = $http->withToken(
+            request()->bearerToken()
+        );
     }
+
+
+    $response = $http->post(
+        "{$url}/types-by-ids",
+        [
+            "ids" => $documentUuids,
+        ]
+    );
+
+
+    if (!$response->ok()) {
+        throw new Exception(
+            "Document service error : ".$response->body()
+        );
+    }
+
+
+    return $response->json("data") ?? [];
+}
 }

@@ -951,20 +951,20 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         //}
 
         // ✅ Appeler ton service
-        return $result = $this->workflowInstanceService->notifyNextValidator(
+        return $this->workflowInstanceService->notifyNextValidator(
             $workflowInstanceStep,
             $request,
             $departmentId
         );
 
-        if ($result && $result["success"]) {
-            return $result;
-        } else {
-            return response()->json([
-                "success" => false,
-                //  'data' => $result
-            ]);
-        }
+        // if ($result && $result["success"]) {
+        //     return $result;
+        // } else {
+        //     return response()->json([
+        //         "success" => false,
+        //         //  'data' => $result
+        //     ]);
+        // }
     }
 
     public function testRemind()
