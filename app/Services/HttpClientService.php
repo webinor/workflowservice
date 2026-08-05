@@ -85,6 +85,9 @@ class HttpClientService
                 "body" => $e->response ? $e->response->body() : null,
             ]);
 
+//   throw new \Exception(json_encode($e->response->json()), 1);
+            
+
             return [
                 "success" => false,
                  "url"=>"{$this->baseUrl}/$uri",

@@ -39,8 +39,10 @@ class ParticipantService
 
 
      
-     $participants = app(UserEnricher::class)
-    ->enrich($participants);
+     $participants = app(UserEnricher::class)->enrich($participants);
+
+//   throw new \Exception(json_encode($participants), 1);
+
 
     
 $businessSignatures = app(ActorEnricher::class)
@@ -50,51 +52,7 @@ $businessSignatures = app(ActorEnricher::class)
     "business_signatures"=>$businessSignatures];
 
 
-     $userIds = collect($participants)
-    ->pluck('user_id')
-    ->filter()
-    ->unique()
-    ->values()->toArray();
-
-
-    $client = HttpClientService::service('user');
-
-    $users = $client->get("getByIds", ["ids" => implode(",", $userIds)])['data'];
-
-    $usersById = collect($users)
-    ->keyBy('id');
-
-    $enrichedParticipants = collect($participants)
-    ->map(function ($p) use ($usersById) {
-
-        $user = $usersById->get($p['user_id']);
-
-        return  array_merge($p , [
-                'user' => $user ? [
-                'id' => $user['id'],
-                'name' => $user['name'],
-                'email' => $user['email'],
-                'role' => $user['role'],
-                'signatureUrl' => $user['signatureUrl'],
-                
-            ] : []
-        ])  ;
-    })
-    ->values()
-    ->toArray();
-
-    $businessSignatures = collect($businessSignatures)
-    ->map(function ($signature) use ($usersById) {
-
-        $signature['user'] = $usersById[$signature['user_id']] ?? null;
-
-        return $signature;
-    })
-    ->values()
-    ->toArray();
-
-
-    return $enrichedParticipants;
+    
 
     
 }

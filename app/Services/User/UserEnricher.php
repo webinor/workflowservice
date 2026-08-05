@@ -19,12 +19,19 @@ class UserEnricher
             return $items;
         }
 
+
+
         $client = HttpClientService::service('user');
 
         $users = $client->get(
             'getByIds',
             ['ids' => implode(',', $userIds)]
         )['data'] ?? [];
+
+//   throw new \Exception(json_encode(collect($users)), 1);
+//   throw new \Exception(json_encode(collect($users)->pluck('responsibilities.code')), 1);
+
+
 
         $usersById = collect($users)
             ->keyBy('id')
