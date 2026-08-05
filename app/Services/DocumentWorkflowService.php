@@ -814,7 +814,7 @@ return $query;
             ->values();
     }
 
-    private function getCompletedStepsByPermissions(
+    private function getStepsByPermissions(
         array $completedSteps,
         array $permissions
     ): array {
@@ -935,8 +935,21 @@ return $query;
             ->get()
             ->toArray();
 
-        $completedStepWithSignPermission = $this->getCompletedStepsByPermissions(
+        $steps = WorkflowInstanceStep::query()
+            ->where("workflow_instance_id", $workflowInstance->id)
+            // ->where("status", "COMPLETE")
+            ->with(["workflowStep.workflowActionSteps.workflowAction"])
+            ->get()
+            ->toArray();
+
+        $completedStepWithSignPermission = $this->getStepsByPermissions(
             $completedSteps,
+            ["sign"]
+        );
+
+
+        $stepWithSignPermission = $this->getStepsByPermissions(
+            $steps,
             ["sign"]
         );
 
@@ -952,12 +965,34 @@ return $query;
             ->values()
             ->toArray();
 
-        if (!empty($completedStepWithSignPermission)) {
-        } else {
-            if (in_array("ACCOUNTING", $responsibilities)) {
-                return false;
-            }
-        }
+
+        // if (!empty($stepWithSignPermission) && empty($completedStepWithSignPermission)) {
+
+        //  if (in_array("ACCOUNTING", $responsibilities)) {
+        //         return false;
+        //     }
+
+        // } else {
+
+           
+        // }
+
+          $hasSignStep = !empty($stepWithSignPermission);
+
+$hasCompletedSignStep = !empty($completedStepWithSignPermission);
+
+$isAccounting = in_array(
+    "ACCOUNTING",
+    $responsibilities
+);
+
+if (
+    $hasSignStep
+    && !$hasCompletedSignStep
+    && $isAccounting
+) {
+    return false;
+}
 
         // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
 

@@ -437,157 +437,6 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
      * @return \Illuminate\Http\Response
      */
 
-    public function Oldstore(
-        StoreWorkflowInstanceRequest $request,
-        WorkflowDynamicResolverService $resolver,
-        WorkflowPathResolverService $pathResolver
-    ) {
-        DB::beginTransaction();
-
-        try {
-            $validated = $request->validated();
-            $userConnected = $validated["created_by"];
-
-            $STATUS_NOT_STARTED = "NOT_STARTED";
-            $STATUS_PENDING = "PENDING";
-            $STATUS_COMPLETE = "COMPLETE";
-
-            $departmentId = $validated["department_id"];
-
-            // 1️⃣ Créer l'instance de workflow
-            $workflowInstance = WorkflowInstance::create([
-                "workflow_id" => $validated["workflow_id"],
-                "document_id" => $validated["document_id"],
-                "document_uuid" => $validated["document_uuid"],
-                "status" => $STATUS_PENDING,
-            ]);
-
-            // return
-            // 2️⃣ Créer toutes les étapes de l'instance
-            $instanceSteps = [];
-
-            // throw new Exception(json_encode($documentData));
-
-
-            $documentData = $this->getDocumentData($workflowInstance, $request);
-
-            // throw new Exception(json_encode($documentData));
-
-            // $validated["steps"];
-
-            //  throw new Exception(json_encode(collect($validated["steps"])->pluck('id')  , JSON_PRETTY_PRINT), 1);
-
-            $strict = [];
-
-            $firstStep = $this->getFirstStepInstance($workflowInstance);
-
-
-            foreach ($validated["steps"] as $index => $step) {
-                //  throw new Exception(($step["id"]), 1);
-
-
-              
-
-                if ($step["id"] == 230) {
-                    //    throw new Exception(json_encode($step), 1);
-                }
-
-                $strict[] = [
-                    "value" => $step["assignment_mode"],
-                    "is_stict" => $step["assignment_mode"] === "DYNAMIC",
-                ];
-
-                if ($step["assignment_mode"] === "STATIC") {
-                    //  throw new Exception(json_encode($step), 1);
-                }
-                // return $step;
-                // Déterminer les rôles à partir de assignationMode
-                $stepRoles = [];
-
-                $stepRoles = $this->getStepRolesIds(
-                    $step,
-                    $userConnected,
-                    $resolver,
-                    $documentData
-                );
-
-                if ($stepRoles == []) {
-                    //    throw new Exception(json_encode($stepRoles));
-                }
-
-                $initialStatus =
-                    $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
-
-                $a = $this->activateStep(
-                    $step,
-                    $stepRoles,
-                    $initialStatus,
-                    $workflowInstance,
-                    $step["position"],
-                    $STATUS_COMPLETE,
-                    $userConnected
-                );
-
-                //    throw new Exception(json_encode($a));
-            }
-
-            // $documentData = $this->getDocumentData($workflowInstance, $request);
-
-            //  throw new Exception(json_encode($strict), 1);
-
-            // $firstStep = $this->getFirstStepInstance($workflowInstance);
-
-            //  throw new Exception(json_encode($firstStep), 1);
-
-            $stepData = $this->getNextStep(
-                $workflowInstance,
-                $firstStep,
-                $documentData
-            );
-
-
-
-            $nextStep = $stepData["next_step"];
-
-            
-            if ($nextStep) {
-                $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
-
-                //    throw new Exception(json_encode($roleIdsToNotify), 1);
-
-                $nextStep->update(["status" => "PENDING"]);
-                $workflowInstance->update([
-                    "workflow_status_label_id" =>
-                        $stepInstance->workflowStep->workflowStatusLabel->id ??
-                        null,
-                ]);
-
-                $this->workflowInstanceService->notifyNextValidator(
-                    $nextStep,
-                    $request,
-                    $departmentId,
-                    $roleIdsToNotify
-                );
-            }
-
-            //    throw new Exception(json_encode($roleIdsToNotify), 1);
-
-            DB::commit();
-
-            return response()->json(
-                $workflowInstance->load(["instance_steps"]),
-                // $workflowInstance->load(["instance_steps" ,"activeInstanceStep.workflowStep.workflowStatusLabel"]),
-                201
-            );
-
-            /* return response()->json(["success"=>false,"data"=>["workfowInstance"=>
-             $workflowInstance->load('instance_steps')]], 201);*/
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
-    }
-
      public function store(
         StoreWorkflowInstanceRequest $request,
         WorkflowDynamicResolverService $resolver,
@@ -654,7 +503,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
     $documentData
 );
 
-                            // throw new Exception(json_encode($reachableSteps));
+                            // throw new Exception(json_encode(collect($reachableSteps)->pluck('name')));
 
 
                             // foreach ($validated['steps'] as $index => $step) {
@@ -2161,6 +2010,8 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             );
         }
     }
+    
+
 
     protected function checkBlockingRules(
         WorkflowInstance $instance,
@@ -2203,6 +2054,72 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
         return ["isValid" => true, "data" => ["message" => ""]];
     }
 
+    protected function transitionConditionsAreSatisfied(
+    WorkflowTransition $transition,
+    array $documentData
+): bool {
+
+    $conditions = $transition->conditions
+        ->where('condition_kind', 'PATH');
+
+
+    if ($conditions->isEmpty()) {
+        return false;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Les conditions sont regroupées par groupe
+    |--------------------------------------------------------------------------
+    |
+    | Un groupe = ET
+    | Plusieurs groupes = OU
+    |
+    | Exemple :
+    |
+    | Groupe 1:
+    |   montant > 1000
+    |   type = ACHAT
+    |
+    | Groupe 2:
+    |   montant > 5000
+    |
+    | Si groupe 1 OU groupe 2 est vrai => transition valide
+    |
+    */
+
+
+    $groups = $conditions->groupBy('group_id');
+
+
+    foreach ($groups as $groupConditions) {
+
+        $validGroup = true;
+
+
+        foreach ($groupConditions as $condition) {
+
+            if (!$this->evaluateCondition(
+                $condition,
+                $documentData
+            )) {
+
+                $validGroup = false;
+                break;
+            }
+        }
+
+
+        if ($validGroup) {
+            return true;
+        }
+    }
+
+
+    return false;
+}
+
     /**
      * Retourne l'étape suivante selon les transitions et conditions
      */
@@ -2237,63 +2154,80 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             ->where("from_step_id", $currentStep->workflow_step_id)
             ->get();
 
-        foreach ($pathtransitions as $index => $pathtransition) {
-            // Récupère les conditions PATH associées à la transition
-            // $pathConditions = WorkflowCondition::where(
-            //     "workflow_transition_id",
-            //     $transition->id
-            // )
-            //     ->where("condition_kind", "PATH")
-            //     ->get();
+            foreach ($pathtransitions as $pathtransition) {
 
-            $pathConditions = $pathtransition->conditions;
+    if (
+        $this->transitionConditionsAreSatisfied(
+            $pathtransition,
+            $documentData
+        )
+    ) {
 
-            $groupedConditions = $pathConditions->groupBy("group_id");
+        return $this->get_step(
+            $instance,
+            $pathtransition,
+            $isDynamic
+        );
+    }
+}
 
-            // throw new Exception($pathtransitions, 1);
+        // foreach ($pathtransitions as $index => $pathtransition) {
+        //     // Récupère les conditions PATH associées à la transition
+        //     // $pathConditions = WorkflowCondition::where(
+        //     //     "workflow_transition_id",
+        //     //     $transition->id
+        //     // )
+        //     //     ->where("condition_kind", "PATH")
+        //     //     ->get();
 
-            if (
-                $pathtransition->name == "paiement_to_ajout_des_justificatifs"
-            ) {
-                // throw new Exception($pathtransition, 1);
-            }
+        //     $pathConditions = $pathtransition->conditions;
 
-            // throw new Exception($pathtransition->id, 1);
-            // throw new Exception($pathConditions, 1);
+        //     $groupedConditions = $pathConditions->groupBy("group_id");
 
-            foreach ($groupedConditions as $groupId => $pathConditions) {
-                $allSatisfied = true;
+        //     // throw new Exception($pathtransitions, 1);
 
-                foreach ($pathConditions as $condition) {
-                    //return $this->evaluateCondition($condition, $documentData);
-                    if (!$this->evaluateCondition($condition, $documentData)) {
-                        $allSatisfied = false;
-                        break; // une seule condition PATH non remplie → on ignore cette transition
-                    }
-                }
+        //     if (
+        //         $pathtransition->name == "paiement_to_ajout_des_justificatifs"
+        //     ) {
+        //         // throw new Exception($pathtransition, 1);
+        //     }
 
-                //   throw new Exception(json_encode($allSatisfied), 1);
+        //     // throw new Exception($pathtransition->id, 1);
+        //     // throw new Exception($pathConditions, 1);
 
-                // ✅ SI UN GROUPE EST VALIDE → ON PREND LA TRANSITION
-                if ($allSatisfied) {
-                    //   throw new Exception(json_encode($pathtransition), 1);
+        //     foreach ($groupedConditions as $groupId => $pathConditions) {
+        //         $allSatisfied = true;
 
-                    return $this->get_step(
-                        $instance,
-                        $pathtransition,
-                        $isDynamic
-                    );
-                }
+        //         foreach ($pathConditions as $condition) {
+        //             //return $this->evaluateCondition($condition, $documentData);
+        //             if (!$this->evaluateCondition($condition, $documentData)) {
+        //                 $allSatisfied = false;
+        //                 break; // une seule condition PATH non remplie → on ignore cette transition
+        //             }
+        //         }
 
-                //     if (!$allSatisfied) {
-                //         continue;
-                //     }
+        //         //   throw new Exception(json_encode($allSatisfied), 1);
 
-                // return    $this->get_step($instance , $pathtransition , $isDynamic);
+        //         // ✅ SI UN GROUPE EST VALIDE → ON PREND LA TRANSITION
+        //         if ($allSatisfied) {
+        //             //   throw new Exception(json_encode($pathtransition), 1);
 
-                // throw new Exception($tempWorkflowInstanceStep, 1);
-            }
-        }
+        //             return $this->get_step(
+        //                 $instance,
+        //                 $pathtransition,
+        //                 $isDynamic
+        //             );
+        //         }
+
+        //         //     if (!$allSatisfied) {
+        //         //         continue;
+        //         //     }
+
+        //         // return    $this->get_step($instance , $pathtransition , $isDynamic);
+
+        //         // throw new Exception($tempWorkflowInstanceStep, 1);
+        //     }
+        // }
 
         // throw new Exception("aucune satisfaite", 1);
 
@@ -2318,39 +2252,67 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             "conditions" => function ($q) {
                 $q->where("condition_kind", "PATH");
             },
-            "toStep"
+            "toStep",
+            "conditions.workflow_transition"
         ])
         ->where("from_step_id", $currentStep['id'])
         // ->orderBy("priority")
         ->get();
 
-
-    foreach ($pathTransitions as $transition) {
-
-        $conditions = $transition->conditions;
-
-        // Les conditions d'une même transition doivent être toutes vraies
-        $valid = true;
-
-        foreach ($conditions as $condition) {
-
-            if (!$this->evaluateCondition($condition, $documentData)) {
-                
-            //  throw new Exception(json_encode($condition), 1);
-
-                $valid = false;
-                break;
-            }
-        }
+            
+    // throw new Exception(json_encode($pathTransitions->pluck('name')), 1);
+    
+       foreach ($pathTransitions as $transition) {
 
 
-        if ($valid) {
-
-            //  throw new Exception(json_encode($transition), 1);
+        if (
+            $this->transitionConditionsAreSatisfied(
+                $transition,
+                $documentData
+            )
+        ) {
 
             return $transition->toStep;
         }
+
     }
+
+
+    // foreach ($pathTransitions as $transition) {
+
+    //     $conditions = $transition->conditions;
+
+    //     // Les conditions d'une même transition doivent être toutes vraies
+    //     $valid = true;
+
+    // // throw new Exception(json_encode($conditions->pluck('workflow_transition.name')), 1);
+    // // throw new Exception(json_encode($conditions), 1);
+
+
+    //     foreach ($conditions as $condition) {
+
+    //         if (!$this->evaluateCondition($condition, $documentData)) {
+                
+             
+
+    //             $valid = false;
+    //             break;
+    //         }
+    //         else{
+    //             // throw new Exception(json_encode($condition->value), 1);
+    //         }
+    //     }
+
+
+    //     if ($valid) {
+
+    //      throw new Exception(json_encode($condition->value), 1);
+
+    //         //  throw new Exception(json_encode($transition), 1);
+
+    //         return $transition->toStep;
+    //     }
+    // }
 
 
     // 2. Sinon prendre la transition par défaut
@@ -2416,6 +2378,10 @@ protected function getReachableSteps(
             $step,
             $documentData
         );
+
+        // throw new Exception(json_encode($step), 1);
+        // throw new Exception(json_encode($nextStep), 1);
+        
 
 
         if ($nextStep) {
@@ -2667,7 +2633,7 @@ protected function getReachableSteps(
                 $conditionValue = [$conditionValue];
             }
 
-            //   throw new Exception(json_encode($conditionValue), 1);
+            //   throw new Exception(json_encode(empty(array_diff($conditionValue, $userPermissions))), 1);
 
             switch ($condition->operator) {
                 case "ANY":
@@ -2700,6 +2666,10 @@ protected function getReachableSteps(
 
         if ($condition->condition_type === "isManager") {
             return in_array("MANAGER", $data["user"]["roles"] ?? []);
+        }
+
+        if ($condition->condition_type === "isHead") {
+            return in_array("HEAD_OF_DEPARTMENT", $data["user"]["roles"] ?? []);
         }
 
         // Si le type de condition est 'comparison' ou autre basé sur un opérateur

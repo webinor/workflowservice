@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkflowCondition extends Model
 {
@@ -32,4 +33,15 @@ class WorkflowCondition extends Model
     'value' => 'array',
 
 ];
+
+/**
+ * Get the transition that owns the transition
+ *
+ * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+ */
+public function workflow_transition(): BelongsTo
+{
+    return $this->belongsTo(WorkflowTransition::class, );
+}
+
 }
