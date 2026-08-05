@@ -126,7 +126,7 @@ public function isReturnedForModification(
 
 
         $workflowInstance = $stepInstance->workflowInstance;
-        $documentId = $workflowInstance->document_id;
+        $documentId = $workflowInstance->document_uuid;
         $stepName = $stepInstance->workflowStep->name;
 
         $workflowId = $workflowInstance->workflow_id;
