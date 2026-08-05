@@ -461,6 +461,15 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                                 "workflow_id" => $validated["workflow_id"],
                                 "document_id" => $validated["document_id"],
                                 "document_uuid" => $validated["document_uuid"],
+                                
+                                "document_type_id" => $validated["document_type_id"],
+                                "document_type_slug" => $validated["document_type_slug"],
+                                "document_type_version" => $validated["document_type_version"] ?? 1,
+
+    //                                 'document_type_id' => $document->document_type_id,
+    // 'document_type_slug' => $document->document_type_slug,
+    // 'document_type_version' => $document->document_type_version,
+
                                 "status" => $STATUS_PENDING,
                             ]);
 
