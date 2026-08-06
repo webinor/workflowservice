@@ -67,6 +67,13 @@ class DocumentWorkflowService
     */
         $baseQuery = $this->buildWorkflowQuery($validationContext);
 
+
+        if (!empty($document_type)) {
+    // $baseQuery->where(
+    //     "workflow_instances.document_type_slug",
+    //     $document_type
+    // );
+}
         /*
     |--------------------------------------------------------------------------
     | Documents filtrés
@@ -88,6 +95,9 @@ class DocumentWorkflowService
         // $documentIds = collect($documentIdsNotPaginated->items())
         $documentIds = collect($documentIdsNotPaginated)->pluck("document_id");
 
+        throw new Exception(json_encode($documentIds->count()), 1);
+
+
         $flatDocuments = collect(
             $this->documentClient->getDocumentTypesByIds(
                 $documentIds->toArray()
@@ -96,7 +106,7 @@ class DocumentWorkflowService
             ->sortByDesc("id")
             ->values()
             ->all();
-
+ 
         // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
         // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
 
@@ -707,7 +717,6 @@ return $query;
             "documents" => $documents,
         ];
 
-        // throw new Exception("Error Processing Request", 1);
 
         $permissions = $workflowPermissionService->checkPermissions2(
             $data,

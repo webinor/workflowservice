@@ -14,7 +14,7 @@ class MakeDocumentTypeFieldsNotNullableOnWorkflowInstancesTable extends Migratio
                 ->nullable(false)
                 ->change();
 
-            $table->string('document_type_slug')
+            $table->string('document_type_relation_name')
                 ->nullable(false)
                 ->change();
 
@@ -33,7 +33,7 @@ class MakeDocumentTypeFieldsNotNullableOnWorkflowInstancesTable extends Migratio
                 ->nullable()
                 ->change();
 
-            $table->string('document_type_slug')
+            $table->string('document_type_relation_name')
                 ->nullable()
                 ->change();
 

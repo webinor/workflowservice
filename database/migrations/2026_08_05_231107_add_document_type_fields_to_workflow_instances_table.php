@@ -14,17 +14,17 @@ return new class extends Migration
                 ->nullable()
                 ->after('document_uuid');
 
-            $table->string('document_type_slug')
+            $table->string('document_type_relation_name')
                 ->nullable()
                 ->after('document_type_id');
 
             $table->string('document_type_version')
                 ->nullable()
-                ->after('document_type_slug');
+                ->after('document_type_relation_name');
 
 
             $table->index('document_type_id');
-            $table->index('document_type_slug');
+            $table->index('document_type_relation_name');
         });
     }
 
@@ -38,12 +38,12 @@ return new class extends Migration
             ]);
 
             $table->dropIndex([
-                'document_type_slug'
+                'document_type_relation_name'
             ]);
 
             $table->dropColumn([
                 'document_type_id',
-                'document_type_slug',
+                'document_type_relation_name',
                 'document_type_version'
             ]);
         });

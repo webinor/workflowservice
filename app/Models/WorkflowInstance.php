@@ -16,7 +16,7 @@ protected $fillable = [
     'document_id',
     'document_uuid',
     'document_type_id',
-    'document_type_slug',
+    'document_type_relation_name',
     'document_type_version',
     'status',
     'workflow_status_label_id',

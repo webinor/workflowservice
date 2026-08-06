@@ -63,7 +63,7 @@ class BackfillWorkflowInstanceDocumentType extends Command
 
 
         WorkflowInstance::query()
-            ->whereNull('document_type_slug')
+            // ->whereNull('document_type_relation_name')
             ->orderBy('id')
             ->chunkById(
                 $chunkSize,
@@ -156,8 +156,8 @@ class BackfillWorkflowInstanceDocumentType extends Command
                                 'document_type_id' =>
                                     $document['document_type_id'] ?? null,
 
-                                'document_type_slug' =>
-                                    $document['document_type_slug'] ?? null,
+                                'document_type_relation_name' =>
+                                    $document['document_type_relation_name'] ?? null,
 
                                 'document_type_version' =>
                                     $document['document_type_version'] ?? null,
@@ -182,7 +182,8 @@ class BackfillWorkflowInstanceDocumentType extends Command
                              * on ne remplace jamais une valeur existante
                              */
                             if (
-                                empty($instance->document_type_slug)
+                                true
+                                // empty($instance->document_type_relation_name)
                             ) {
 
                                 $instance->update($data);
