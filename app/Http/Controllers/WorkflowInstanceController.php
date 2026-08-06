@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CancelWorkflowInstanceRequest;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\WorkflowInstance;
@@ -426,6 +427,80 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             "workflow_status" => $workflowInstance->status,
             "steps" => $instanceSteps,
         ]);
+    }
+
+
+       public function cancel(CancelWorkflowInstanceRequest $request, string $documentUuid)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $instance = WorkflowInstance::where(
+                'document_uuid',
+                $documentUuid
+            )->first();
+
+
+            if (!$instance) {
+                return response()->json([
+                    "message" => "Instance workflow introuvable"
+                ], 404);
+            }
+
+
+        $userId =  $request->get("user")['id'];
+        
+
+            // $documentData = $this->getDocumentData($instance, $request);
+
+
+
+            if (!$this->workflowInstanceService->cancelable($instance)) {
+
+                return response()->json([
+                    "message" =>
+                        "Ce document ne peut plus être annulé"
+                ], 422);
+
+            }
+
+
+            $this->workflowInstanceService->cancel(
+                $instance,
+                $userId,
+                $request->input('reason')
+            );
+
+
+            DB::commit();
+
+
+            return response()->json([
+                "message" =>
+                    "Document annulé avec succès"
+            ]);
+
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+
+            Log::error(
+                "[WORKFLOW:CANCEL] Erreur annulation document",
+                [
+                    "document_uuid" => $documentUuid,
+                    "message" => $e->getMessage()
+                ]
+            );
+
+
+            return response()->json([
+                "message" =>
+                    "Erreur lors de l'annulation du document"
+            ], 500);
+        }
     }
 
     

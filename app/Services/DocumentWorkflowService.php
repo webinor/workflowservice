@@ -19,6 +19,8 @@ class DocumentWorkflowService
     protected WorkflowInstanceResolverService $resolver;
     protected DocumentEnricherRegistry $registry;
     protected DocumentServiceClient $documentClient;
+    protected WorkflowInstanceService $workflowInstanceService;
+
 
     const CONTEXT_VALIDATION = "TO_VALIDATE";
     const CONTEXT_MY_DOCUMENTS = "MY_DOCUMENTS";
@@ -29,14 +31,20 @@ class DocumentWorkflowService
     const FILTER_REJECTED = "REJECTED";
     const FILTER_ALL_DOCUMENTS = "ALL_DOCUMENTS";
 
+
+   
     public function __construct(
         WorkflowInstanceResolverService $workflowInstanceResolverService,
         DocumentEnricherRegistry $documentEnricherRegistry,
-        DocumentServiceClient $documentClient
+        DocumentServiceClient $documentClient,
+        WorkflowInstanceService $workflowInstanceService
+
     ) {
         $this->resolver = $workflowInstanceResolverService;
         $this->registry = $documentEnricherRegistry;
         $this->documentClient = $documentClient;
+        $this->workflowInstanceService = $workflowInstanceService;
+
     }
 
     public function getDocuments(
@@ -209,6 +217,18 @@ class DocumentWorkflowService
             ];
         }
 
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Workflow instances
+    |--------------------------------------------------------------------------
+    */
+        $workflowInstances = WorkflowInstance::query()
+            ->whereIn("document_id", $documentIds)
+            ->get()
+            ->keyBy("document_id");
+
         /*
     |--------------------------------------------------------------------------
     | Availability Context
@@ -223,10 +243,10 @@ class DocumentWorkflowService
         $contextsByDocId = collect($availabilityContexts)->keyBy("document_id");
 
         $documents = collect($documents)
-            ->map(function ($doc) use ($contextsByDocId) {
+            ->map(function ($doc) use ($contextsByDocId , $workflowInstances , $userId) {
                 $context = $contextsByDocId->get($doc["id"]);
 
-                return $this->enrichDocument($doc, $context);
+                return $this->enrichDocument($doc, $workflowInstances[$doc["id"]], $userId , $context);
             })
             ->values()
             ->toArray();
@@ -248,15 +268,6 @@ class DocumentWorkflowService
 
         // throw new Exception(json_encode($permissionsByDocType), 1);
 
-        /*
-    |--------------------------------------------------------------------------
-    | Workflow instances
-    |--------------------------------------------------------------------------
-    */
-        $workflowInstances = WorkflowInstance::query()
-            ->whereIn("document_id", $documentIds)
-            ->get()
-            ->keyBy("document_id");
 
         /*
     |--------------------------------------------------------------------------
@@ -352,7 +363,7 @@ return $query;
         return $query;
     }
 
-    private function enrichDocument(array $doc, ?array $context): array
+    private function enrichDocument(array $doc, WorkflowInstance $instance , $currentUserId, ?array $context): array
     {
         if (!isset($doc["document_type_slug"])) {
             // throw new Exception(json_encode($doc), 1);
@@ -360,7 +371,17 @@ return $query;
 
         $resolver = $this->registry->resolve($doc["document_type"]["slug"]);
 
-        return $resolver->enrich($doc, $context);
+        
+        $resolved =  $resolver->enrich($doc, $context);
+
+         $cancelable = $this->workflowInstanceService->cancelable(
+                $instance 
+            );
+
+        $resolved['availability']['can_cancel'] = $cancelable && ( $currentUserId == $doc['created_by'] );
+       
+
+        return $resolved;
     }
 
     public function availabilityContexts(array $documentIds)
@@ -763,6 +784,7 @@ return $query;
 
                 $doc["workflow_status"] = null;
                 $doc["can_validate"] = false;
+            
 
                 $status_label_resolved =
                     $this->resolver->resolveWorkflowStatusLabel($instance) ??

@@ -103,6 +103,16 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'is_configurable' => true,
         'status_type' => 'COMMON',
     ],
+
+    [
+    'code' => 'CANCELLED',
+    'label' => 'Annulée',
+    'emoji' => '🚫',
+    'color' => 'error',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
     [
         'code' => 'ARCHIVED',
         'label' => 'Archivée',

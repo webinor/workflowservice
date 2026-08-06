@@ -108,7 +108,87 @@ public function isReturnedForModification(
         ->where('new_status', 'RETURNED_FOR_MODIFICATION')
         ->exists();
 }
+public function cancelable(WorkflowInstance $instance): bool
+{
+    // workflow déjà terminé
+    if (in_array($instance->status, [
+        'COMPLETE',
+        'REJECTED',
+        'CANCELLED',
+    ])) {
+        return false;
+    }
 
+
+
+    // throw new Exception(json_encode('$instance'), 1);
+
+
+    // une validation (hors soumission) a déjà eu lieu
+    if (
+        $instance->instance_steps()
+            ->where('position', '>', 0)
+            ->where('status', 'COMPLETE')
+            ->exists()
+    ) {
+
+        
+        return false;
+        
+        
+        }
+        
+        // throw new Exception("Error Processing Request", 1);
+    
+
+    return true;
+}
+
+public function cancel(
+    WorkflowInstance $instance,
+    int $userId,
+    string $reason 
+) {
+
+    $instance->update([
+        'status' => 'CANCELLED',
+    ]);
+
+    // return 
+    // WorkflowStatusLabel::where(
+    //     'code',
+    //     'CANCELLED'
+    // )->first();
+
+
+
+    $instance->instance_steps()
+        ->whereIn('status', [
+            'PENDING',
+            'NOT_STARTED'
+        ])
+        ->update([
+            'status' => 'CANCELLED'
+        ]);
+
+
+    // WorkflowStatusHistory::create([
+    //     'workflow_instance_id' => $instance->id,
+    //     'action' => 'CANCELLED',
+    //     'user_id' => $userId,
+    //     'comment' => $reason,
+    // ]);
+
+    WorkflowStatusHistory::create([
+         'model_id' => $instance->id,
+            'model_type' => WorkflowInstance::class,
+            'old_status' => 'PENDING',
+            'new_status' => 'CANCELLED',
+            'changed_by' => $userId,
+            'comment' => $reason,
+    ]);
+    
+}
 
     public function notifyNextValidator(
         WorkflowInstanceStep $stepInstance,

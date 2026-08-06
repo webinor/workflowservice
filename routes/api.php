@@ -114,6 +114,8 @@ Route::post(
                     "validateStep"
                 );
 
+                Route::post('/workflow-instances/{documentUuid}/cancel','cancel');
+
                 Route::post(
                     "/workflow-instances/{documentId}/return",
                     "returnForModification"

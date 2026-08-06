@@ -33,20 +33,75 @@ class WorkflowInstanceResolverService
             ->first();
     }
 
+    public function OldgetCurrentStep(
+    WorkflowInstance $instance
+): ?WorkflowInstanceStep
+{
+
+    /*
+    |--------------------------------------------------------------------------
+    | Etape active
+    |--------------------------------------------------------------------------
+    */
+    $pendingStep = $instance
+        ->instance_steps()
+        ->with([
+            'workflowStep.workflowActionSteps',
+            'workflowStatusLabel'
+        ])
+        ->where("status", "PENDING")
+        ->orderBy("position", "asc")
+        ->first();
+
+
+    if ($pendingStep) {
+        return $pendingStep;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sinon dernière étape connue
+    |--------------------------------------------------------------------------
+    |
+    | Cas :
+    | - COMPLETE
+    | - CANCELLED
+    | - REJECTED
+    | - RETURNED
+    |
+    */
+    return $instance
+        ->instance_steps()
+        ->with([
+            'workflowStep.workflowActionSteps',
+            'workflowStatusLabel'
+        ])
+        ->orderByDesc("position")
+        ->first();
+}
+
     public function resolveWorkflowStatusLabel(
         WorkflowInstance $instance
     ): ?WorkflowStatusLabel {
 
-        $currentStep = $this->getCurrentStep($instance);
+        $currentInstanceStep = $this->getCurrentStep($instance);
 
-        //   throw new \Exception(json_encode($currentStep), 1);
+        //   throw new \Exception(json_encode($currentInstanceStep), 1);
 
-        if (!$currentStep) {
-            return null;
-        }
+        if (!$currentInstanceStep) {
 
-        $step = $currentStep->workflowStep;
+    return WorkflowStatusLabel::where(
+        'code',
+        $instance->status
+    )->first();
 
+}
+
+        $step = $currentInstanceStep->workflowStep;
+
+
+        
         // étape paiement
         if ($step->is_payment_step) { //cette fonction permet de savoir le status de paiement 
 
@@ -66,10 +121,12 @@ class WorkflowInstanceResolverService
             // )->first();
         }
 
-              
 
-        if ($currentStep->workflowStatusLabel) {
-            return $currentStep->workflowStatusLabel;
+
+              
+        // label configuré sur la instance step
+        if ($currentInstanceStep->workflowStatusLabel) {
+            return $currentInstanceStep->workflowStatusLabel;
         }
 
 

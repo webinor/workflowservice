@@ -33,15 +33,13 @@ use function PHPUnit\Framework\isEmpty;
 
 class WorkflowController extends Controller
 {
-
-
- protected WorkflowInstanceService $workflowInstanceService;
+    protected WorkflowInstanceService $workflowInstanceService;
     // protected WorkflowInstanceResolverService $resolver;
 
     public function __construct(
         WorkflowInstanceService $workflowInstanceService
-        // WorkflowInstanceResolverService $workflowInstanceResolverService
     ) {
+        // WorkflowInstanceResolverService $workflowInstanceResolverService
         $this->workflowInstanceService = $workflowInstanceService;
         // $this->resolver = $workflowInstanceResolverService;
     }
@@ -275,13 +273,14 @@ class WorkflowController extends Controller
                                                         $condition->field,
                                                     "operator" =>
                                                         $condition->operator,
-                                                    "value" => $condition->value,
-                                                        // $condition->condition_type ===
-                                                        // "comparison"
-                                                        //     ? floatval(
-                                                        //         $condition->value
-                                                        //     )
-                                                        //     : $condition->value,
+                                                    "value" =>
+                                                        $condition->value,
+                                                    // $condition->condition_type ===
+                                                    // "comparison"
+                                                    //     ? floatval(
+                                                    //         $condition->value
+                                                    //     )
+                                                    //     : $condition->value,
                                                     "nextStep" =>
                                                         $condition->next_step_id,
                                                 ];
@@ -325,9 +324,8 @@ class WorkflowController extends Controller
     }
 
     public function getAvailabilityContext(
-
         DocumentWorkflowService $documentWorkflowService,
-         $documentId
+        $documentId
     ) {
         return $documentWorkflowService->availabilityContext($documentId);
     }
@@ -336,35 +334,19 @@ class WorkflowController extends Controller
         WorkflowInstanceResolverService $resolver,
         $documentId
     ) {
-
-
-     if (Str::isUuid($documentId)) {
-    $documentKey = "document_uuid";
-} else {
-        $documentKey = "document_id";
-}
+        if (Str::isUuid($documentId)) {
+            $documentKey = "document_uuid";
+        } else {
+            $documentKey = "document_id";
+        }
 
         Log::info("[WORKFLOW:STATUS] Start", [
             $documentKey => $documentId,
         ]);
 
+        $instance = WorkflowInstance::where($documentKey, $documentId)->first();
 
-
-
-
-
-        $instance = WorkflowInstance::where(
-            $documentKey,
-            $documentId
-        )->first();
-
-        $signatures = Signature::where(
-            $documentKey,
-            $documentId
-        )->get();
-
-    // throw new \Exception(json_encode($instance), 1);
-
+        $signatures = Signature::where($documentKey, $documentId)->get();
 
         if (!$instance) {
             Log::warning("[WORKFLOW:STATUS] Workflow instance not found", [
@@ -373,7 +355,8 @@ class WorkflowController extends Controller
 
             return [
                 "status" => null,
-            'isReturnedForModification' => false,
+                "isReturnedForModification" => false,
+                "cancelable" =>false,
                 "step" => null,
                 "transaction_types" => [],
             ];
@@ -384,8 +367,7 @@ class WorkflowController extends Controller
             "status" => $instance->status,
         ]);
 
-    // throw new \Exception('iciiiiiiii', 1);
-
+        // throw new \Exception('iciiiiiiii', 1);
 
         $currentInstanceStep = $resolver->getCurrentStep($instance);
 
@@ -396,19 +378,23 @@ class WorkflowController extends Controller
 
             return [
                 "status" => $instance->status,
-            'isReturnedForModification' => false,
+                "isReturnedForModification" => false,
+                "cancelable" =>false,
                 "step" => null,
                 "transaction_types" => [],
             ];
         }
 
         $step = $currentInstanceStep->workflowStep;
-        $permissions_required = $currentInstanceStep->workflowStep->workflowActionSteps->pluck('permission_required')->toArray() ?? [];
-        
+        $permissions_required =
+            $currentInstanceStep->workflowStep->workflowActionSteps
+                ->pluck("permission_required")
+                ->toArray() ?? [];
+
         $business_actions = [];
 
-        if (in_array("add_justificatif" , $permissions_required)) {
-            $business_actions[]="ADD_REGULARIZATION_ITEM";
+        if (in_array("add_justificatif", $permissions_required)) {
+            $business_actions[] = "ADD_REGULARIZATION_ITEM";
         }
 
         Log::info("[WORKFLOW:STATUS] Current step resolved", [
@@ -429,19 +415,20 @@ class WorkflowController extends Controller
             "transaction_types" => $transactionTypes,
         ]);
 
-
-
         $response = [
             "status" => $instance->status,
-            'isReturnedForModification' => $this->workflowInstanceService->isReturnedForModification($instance),
+            "isReturnedForModification" => $this->workflowInstanceService->isReturnedForModification(
+                $instance
+            ),
+            "cancelable"=>$this->workflowInstanceService->cancelable(
+                $instance
+            ),
             "signatures" => $signatures,
             "step" => $step->name,
-            "business_actions"=>$business_actions,
-            "permissions_required"=>$permissions_required,
+            "business_actions" => $business_actions,
+            "permissions_required" => $permissions_required,
             "transaction_types" => $transactionTypes,
         ];
-
-
 
         Log::info("[WORKFLOW:STATUS] End", $response);
 
@@ -739,13 +726,11 @@ class WorkflowController extends Controller
         return $response->json() ?? null;
     }
 
-   
-
     public function store(StoreWorkflowRequest $request)
     {
         DB::beginTransaction();
 
-        // return 
+        // return
         $request->validated();
 
         try {
@@ -897,7 +882,9 @@ class WorkflowController extends Controller
                     "is_payment_step" => $stepData["is_payment_step"],
                     "is_archived_step" => $stepData["is_archived_step"],
                     // "assignment_rule" => $stepData["assignmentRule"] ?? null,
-                    "assignment_rule" => $stepData["assignmentRule"] ?? $stepData["assignationMode"],
+                    "assignment_rule" =>
+                        $stepData["assignmentRule"] ??
+                        $stepData["assignationMode"],
                     "position" => $stepData["stepPosition"],
 
                     // IMPORTANT
@@ -1048,38 +1035,41 @@ class WorkflowController extends Controller
             */
 
                 if (!empty($transitionData["blockingRuleGroups"])) {
+                    foreach ($transitionData["blockingRuleGroups"] as $group) {
+                        $groupId = $group["id"] ?? Str::uuid()->toString();
 
-    foreach ($transitionData["blockingRuleGroups"] as $group) {
+                        foreach ($group["rules"] as $rule) {
+                            WorkflowCondition::create([
+                                "workflow_step_id" => $fromStep->id,
+                                "workflow_transition_id" =>
+                                    $workflowTransition->id,
+                                "group_id" => $groupId,
+                                "condition_kind" => "BLOCKING",
+                                "condition_type" => $rule["type"] ?? null,
+                                "required_type" =>
+                                    $rule["existsTarget"] ?? null,
+                                "required_id" => $rule["value"] ?? null,
+                                "field" =>
+                                    $rule["type"] === "exists"
+                                        ? "secondary_attachments.[].attachment_type_id"
+                                        : $rule["field"] ?? null,
+                                "operator" => $rule["operator"] ?? null,
+                                "value" => $rule["value"] ?? null,
+                            ]);
+                        }
+                    }
+                } else {
+                    // Aucun blocking rule configuré
+                    // Exemple : supprimer les anciennes règles si modification d'un workflow
 
-        $groupId = $group["id"] ?? Str::uuid()->toString();
-
-        foreach ($group["rules"] as $rule) {
-
-            WorkflowCondition::create([
-                "workflow_step_id" => $fromStep->id,
-                "workflow_transition_id" => $workflowTransition->id,
-                "group_id" => $groupId,
-                "condition_kind" => "BLOCKING",
-                "condition_type" => $rule["type"] ?? null,
-                "required_type" => $rule["existsTarget"] ?? null,
-                "required_id" => $rule["value"] ?? null,
-                "field" =>($rule["type"] === "exists" ? "secondary_attachments.[].attachment_type_id" : $rule["field"] ?? null),
-                "operator" => $rule["operator"] ?? null,
-                "value" => $rule["value"] ?? null,
-            ]);
-        }
-    }
-
-} else {
-
-    // Aucun blocking rule configuré
-    // Exemple : supprimer les anciennes règles si modification d'un workflow
-
-    WorkflowCondition::where("workflow_step_id", $fromStep->id)
-        ->where("workflow_transition_id", $workflowTransition->id)
-        ->where("condition_kind", "BLOCKING")
-        ->delete();
-}
+                    WorkflowCondition::where("workflow_step_id", $fromStep->id)
+                        ->where(
+                            "workflow_transition_id",
+                            $workflowTransition->id
+                        )
+                        ->where("condition_kind", "BLOCKING")
+                        ->delete();
+                }
 
                 /*
             |--------------------------------------------------------------------------
@@ -1088,19 +1078,18 @@ class WorkflowController extends Controller
             */
 
                 if (!empty($transitionData["pathRuleGroups"])) {
-
                     foreach ($transitionData["pathRuleGroups"] as $group) {
-                        
                         $groupId = $group["id"] ?? Str::uuid()->toString();
 
                         foreach ($group["rules"] as $rule) {
                             WorkflowCondition::create([
                                 "workflow_step_id" => $fromStep->id,
-                                "workflow_transition_id" => $workflowTransition->id,
+                                "workflow_transition_id" =>
+                                    $workflowTransition->id,
                                 "group_id" => $groupId,
                                 "condition_kind" => "PATH",
                                 "condition_type" => $rule["type"] ?? null,
-                                "field" => $rule["field"] ?? null,// isset($rule["field"]) ? $child . "." . $rule["field"] : null,
+                                "field" => $rule["field"] ?? null, // isset($rule["field"]) ? $child . "." . $rule["field"] : null,
                                 "operator" => $rule["operator"] ?? null,
                                 "value" => $rule["value"] ?? null,
                                 "next_step_id" => $toStep->id,
