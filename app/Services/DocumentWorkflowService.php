@@ -69,10 +69,10 @@ class DocumentWorkflowService
 
 
         if (!empty($document_type)) {
-    // $baseQuery->where(
-    //     "workflow_instances.document_type_slug",
-    //     $document_type
-    // );
+    $baseQuery->where(
+        "workflow_instances.document_type_relation_name",
+        $document_type
+    );
 }
         /*
     |--------------------------------------------------------------------------
@@ -95,7 +95,7 @@ class DocumentWorkflowService
         // $documentIds = collect($documentIdsNotPaginated->items())
         $documentIds = collect($documentIdsNotPaginated)->pluck("document_id");
 
-        throw new Exception(json_encode($documentIds->count()), 1);
+        // throw new Exception(json_encode($documentIds->count()), 1);
 
 
         $flatDocuments = collect(
