@@ -182,8 +182,7 @@ class BackfillWorkflowInstanceDocumentType extends Command
                              * on ne remplace jamais une valeur existante
                              */
                             if (
-                                true
-                                // empty($instance->document_type_relation_name)
+                                empty($instance->document_type_relation_name)
                             ) {
 
                                 $instance->update($data);
