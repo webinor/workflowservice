@@ -69,7 +69,14 @@ class HttpClientService
                 ->{$method}("{$this->baseUrl}/{$uri}", $data);
 
             // Si échec HTTP → throw
-            $response->throw();
+            // $response->throw();
+
+            if (!$response->ok()) {
+
+                  throw new \Exception(json_encode($response->body() ), 1);
+
+            }
+
 
             return [
                 "success" => true,
