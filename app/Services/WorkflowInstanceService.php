@@ -63,7 +63,7 @@ public function resetTargetStep(
         'status' => 'PENDING',
         'executed_at' => null,
         'comments' => null,
-        'workflow_status_label_ido' => WorkflowStatusLabel::whereCode("RETURNED_FOR_MODIFICATION")->first()->id 
+        'workflow_status_label_id' => WorkflowStatusLabel::whereCode("RETURNED_FOR_MODIFICATION")->first()->id 
 
     ]);
 
