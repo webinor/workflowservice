@@ -19,6 +19,8 @@ class WorkflowInstanceStep extends Model
         "status",
         "executed_at",
         "position",
+        "workflow_status_label_id"
+
     ];
 
     /**
