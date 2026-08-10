@@ -13,6 +13,8 @@ class WorkflowVisibilityService
      *
      * - les documents dont une étape PENDING lui est attribuée via son rôle
      * - les documents qu'il a déjà approuvés
+     * - les documents qu'il a retournés pour modification
+     * - les documents qu'il a rejetés
      */
     public function apply(
         Builder $query,
@@ -27,7 +29,7 @@ class WorkflowVisibilityService
 
             /*
             |--------------------------------------------------------------------------
-            | Étape actuelle
+            | 1. Étape actuelle PENDING
             |--------------------------------------------------------------------------
             */
 
@@ -55,7 +57,7 @@ class WorkflowVisibilityService
 
             /*
             |--------------------------------------------------------------------------
-            | Historique personnel
+            | 2. Historique personnel - APPROVED
             |--------------------------------------------------------------------------
             */
 
@@ -76,6 +78,62 @@ class WorkflowVisibilityService
                         ->where(
                             'decision',
                             'APPROVED'
+                        );
+                    }
+                );
+            })
+
+            /*
+            |--------------------------------------------------------------------------
+            | 3. Retour pour modification
+            |--------------------------------------------------------------------------
+            */
+
+            ->orWhere(function ($q) use ($userId) {
+
+                $q->where(
+                    'workflow_instance_steps.status',
+                    'PENDING'
+                )
+                ->whereHas(
+                    'assignments',
+                    function ($a) use ($userId) {
+
+                        $a->where(
+                            'user_id',
+                            $userId
+                        )
+                        ->where(
+                            'decision',
+                            'RETURNED'
+                        );
+                    }
+                );
+            })
+
+            /*
+            |--------------------------------------------------------------------------
+            | 4. Document rejeté par l'utilisateur
+            |--------------------------------------------------------------------------
+            */
+
+            ->orWhere(function ($q) use ($userId) {
+
+                $q->where(
+                    'workflow_instance_steps.status',
+                    'REJECTED'
+                )
+                ->whereHas(
+                    'assignments',
+                    function ($a) use ($userId) {
+
+                        $a->where(
+                            'user_id',
+                            $userId
+                        )
+                        ->where(
+                            'decision',
+                            'REJECTED'
                         );
                     }
                 );

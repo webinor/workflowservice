@@ -2007,24 +2007,7 @@ public function continueExistingWorkflowInstance(
                 );
             }
 
-            /*$documentData = $this->getDocumentData($instance, $request);
-
-            // 🔹 Vérifier les règles de blocage avant validation
-            $blockingData = $this->checkBlockingRules(
-                $instance,
-                $currentStep,
-                $documentData
-            );
-
-            if (!$blockingData["isValid"] && false) {
-                return response()->json([
-                    "success" => false,
-                    "message" => $blockingData["data"]["message"],
-                    "currentStep" => $currentStep,
-                    //"nextStep" => $nextStep,
-                ]);
-            }
-            */
+            
 
              $assignments = $currentStep->assignments()->get();
 
