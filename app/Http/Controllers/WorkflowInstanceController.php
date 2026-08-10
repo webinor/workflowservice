@@ -593,25 +593,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                             // foreach ($validated['steps'] as $index => $step) {
                             foreach ($reachableSteps as $index => $step) {
 
-    //                         $isReachable = $pathResolver->isReachable(
-    //         WorkflowStep::find($step['id']),
-    //         $firstStep,
-    //         $documentData,
-    //         [$this, 'evaluateCondition']
-    //     );
-
-                          
-
-
-    //                               if (!$isReachable) {
-
-    //                               $unreachableSteps[] = $step;
-
-    //                                 // throw new Exception(json_encode($step));
-    //     continue;
-    // }
-
-    //  $reachableSteps[] = $step;
+   
 
 
                     $stepRoles = $this->getStepRolesIds(
@@ -651,6 +633,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
 
                             //  throw new Exception(json_encode($firstStep), 1);
 
+
                             $stepData = $this->getNextStep(
                                 $workflowInstance,
                                 $firstStep,
@@ -661,25 +644,33 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
 
                             $nextStep = $stepData["next_step"];
 
+
                             
                             if ($nextStep) {
+
                                 $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
+
+
 
                                 //    throw new Exception(json_encode($roleIdsToNotify), 1);
 
                                 $nextStep->update(["status" => "PENDING"]);
                                 $workflowInstance->update([
-                                    "workflow_status_label_id" =>
-                                        $stepInstance->workflowStep->workflowStatusLabel->id ??
-                                        null,
+                                    "workflow_status_label_id" =>$stepInstance->workflowStep->workflowStatusLabel->id ??     null,
                                 ]);
 
+
+
+                                // return
                                 $this->workflowInstanceService->notifyNextValidator(
                                     $nextStep,
                                     $request,
                                     $departmentId,
                                     $roleIdsToNotify
                                 );
+
+                            // return $roleIdsToNotify;
+
                             }
 
                             //    throw new Exception(json_encode($roleIdsToNotify), 1);
@@ -1818,17 +1809,17 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             'comment' => $request->get('comment'),
         ]);
 
-        // DB::commit();
+        DB::commit();
 
         /**
          * 7. Notifications
          */
         DB::afterCommit(function () use ($targetStep, $request) {
 
-            $this->notifyReturnedUser(
-                $targetStep,
-                $request
-            );
+            // $this->notifyReturnedUser(
+            //     $targetStep,
+            //     $request
+            // );
 
         });
 
@@ -1847,6 +1838,142 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             'message' => $e->getMessage(),
         ],500);
 
+    }
+}
+
+public function continueExistingWorkflowInstance(
+    Request $request,
+     string $document_uuid
+) {
+    DB::beginTransaction();
+
+    try {
+
+        $userConnected = $request->get('user');
+
+        $workflowInstance = WorkflowInstance::whereDocumentUuid($document_uuid)->firstOrFail();
+
+        $documentData = $this->getDocumentData($workflowInstance, $request);
+
+        $currentStep = $this->getFirstStepInstance($workflowInstance);
+
+        // return
+        $assignments = $currentStep->assignments()->get();
+
+
+        foreach ($assignments as $key => $assignment) {
+            
+                $assignment->update([
+                    "user_id" => $userConnected["id"],
+                    "decision" => "APPROVED",
+                    "validated_at" => now(),
+                ]);
+        
+        }
+
+     
+
+
+         $hasApproved = WorkflowInstanceStepAssignment::where(
+            "instance_step_id",
+            $currentStep->id
+        )
+            ->where("decision", "APPROVED")
+            ->exists();
+
+        if ($hasApproved) {
+            $currentStep->status = "COMPLETE";
+            $currentStep->executed_at = now();
+            $currentStep->save();
+        }
+
+        // =====================================
+        // 1. Trouver l'étape suivante
+        // =====================================
+
+        $stepData = $this->getNextStep(
+            $workflowInstance,
+            $currentStep,
+            $documentData
+        );
+
+        $nextStep = $stepData["next_step"];
+
+        // =====================================
+        // 2. Vérifier s'il existe une étape suivante
+        // =====================================
+
+        if (!$nextStep) {
+
+            // Le workflow est terminé
+            $workflowInstance->update([
+                "status" => "COMPLETE",
+            ]);
+
+            DB::commit();
+
+            return $workflowInstance->fresh([
+                "instance_steps",
+                "instance_steps.assignments",
+            ]);
+        }
+
+       
+
+        // =====================================
+        // 4. Activer l'étape suivante
+        // =====================================
+
+        $nextStep->update([
+            "status" => "PENDING",
+            "due_date" => now()->addHours($nextStep->workflowStep->delay_hours ?? 24),
+        ]);
+
+        // =====================================
+        // 5. Mettre à jour l'instance
+        // =====================================
+
+        $workflowInstance->update([
+            "status" => "PENDING",
+            "workflow_status_label_idoooooooooooooooo" =>
+                $nextStep
+                    ->workflowStep
+                    ->workflowStatusLabel
+                    ->id ?? null,
+        ]);
+
+        // =====================================
+        // 6. Récupérer les rôles à notifier
+        // =====================================
+
+        $roleIdsToNotify = $this->getRoleIdsToNotify(
+            $nextStep
+        );
+
+        // =====================================
+        // 7. Notifier les validateurs
+        // =====================================
+
+        // return
+        $this->workflowInstanceService->notifyNextValidator(
+            $nextStep,
+            $request,
+            $workflowInstance->department_id ?? null,
+            $roleIdsToNotify
+        );
+
+        DB::commit();
+
+        return $workflowInstance->fresh([
+            "instance_steps",
+            "instance_steps.assignments",
+        ]);
+
+    } catch (\Throwable $th) {
+
+        DB::rollBack();
+
+        throw $th;
     }
 }
 
@@ -1910,141 +2037,7 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
                 "status" => "REJECT",
             ]);
 
-            // 4️⃣ Déterminer l’étape suivante via les transitions conditionnelles
-            /*$stepData = $this->getNextStep(
-                $instance,
-                $currentStep,
-                $documentData,
-                $action
-            );
-
-            // 2️⃣ Créer toutes les étapes de l'instance
-            $instanceSteps = [];
-
-            $nextStep = $stepData["next_step"];
-            $isDynamic = $stepData["isDynamic"];
-
-            if ($isDynamic) {
-                ////ici on va creer l'etape suivante dynamique
-
-                $validatorRole = $this->getRoleValidator(
-                    $request->get("department_id")
-                );
-                if ($validatorRole) {
-                    $stepRoles = [$validatorRole["id"]];
-                }
-
-                $step = $currentStep->workflowStep;
-
-                // 2️⃣ Récupérer les transitions sortantes depuis ce Step
-                $transitions = $step->outgoingTransitions; // relation à définir
-
-                // 3️⃣ Parcourir les steps suivants
-                $nextWorkflowStep = $transitions->map(function ($transition) {
-                    return $transition->toStep; // relation à définir
-                })[0];
-
-                $stepInstance = WorkflowInstanceStep::create([
-                    "workflow_instance_id" => $instance->id,
-                    "workflow_step_id" => $nextWorkflowStep->id,
-                    "role_id" => $validatorRole["id"],
-                    "status" => "PENDING",
-                    "due_date" => now()->addHours(
-                        $nextWorkflowStep["delay_hours"] ?? 24
-                    ), // ou delay_days
-                    "executed_at" => null,
-                    "position" => $nextWorkflowStep->position,
-                ]);
-
-                $instanceSteps[$nextWorkflowStep->id][
-                    $validatorRole["id"]
-                ] = $stepInstance;
-
-                $nextStep = $stepInstance;
-                // 3️⃣ Créer l'entrée WorkflowInstanceStepRole pour les rôles dynamiques
-                if ($nextWorkflowStep["assignment_mode"] === "DYNAMIC") {
-                    WorkflowInstanceStepRoleDynamic::create([
-                        "workflow_instance_step_id" => $stepInstance->id,
-                        "role_id" => $validatorRole["id"],
-                    ]);
-                }
-            }
             
-
-            if ($nextStep) {
-                ////il y'a encore une autre etape
-
-                //  return $nextStep;
-
-                //verifions si la prchaine
-                // Activer la prochaine étape
-
-                if ($nextStep->workflowStep->is_archived_step) {
-                    $nextStep->update([
-                        "status" => "COMPLETE",
-                        "user_id" => $user["id"],
-                        "executed_at" => now(),
-                        "validated_at" => now(),
-                    ]);
-
-                    // Mettre à jour l'instance comme "toujours en cours"
-                    $instance->update([
-                        "status" => "COMPLETE",
-                    ]);
-
-                    $historyDataArray[] = [
-                        "model_id" => $currentStep->id,
-                        "model_type" => get_class($currentStep),
-                        "changed_by" => $user["id"],
-                        "old_status" => $oldStatus,
-                        "new_status" =>
-                            $currentStep->status == "COMPLETE"
-                                ? "COMPLETED"
-                                : $currentStep->status,
-                        "comment" => $request->get("comment"),
-                    ];
-                } else {
-                    $nextStep->update([
-                        "status" => "PENDING",
-                    ]);
-
-                    // Mettre à jour l'instance comme "toujours en cours"
-                    $instance->update([
-                        "status" => "PENDING",
-                    ]);
-
-                    $this->workflowInstanceService->notifyNextValidator(
-                        $nextStep,
-                        $request,
-                        $request->get("department_id")
-                    );
-                }
-
-                //$newStatus = "PENDING";
-            } else {
-                // Pas d’étape suivante → Workflow terminé
-                $instance->update([
-                    "status" => "COMPLETE",
-                ]);
-
-                //$newStatus = "COMPLETE";
-            }
-            */
-
-            // 🔹 Historisation
-
-            /* $historyData = [
-                "model_id" => $currentStep->id,
-                "model_type" => get_class($currentStep),
-                "changed_by" => $user["id"],
-                "old_status" => $oldStatus,
-                "new_status" =>
-                    $currentStep->status == "COMPLETE"
-                        ? "COMPLETED"
-                        : $currentStep->status,
-                "comment" => $request->get("comment"),
-            ];*/
-
             $historyDataArray[] = [
                 "model_id" => $currentStep->id,
                 "model_type" => get_class($currentStep),
@@ -2255,68 +2248,7 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
     }
 }
 
-        // foreach ($pathtransitions as $index => $pathtransition) {
-        //     // Récupère les conditions PATH associées à la transition
-        //     // $pathConditions = WorkflowCondition::where(
-        //     //     "workflow_transition_id",
-        //     //     $transition->id
-        //     // )
-        //     //     ->where("condition_kind", "PATH")
-        //     //     ->get();
-
-        //     $pathConditions = $pathtransition->conditions;
-
-        //     $groupedConditions = $pathConditions->groupBy("group_id");
-
-        //     // throw new Exception($pathtransitions, 1);
-
-        //     if (
-        //         $pathtransition->name == "paiement_to_ajout_des_justificatifs"
-        //     ) {
-        //         // throw new Exception($pathtransition, 1);
-        //     }
-
-        //     // throw new Exception($pathtransition->id, 1);
-        //     // throw new Exception($pathConditions, 1);
-
-        //     foreach ($groupedConditions as $groupId => $pathConditions) {
-        //         $allSatisfied = true;
-
-        //         foreach ($pathConditions as $condition) {
-        //             //return $this->evaluateCondition($condition, $documentData);
-        //             if (!$this->evaluateCondition($condition, $documentData)) {
-        //                 $allSatisfied = false;
-        //                 break; // une seule condition PATH non remplie → on ignore cette transition
-        //             }
-        //         }
-
-        //         //   throw new Exception(json_encode($allSatisfied), 1);
-
-        //         // ✅ SI UN GROUPE EST VALIDE → ON PREND LA TRANSITION
-        //         if ($allSatisfied) {
-        //             //   throw new Exception(json_encode($pathtransition), 1);
-
-        //             return $this->get_step(
-        //                 $instance,
-        //                 $pathtransition,
-        //                 $isDynamic
-        //             );
-        //         }
-
-        //         //     if (!$allSatisfied) {
-        //         //         continue;
-        //         //     }
-
-        //         // return    $this->get_step($instance , $pathtransition , $isDynamic);
-
-        //         // throw new Exception($tempWorkflowInstanceStep, 1);
-        //     }
-        // }
-
-        // throw new Exception("aucune satisfaite", 1);
-
-        // throw new Exception(json_encode($this->get_step($instance, $default_transition, $isDynamic)), 1);
-
+       
         return $this->get_step($instance, $default_transition, $isDynamic);
 
         // Aucune transition valide

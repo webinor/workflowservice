@@ -109,6 +109,12 @@ Route::post(
         Route::controller(WorkflowInstanceController::class)->group(
             function () {
                 Route::post("/workflow-instances", "store");
+
+                 Route::post(
+                    "/workflow-instances/{document_uuid}/continue",
+                    "continueExistingWorkflowInstance"
+                );
+
                 Route::post(
                     "/workflow-instances/{documentId}/validate",
                     "validateStep"

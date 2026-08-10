@@ -225,6 +225,7 @@ public function cancel(
 
         //["oui"];
 
+        
         $response = Http::acceptJson()
             ->withToken($request->bearerToken()) // on passe le JWT si nécessaire
             ->get(
@@ -246,6 +247,7 @@ public function cancel(
             $messageRegistry = new WorkflowNotificationMessageRegistry();
             $messageBuilder = $messageRegistry->resolve($documentData["document_type"]["slug"]);
 
+            
             $payload = $messageBuilder->build($documentData);
 
             // throw new Exception(json_encode($payload), 1);
@@ -269,7 +271,7 @@ public function cancel(
 
         // throw new Exception(json_encode($documentId), 1);
 
-        // throw new Exception(json_encode($response->body()), 1);
+        throw new Exception(json_encode($response->body()), 1);
 
             // fallback si le service ne répond pas
             $message = sprintf(
@@ -299,6 +301,8 @@ public function cancel(
             if ($response->successful()) {
                 $users = $response->json()["data"];
 
+
+              
                 // throw new Exception(json_encode($users), 1);
 
                 // Récupérer juste les IDs
@@ -306,8 +310,17 @@ public function cancel(
                     ->pluck("id")
                     ->toArray();
 
+                    //   return [
+                    //     "user_ids" => $userIds,
+                    //     "payload" => $payload,
+                    //     "document_id" => $documentId,
+                    //     "document_type_id" => $documentTypeId,
+                    // ];
+
+                  
+                    // return
                 // Notifier en une seule requête
-                $notifyResponse = Http::withToken($request->bearerToken())->post(
+                $notifyResponse = Http::acceptJson()->withToken($request->bearerToken())->post(
                     config("services.user_service.base_url") . "/notifications",
                     [
                         "user_ids" => $userIds,
