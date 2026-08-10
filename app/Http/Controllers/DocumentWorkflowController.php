@@ -87,7 +87,6 @@ class DocumentWorkflowController extends Controller
                 "action_label" => $actionLabel,
                 "user" => $userName,
                 "executed_at" => $step->executed_at,
-                //'validated_at'=> $step->validated_at,
                 "status" => $step->status,
             ];
         });

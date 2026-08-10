@@ -97,10 +97,10 @@ class WorkflowStatusLabelsSeeder extends Seeder
     ],
     [
         'code' => 'REJECTED',
-        'label' => 'Rejetée',
+        'label' => 'Rejeté(e)',
         'emoji' => '❌',
         'color' => 'danger',
-        'is_configurable' => true,
+        'is_configurable' => false,
         'status_type' => 'COMMON',
     ],
 

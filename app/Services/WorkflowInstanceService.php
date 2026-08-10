@@ -74,11 +74,11 @@ private function resetAssignSteps(
     WorkflowInstanceStep $instanceStep
 ): void
 {
-    $data = $instanceStep->workflowStep->assignment_mode == "OWNER" ? ['decision' => "PENDING" , 'validated_at'=>null] : 
+    $data = $instanceStep->workflowStep->assignment_mode == "OWNER" ? ['decision' => "PENDING" , 'decided_at'=>null] : 
     [
         'user_id'=> null,
         'decision' => "PENDING",
-         'validated_at'=>null
+         'decided_at'=>null
     ];
 
     WorkflowInstanceStepAssignment::where(

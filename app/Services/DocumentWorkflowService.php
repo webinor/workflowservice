@@ -808,8 +808,7 @@ $query = $policy->apply(
                 $doc["workflow_status"] = null;
                 $doc["can_validate"] = false;
 
-                $status_label_resolved =
-                    $this->resolver->resolveWorkflowStatusLabel($instance) ??
+                $status_label_resolved =$this->resolver->resolveWorkflowStatusLabel($instance) ??
                     "N/D";
 
                 // throw new Exception(json_encode($status_label_resolved), 1);

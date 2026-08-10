@@ -973,7 +973,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 $assignment->update([
                     "user_id" => $userConnected["id"],
                     "decision" => "APPROVED",
-                    "validated_at" => now(),
+                    "decided_at" => now(),
                 ]);
             }
         }
@@ -1505,7 +1505,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 $assignment->update([
                     "user_id" => $user["id"],
                     "decision" => "APPROVED",
-                    "validated_at" => now(),
+                    "decided_at" => now(),
                 ]);
             }
 
@@ -1594,7 +1594,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                             $nextStep->id
                         )->update([
                             "decision" => "APPROVED",
-                            "validated_at" => now(),
+                            "decided_at" => now(),
                             "user_id" => $user["id"],
                         ]);
 
@@ -1866,7 +1866,7 @@ public function continueExistingWorkflowInstance(
                 $assignment->update([
                     "user_id" => $userConnected["id"],
                     "decision" => "APPROVED",
-                    "validated_at" => now(),
+                    "decided_at" => now(),
                 ]);
         
         }
@@ -1977,17 +1977,18 @@ public function continueExistingWorkflowInstance(
     }
 }
 
-    public function rejectStep(Request $request, $documentId)
+    public function rejectStep(Request $request, string $documentuuid)
     {
         DB::beginTransaction();
 
         try {
-            $user = $request->get("user");
+        $userConnected = $request->get('user');
+
             $action = Str::lower($request->get("condition"));
 
             // 1️⃣ Récupérer l'instance de workflow
-            $instance = WorkflowInstance::whereDocumentId(
-                $documentId
+            $instance = WorkflowInstance::whereDocumentUuid(
+                $documentuuid
             )->firstOrFail();
 
             // 2️⃣ Récupérer l'étape en cours
@@ -2025,23 +2026,34 @@ public function continueExistingWorkflowInstance(
             }
             */
 
+             $assignments = $currentStep->assignments()->get();
+
+
+        foreach ($assignments as $key => $assignment) {
+            
+                $assignment->update([
+                    "user_id" => $userConnected["id"],
+                    "decision" => "REJECTED",
+                    "decided_at" => now(),
+                ]);
+        
+        }
+
             // 3️⃣ Marquer l’étape comme validée
             $currentStep->update([
-                "status" => "REJECT",
-                "user_id" => $user["id"],
+                "status" => "REJECTED",
                 "executed_at" => now(),
-                "validated_at" => now(),
             ]);
 
             $instance->update([
-                "status" => "REJECT",
+                "status" => "REJECTED",
             ]);
 
             
             $historyDataArray[] = [
                 "model_id" => $currentStep->id,
                 "model_type" => get_class($currentStep),
-                "changed_by" => $user["id"],
+                "changed_by" => $userConnected["id"],
                 "old_status" => $oldStatus,
                 "new_status" =>
                     $currentStep->status == "COMPLETE"

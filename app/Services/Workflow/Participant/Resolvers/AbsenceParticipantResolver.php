@@ -56,7 +56,7 @@ class AbsenceParticipantResolver implements ParticipantResolver
                     */
                     "label" => $instance_step->name,
 
-                    "validated_at" => $assignment->validated_at,
+                    "decided_at" => $assignment->decided_at,
 
                     /*
                      * Règles de rendu

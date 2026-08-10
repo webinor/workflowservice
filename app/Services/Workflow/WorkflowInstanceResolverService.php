@@ -91,6 +91,9 @@ class WorkflowInstanceResolverService
 
         if (!$currentInstanceStep) {
 
+        //   throw new \Exception(json_encode($currentInstanceStep), 1);
+
+
     return WorkflowStatusLabel::where(
         'code',
         $instance->status
