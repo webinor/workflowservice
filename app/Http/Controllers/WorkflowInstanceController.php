@@ -1731,6 +1731,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
 
     try {
 
+    // return $request->get('comment');
+
      $user = $request->get("user");
             $actionStepId = (int)($request->get("actionStepId"));
 
@@ -2047,9 +2049,7 @@ public function continueExistingWorkflowInstance(
                 "comment" => $request->get("comment"),
             ];
 
-            // Supprimer les clés avec valeur null
-            //$historyData = array_filter($historyData, fn($v) => !is_null($v));
-            //$history = WorkflowStatusHistory::create($historyData);
+       
 
             // Supprimer les clés nulles pour chaque entrée
             $historyDataArray = array_map(
