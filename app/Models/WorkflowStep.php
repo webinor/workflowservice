@@ -25,11 +25,13 @@ class WorkflowStep extends Model
         "workflow_status_label_id",
             'completion_rule',
     'completion_rule_config',
+    'is_bypassable'
     ];
 
     protected $casts = [
         "is_archived_step" => "boolean",
         "is_payment_step" => "boolean",
+    'is_bypassable' => 'boolean',
         'completion_rule_config' => 'array',
     ];
 

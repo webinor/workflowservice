@@ -19,9 +19,19 @@ class WorkflowInstanceStep extends Model
         "status",
         "executed_at",
         "position",
-        "workflow_status_label_id"
+        "workflow_status_label_id",
+
+              // Bypass
+        "bypassed_by",
+        "bypassed_at",
+        "bypass_reason",
 
     ];
+
+    protected $casts = [
+    "executed_at" => "datetime",
+    "bypassed_at" => "datetime",
+];
 
     /**
      * Get the workflowInstance that owns the WorkflowInstanceStep

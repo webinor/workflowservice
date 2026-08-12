@@ -417,12 +417,15 @@ class WorkflowController extends Controller
 
         $response = [
             "status" => $instance->status,
+            "is_active" => in_array($instance->status , ["PENDING", "IN_PROGRESS"]),
             "isReturnedForModification" => $this->workflowInstanceService->isReturnedForModification(
                 $instance
             ),
             "cancelable"=>$this->workflowInstanceService->cancelable(
                 $instance
             ),
+            "currentInstanceStep" => $currentInstanceStep,
+            "is_bypassable" => $currentInstanceStep->workflowStep->is_bypassable,
             "signatures" => $signatures,
             "step" => $step->name,
             "business_actions" => $business_actions,

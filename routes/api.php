@@ -116,21 +116,26 @@ Route::post(
                 );
 
                 Route::post(
-                    "/workflow-instances/{documentId}/validate",
+                    "/workflow-instances/{documentUuid}/validate",
                     "validateStep"
                 );
 
                 Route::post('/workflow-instances/{documentUuid}/cancel','cancel');
 
                 Route::post(
-                    "/workflow-instances/{documentId}/return",
+                    "/workflow-instances/{documentUuid}/return",
                     "returnForModification"
                 );
 
                 Route::post(
-                    "/workflow-instances/{documentId}/reject",
+                    "/workflow-instances/{documentuuid}/reject",
                     "rejectStep"
                 );
+
+                Route::post(
+    '/workflow-instances/{documentuuid}/bypass',
+    [WorkflowInstanceController::class, 'bypassStep']
+);
                 Route::post(
                     "/workflow-instances/{documentId}/check-for-blocker",
                     "checkIfHasBlocker"

@@ -111,6 +111,17 @@ class WorkflowVisibilityService
                 );
             })
 
+            ->orWhere(function ($q) use ($userId) {
+    $q->where(
+        'workflow_instance_steps.status',
+        'BYPASSED'
+    )
+    ->where(
+        'workflow_instance_steps.bypassed_by',
+        $userId
+    );
+})
+
             /*
             |--------------------------------------------------------------------------
             | 4. Document rejeté par l'utilisateur

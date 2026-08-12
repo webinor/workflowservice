@@ -1004,6 +1004,124 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             ->toArray();
     }
 
+    protected function advanceWorkflowAfterStep(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $currentStep,
+    array $documentData,
+    array $user
+): array {
+
+    $nextStep = null;
+    $roleIdsToNotify = [];
+
+    // =====================================
+    // 1. Déterminer l'étape suivante
+    // =====================================
+
+    $stepData = $this->getNextStep(
+        $instance,
+        $currentStep,
+        $documentData
+    );
+
+    $nextStep = $stepData["next_step"];
+
+    // =====================================
+    // 2. Résoudre le label
+    // =====================================
+
+    $label = $this->resolver->resolveWorkflowStatusLabel(
+        $instance
+    );
+
+    // =====================================
+    // 3. Aucune étape suivante
+    // =====================================
+
+    if (!$nextStep) {
+
+        $instance->update([
+            "status" => "COMPLETE",
+            "workflow_status_label_id" => $label->id ?? null,
+        ]);
+
+        return [
+            "nextStep" => null,
+            "roleIdsToNotify" => [],
+        ];
+    }
+
+    // =====================================
+    // 4. Étape archivée / automatique
+    // =====================================
+
+    if ($nextStep->workflowStep->is_archived_step) {
+
+        $nextStep->update([
+            "status" => "COMPLETE",
+            "executed_at" => now(),
+        ]);
+
+        WorkflowInstanceStepAssignment::where(
+            "instance_step_id",
+            $nextStep->id
+        )->update([
+            "decision" => "APPROVED",
+            "decided_at" => now(),
+            "user_id" => $user["id"],
+        ]);
+
+        $instance->update([
+            "status" => "COMPLETE",
+            "workflow_status_label_id" => $label->id ?? null,
+        ]);
+
+        return [
+            "nextStep" => $nextStep,
+            "roleIdsToNotify" => [],
+        ];
+    }
+
+    // =====================================
+    // 5. Activer l'étape suivante
+    // =====================================
+
+    $roleIdsToNotify = $this->getRoleIdsToNotify(
+        $nextStep
+    );
+
+    $nextStep->update([
+        "status" => "PENDING",
+        "due_date" => now()->addHours(
+            $nextStep->workflowStep->delay_hours ?? 24
+        ),
+    ]);
+
+    $instance->update([
+        "status" => "PENDING",
+        "current_step_id" => $nextStep->workflow_step_id,
+        "workflow_status_label_id" => $label->id ?? null,
+    ]);
+
+    return [
+        "nextStep" => $nextStep,
+        "roleIdsToNotify" => $roleIdsToNotify,
+    ];
+}
+
+
+protected function canAdvanceWorkflow(
+    WorkflowInstanceStep $step
+): bool {
+    return in_array(
+        $step->status,
+        [
+            "COMPLETE",
+            "BYPASSED",
+        ],
+        true
+    );
+}
     protected function getFirstStepInstance(WorkflowInstance $workflowInstance)
     {
         // Récupère toutes les étapes de l'instance
@@ -1131,7 +1249,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         Log::info("Workflow: récupération document START", [
             "trace_id" => $traceId,
             "workflow_instance_id" => $instance->id,
-            "document_id" => $instance->document_id,
+            "document_uuid" => $instance->document_uuid,
             "user_id" => $user["id"] ?? null,
         ]);
 
@@ -1140,11 +1258,11 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         // 🔥 APPEL SERVICE DOCUMENT
         $response = Http::withToken($request->bearerToken())
             ->acceptJson()
-            ->timeout(10)
-            ->retry(2, 200)
+            // ->timeout(10)
+            ->retry(3, 200)
             ->get(
                 config("services.document_service.base_url") .
-                    "/{$instance->document_id}"
+                    "/{$instance->document_uuid}"
             );
 
         //  throw new Exception(json_encode('$instance'));
@@ -1547,30 +1665,18 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             // NEXT STEP LOGIC
             // =====================================
             $nextStep = null;
-            $isDynamic = false;
-            $instanceSteps = [];
 
-            if ($currentStep->status === "COMPLETE") {
-                $stepData = $this->getNextStep(
-                    $instance,
-                    $currentStep,
-                    $documentData
-                );
+            //old logic
+            // if ($currentStep->status === "COMPLETE") {
+            //     $stepData = $this->getNextStep(
+            //         $instance,
+            //         $currentStep,
+            //         $documentData
+            //     );
 
-                $nextStep = $stepData["next_step"];
-                $isDynamic = $stepData["isDynamic"];
-            }
-            $instanceSteps = [];
+            //     $nextStep = $stepData["next_step"];
+            // }
 
-            // =====================================
-            // PAYMENT
-            // =====================================
-            // $result = $this->registerPayment(
-            //     $instance,
-            //     $currentStep,
-            //     $request,
-            //     $user
-            // );
 
             // =====================================
             // WORKFLOW LABEL
@@ -1578,55 +1684,71 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             $label = $this->resolver->resolveWorkflowStatusLabel($instance);
             $roleIdsToNotify = [];
 
+            if ($this->canAdvanceWorkflow($currentStep)) {
+
+    $result = $this->advanceWorkflowAfterStep(
+        $instance,
+        $currentStep,
+        $documentData,
+        $user
+    );
+
+    $nextStep = $result["nextStep"];
+    $roleIdsToNotify = $result["roleIdsToNotify"];
+}
+
             // =====================================
             // NEXT STEP HANDLING
             // =====================================
-            if ($currentStep->status === "COMPLETE") {
-                if ($nextStep) {
-                    if ($nextStep->workflowStep->is_archived_step) {
-                        $nextStep->update([
-                            "status" => "COMPLETE",
-                            "executed_at" => now(),
-                        ]);
+            //old logic
+            // if ($currentStep->status === "COMPLETE") {
 
-                        WorkflowInstanceStepAssignment::where(
-                            "instance_step_id",
-                            $nextStep->id
-                        )->update([
-                            "decision" => "APPROVED",
-                            "decided_at" => now(),
-                            "user_id" => $user["id"],
-                        ]);
+            //     if ($nextStep) {
+            //         if ($nextStep->workflowStep->is_archived_step) {
+            //             $nextStep->update([
+            //                 "status" => "COMPLETE",
+            //                 "executed_at" => now(),
+            //             ]);
 
-                        $instance->update([
-                            "status" => "COMPLETE",
-                            "workflow_status_label_id" => $label->id ?? null,
-                        ]);
-                    } else {
-                        $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
+            //             WorkflowInstanceStepAssignment::where(
+            //                 "instance_step_id",
+            //                 $nextStep->id
+            //             )->update([
+            //                 "decision" => "APPROVED",
+            //                 "decided_at" => now(),
+            //                 "user_id" => $user["id"],
+            //             ]);
 
-                        $nextStep->update([
-                            "status" => "PENDING",
-                        ]);
+            //             $instance->update([
+            //                 "status" => "COMPLETE",
+            //                 "workflow_status_label_id" => $label->id ?? null,
+            //             ]);
+            //         } else {
+            //             $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
 
-                        $instance->update([
-                            "status" => "PENDING",
-                            "workflow_status_label_id" => $label->id ?? null,
-                        ]);
-                    }
-                } else {
-                    $instance->update([
-                        "status" => "COMPLETE",
-                        "workflow_status_label_id" => $label->id ?? null,
-                    ]);
-                }
-            } else {
-                // L'étape n'a pas encore atteint son quorum
-                $instance->update([
-                    "status" => "PENDING",
-                    "workflow_status_label_id" => $label->id ?? null,
-                ]);
-            }
+            //             $nextStep->update([
+            //                 "status" => "PENDING",
+            //             ]);
+
+            //             $instance->update([
+            //                 "status" => "PENDING",
+            //                 "workflow_status_label_id" => $label->id ?? null,
+            //             ]);
+            //         }
+            //     } else {
+            //         $instance->update([
+            //             "status" => "COMPLETE",
+            //             "workflow_status_label_id" => $label->id ?? null,
+            //         ]);
+            //     }
+            // } else {
+            //     // L'étape n'a pas encore atteint son quorum
+            //     $instance->update([
+            //         "status" => "PENDING",
+            //         "workflow_status_label_id" => $label->id ?? null,
+            //     ]);
+            // }
+
 
             // =====================================
             // HISTORY
@@ -1649,49 +1771,61 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 WorkflowStatusHistory::create($historyData);
             }
 
+              $this->registerWorkflowAfterCommit(
+    $instance,
+    $currentStep,
+    $nextStep,
+    $roleIdsToNotify,
+    $request,
+    $user,
+    $documentUuid,
+    $actionStepId,
+    $WorkflowEventEngine
+);
+
             DB::commit();
 
-            DB::afterCommit(function () use (
-                $instance,
-                $currentStep,
-                $request,
-                $user,
-                $nextStep,
-                $roleIdsToNotify,
-                $WorkflowEventEngine,
-                $documentUuid,
-                $actionStepId
-            ) {
-                // =====================================
-                // PAYMENT
-                // =====================================
+            // DB::afterCommit(function () use (
+            //     $instance,
+            //     $currentStep,
+            //     $request,
+            //     $user,
+            //     $nextStep,
+            //     $roleIdsToNotify,
+            //     $WorkflowEventEngine,
+            //     $documentUuid,
+            //     $actionStepId
+            // ) {
+            //     // =====================================
+            //     // PAYMENT
+            //     // =====================================
 
-                $this->registerPayment(
-                    $instance,
-                    $currentStep,
-                    $request,
-                    $user
-                );
+            //     $this->registerPayment(
+            //         $instance,
+            //         $currentStep,
+            //         $request,
+            //         $user
+            //     );
 
-                if (
-                    $currentStep->status === "COMPLETE" &&
-                    $nextStep &&
-                    !$nextStep->workflowStep->is_archived_step
-                ) {
-                    $this->workflowInstanceService->notifyNextValidator(
-                        $nextStep,
-                        $request,
-                        $request->get("department_id"),
-                        $roleIdsToNotify
-                    );
-                }
+            //     if (
+            //         $currentStep->status === "COMPLETE" &&
+            //         $nextStep &&
+            //         !$nextStep->workflowStep->is_archived_step
+            //     ) {
+            //         $this->workflowInstanceService->notifyNextValidator(
+            //             $nextStep,
+            //             $request,
+            //             $request->get("department_id"),
+            //             $roleIdsToNotify
+            //         );
+            //     }
 
-                $WorkflowEventEngine->handle(
-                    $documentUuid,
-                    $currentStep,
-                    $actionStepId
-                );
-            });
+            //     $WorkflowEventEngine->handle(
+            //         $documentUuid,
+            //         $currentStep,
+            //         $actionStepId
+            //     );
+            // });
 
             // $WorkflowEventEngine->handle(
             //     $documentUuid,
@@ -1699,7 +1833,7 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
             //     $actionStepId
             // );
 
-            // DB::commit();
+      
 
             return response()->json([
                 "success" => true,
@@ -1721,126 +1855,192 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
         }
     }
 
-    public function returnForModification(
+
+    
+    public function bypassStep(
     Request $request,
-    // WorkflowInstance $instance,
-    // WorkflowInstanceStep $currentStep,
+    WorkflowEventEngine $WorkflowEventEngine,
     string $documentUuid
 ) {
     DB::beginTransaction();
 
     try {
 
-    // return $request->get('comment');
+        $user = $request->get("user");
 
-     $user = $request->get("user");
-            $actionStepId = (int)($request->get("actionStepId"));
+        $instance = WorkflowInstance::whereDocumentUuid(
+            $documentUuid
+        )->firstOrFail();
 
-            $actionStep = WorkflowActionStep::findOrFail($actionStepId);
-
-            // return
-            // =====================================
-            // WORKFLOW INSTANCE
-            // =====================================
-            $instance = WorkflowInstance::whereDocumentUuid(
-                $documentUuid
-            )->firstOrFail();
-            
-            $currentStep = $this->resolver->getCurrentStep($instance);
-
-            if (!$currentStep) {
-                return response()->json(
-                    [
-                        "success" => false,
-                        "message" => "Aucune étape en cours trouvée.",
-                    ],
-                    400
-                );
-            }
-        /**
-         * 1. Déterminer la cible du retour
-         */
-        $targetStep = $this->resolver->resolveReturnTarget(
-            $instance,
-            $currentStep,
-            $actionStep
+        $currentStep = $this->resolver->getCurrentStep(
+            $instance
         );
 
-        if (!$targetStep) {
-            throw new \Exception("Impossible de déterminer l'étape de retour.");
+        if (!$currentStep) {
+            throw new \Exception(
+                "Aucune étape en cours trouvée."
+            );
         }
 
-        /**
-         * 2. Clôturer l'étape courante
-         */
+        $oldStatus = $currentStep->status;
+
+// return
+        $actionStepId = $currentStep->workflowStep->workflowActionSteps()
+    // ->where('type', 'VALIDATION')
+    ->orWhereIn('permission_required' , ['validate' , 'sign'])
+    ->value('id');
+        // =====================================
+        // BYPASS
+        // =====================================
+
         $currentStep->update([
-            'status' => 'NOT_STARTED',
-            'executed_at' => now(),
+            "status" => "BYPASSED",
+            "bypassed_by" => $user["id"],
+            "bypassed_at" => now(),
+            "bypass_reason" => $request->get("comment"),
+            "executed_at" => now(),
         ]);
 
-        /**
- * 3. Réinitialiser les étapes suivantes
- */
-$this->workflowInstanceService->resetInstanceSteps(
+        // =====================================
+        // DOCUMENT DATA
+        // =====================================
+
+        $documentData = $this->getDocumentData(
+            $instance,
+            $request
+        );
+
+        // =====================================
+        // AVANCER LE WORKFLOW
+        // =====================================
+
+        $result = $this->advanceWorkflowAfterStep(
+            $instance,
+            $currentStep,
+            $documentData,
+            $user
+        );
+
+        $nextStep = $result["nextStep"];
+        $roleIdsToNotify = $result["roleIdsToNotify"];
+
+        // =====================================
+        // HISTORY
+        // =====================================
+
+        WorkflowStatusHistory::create([
+            "model_id" => $currentStep->id,
+            "model_type" => get_class($currentStep),
+            "changed_by" => $user["id"],
+            "old_status" => $oldStatus,
+            "new_status" => "BYPASSED",
+            "comment" => $request->get("comment"),
+        ]);
+
+      
+        $this->registerWorkflowAfterCommit(
     $instance,
-    $targetStep
+    $currentStep,
+    $nextStep,
+    $roleIdsToNotify,
+    $request,
+    $user,
+    $documentUuid,
+    $actionStepId,
+    $WorkflowEventEngine
 );
 
-/**
- * 4. Réactiver l'étape cible
- */
-$this->workflowInstanceService->resetTargetStep($targetStep);
+DB::commit();
 
-        /**
-         * 5. Mettre à jour l'instance
-         */
-        $instance->update([
-            'status' => 'PENDING',
-            // 'current_step_id' => $targetStep->id, // si tu utilises ce champ
-        ]);
 
-        /**
-         * 6. Historique
-         */
-        WorkflowStatusHistory::create([
-            'model_id' => $instance->id,
-            'model_type' => WorkflowInstance::class,
-            'old_status' => 'PENDING',
-            'new_status' => 'RETURNED_FOR_MODIFICATION',
-            'changed_by' => $user['id'],
-            'comment' => $request->get('comment'),
-        ]);
+        // // =====================================
+        // // AFTER COMMIT
+        // // =====================================
 
-        DB::commit();
+        // DB::afterCommit(function () use (
+        //     $instance,
+        //     $currentStep,
+        //     $request,
+        //     $user,
+        //     $nextStep,
+        //     $roleIdsToNotify,
+        //     $WorkflowEventEngine,
+        //     $documentuuid
+        // ) {
 
-        /**
-         * 7. Notifications
-         */
-        DB::afterCommit(function () use ($targetStep, $request) {
+        //     if (
+        //         $nextStep &&
+        //         !$nextStep->workflowStep->is_archived_step
+        //     ) {
+        //         $this->workflowInstanceService->notifyNextValidator(
+        //             $nextStep,
+        //             $request,
+        //             $instance->department_id ?? null,
+        //             $roleIdsToNotify
+        //         );
+        //     }
 
-            // $this->notifyReturnedUser(
-            //     $targetStep,
-            //     $request
-            // );
-
-        });
+        //     $WorkflowEventEngine->handle(
+        //         $documentuuid,
+        //         $currentStep,
+        //         null
+        //     );
+        // });
 
         return response()->json([
-            'success' => true,
-            'instance' => $instance,
-            'currentStep' => $targetStep,
+            "success" => true,
+            "message" => "Étape bypassée avec succès.",
+            "currentStep" => $currentStep,
+            "nextStep" => $nextStep,
         ]);
 
-    } catch (\Throwable $e) {
+    } catch (\Throwable $th) {
 
         DB::rollBack();
 
         return response()->json([
-            'success' => false,
-            'message' => $e->getMessage(),
-        ],500);
-
+            "success" => false,
+            "message" => $th->getMessage(),
+        ], 500);
     }
+}
+
+protected function registerWorkflowAfterCommit(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $currentStep,
+    ?WorkflowInstanceStep $nextStep,
+    array $roleIdsToNotify,
+    Request $request,
+    array $user,
+    string $documentUuid,
+    ?string $actionStepId,
+    $WorkflowEventEngine
+): void {
+
+    DB::afterCommit(function () use (
+        $instance,
+        $currentStep,
+        $nextStep,
+        $roleIdsToNotify,
+        $request,
+        $user,
+        $documentUuid,
+        $actionStepId,
+        $WorkflowEventEngine
+    ) {
+
+        $this->executeAfterCommit(
+            $instance,
+            $currentStep,
+            $nextStep,
+            $roleIdsToNotify,
+            $request,
+            $user,
+            $documentUuid,
+            $actionStepId,
+            $WorkflowEventEngine
+        );
+    });
 }
 
 public function continueExistingWorkflowInstance(
@@ -2249,6 +2449,165 @@ public function continueExistingWorkflowInstance(
         // Aucune transition valide
         return ["isDynamic" => $isDynamic, "next_step" => null];
     }
+
+
+     public function advance(
+        WorkflowInstance $instance,
+        WorkflowInstanceStep $currentStep,
+        array $documentData,
+        array $user
+    ): array {
+
+        $nextStep = null;
+        $roleIdsToNotify = [];
+
+        // =====================================
+        // 1. Trouver l'étape suivante
+        // =====================================
+
+        $stepData = $this->getNextStep(
+            $instance,
+            $currentStep,
+            $documentData
+        );
+
+        $nextStep = $stepData["next_step"];
+
+        // =====================================
+        // 2. Aucun next step
+        // =====================================
+
+        if (!$nextStep) {
+
+            $instance->update([
+                "status" => "COMPLETE",
+                "current_step_id" => null,
+            ]);
+
+            return [
+                "nextStep" => null,
+                "roleIdsToNotify" => [],
+                "workflowCompleted" => true,
+            ];
+        }
+
+        // =====================================
+        // 3. Étape archivée
+        // =====================================
+
+        if ($nextStep->workflowStep->is_archived_step) {
+
+            $nextStep->update([
+                "status" => "COMPLETE",
+                "executed_at" => now(),
+            ]);
+
+            WorkflowInstanceStepAssignment::where(
+                "instance_step_id",
+                $nextStep->id
+            )->update([
+                "decision" => "APPROVED",
+                "decided_at" => now(),
+                "user_id" => $user["id"],
+            ]);
+
+            $instance->update([
+                "status" => "COMPLETE",
+                "current_step_id" => null,
+            ]);
+
+            return [
+                "nextStep" => $nextStep,
+                "roleIdsToNotify" => [],
+                "workflowCompleted" => true,
+            ];
+        }
+
+        // =====================================
+        // 4. Activer l'étape suivante
+        // =====================================
+
+        $roleIdsToNotify = $this->getRoleIdsToNotify(
+            $nextStep
+        );
+
+        $nextStep->update([
+            "status" => "PENDING",
+            "due_date" => now()->addHours(
+                $nextStep->workflowStep->delay_hours ?? 24
+            ),
+        ]);
+
+        // =====================================
+        // 5. Mettre à jour l'instance
+        // =====================================
+
+        $instance->update([
+            "status" => "PENDING",
+            "current_step_id" => $nextStep->workflow_step_id,
+        ]);
+
+        return [
+            "nextStep" => $nextStep->fresh([
+                "workflowStep.workflowStatusLabel",
+            ]),
+            "roleIdsToNotify" => $roleIdsToNotify,
+            "workflowCompleted" => false,
+        ];
+    }
+
+
+    protected function executeAfterCommit(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $currentStep,
+    ?WorkflowInstanceStep $nextStep,
+    array $roleIdsToNotify,
+    Request $request,
+    array $user,
+    string $documentUuid,
+    ?string $actionStepId,
+    $WorkflowEventEngine
+): void {
+
+    // =====================================
+    // PAYMENT
+    // =====================================
+
+    $this->registerPayment(
+        $instance,
+        $currentStep,
+        $request,
+        $user
+    );
+
+    // =====================================
+    // NOTIFICATION
+    // =====================================
+
+    if (
+        $nextStep &&
+        $nextStep->status === "PENDING" &&
+        !$nextStep->workflowStep->is_archived_step
+    ) {
+
+        $this->workflowInstanceService->notifyNextValidator(
+            $nextStep,
+            $request,
+            $instance->department_id ?? null,
+            $roleIdsToNotify
+        );
+    }
+
+    // =====================================
+    // EVENTS
+    // =====================================
+
+    $WorkflowEventEngine->handle(
+        $documentUuid,
+        $currentStep,
+        $actionStepId
+    );
+}
 
     protected function findNextStep(
      $currentStep,
