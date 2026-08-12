@@ -6,7 +6,7 @@ use App\Services\Visibility\VisibilityPolicyInterface;
 use App\Services\Visibility\WorkflowVisibilityService;
 use Illuminate\Database\Eloquent\Builder;
 
-class TaxiPaperVisibilityPolicy
+class FeeNoteVisibilityPolicy
     implements VisibilityPolicyInterface
 {
     protected $workflowVisibility;
@@ -35,7 +35,7 @@ class TaxiPaperVisibilityPolicy
 
         if (
             in_array(
-                'VIEW_ALL_TAXI_PAPERS',
+                'VIEW_ALL_FEE_NOTES',
                 $responsibilities,
                 true
             )
