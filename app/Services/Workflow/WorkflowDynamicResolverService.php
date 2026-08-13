@@ -64,6 +64,12 @@ class WorkflowDynamicResolverService
                     return $response->json();
                 }
 
+                // return $response->json();
+
+        //          return response()->json([
+        //     'message' => 'Chef de service introuvable'
+        // ], 404);
+
                 throw new Exception(
                     json_encode($response->body(), JSON_PRETTY_PRINT),
                     1

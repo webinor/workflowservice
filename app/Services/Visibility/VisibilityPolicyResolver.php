@@ -5,6 +5,7 @@ namespace App\Services\Visibility;
 use App\Enums\DocumentTypeCode;
 use App\Services\Visibility\Policies\AbsenceVisibilityPolicy;
 use App\Services\Visibility\Policies\FeeNoteVisibilityPolicy;
+use App\Services\Visibility\Policies\RegularizationSheetPolicy;
 use App\Services\Visibility\Policies\SupplierInvoiceVisibilityPolicy;
 use App\Services\Visibility\Policies\TaxiPaperVisibilityPolicy;
 use Exception;
@@ -34,6 +35,11 @@ class VisibilityPolicyResolver
             case DocumentTypeCode::FACTURE_FOURNISSEUR:
                 return app(
                     SupplierInvoiceVisibilityPolicy::class
+                );
+
+            case DocumentTypeCode::FICHE_A_REGULARISER:
+                return app(
+                    RegularizationSheetPolicy::class
                 );
 
             default:

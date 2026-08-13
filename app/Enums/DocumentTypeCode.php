@@ -10,5 +10,8 @@ class DocumentTypeCode
 
     const DEMANDE_ABSENCE = 'absence_request';
 
+    const FICHE_A_REGULARISER = 'regularization_sheet';
+
     const FACTURE_FOURNISSEUR = 'FACTURE_FOURNISSEUR';
+
 }
