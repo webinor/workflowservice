@@ -2257,6 +2257,9 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
             // 'current_step_id' => $targetStep->id, // si tu utilises ce champ
         ]);
 
+
+
+        
         /**
          * 6. Historique
          */
@@ -2271,7 +2274,7 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
 
         DB::commit();
 
-        
+
 
         /**
          * 7. Notifications
