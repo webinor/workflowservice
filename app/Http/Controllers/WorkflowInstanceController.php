@@ -2271,6 +2271,8 @@ $this->workflowInstanceService->resetTargetStep($targetStep);
 
         DB::commit();
 
+        
+
         /**
          * 7. Notifications
          */
