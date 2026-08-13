@@ -789,15 +789,7 @@ $query = $policy->apply(
         // throw new Exception(json_encode($documents), 1);
 
         return collect($documents)
-            // ->filter(
-            //     fn($doc) => $this->canView(
-            //         $doc,
-            //         $permissionsByDocType,
-            //         $employeeId,
-            //         $userId,
-            //         $context
-            //     )
-            // )
+           
             ->map(function ($doc) use (
                 $workflowInstances,
                 $actionableSteps,
@@ -1046,7 +1038,7 @@ $query = $policy->apply(
         if ($hasSignStep && !$hasCompletedSignStep && $isAccounting) {
             // throw new Exception(json_encode($responsibilities), 1);
 
-            return false;
+            // return false;
         }
 
         // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
