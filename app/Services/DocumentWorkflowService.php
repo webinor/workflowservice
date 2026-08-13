@@ -1002,30 +1002,13 @@ $query = $policy->apply(
 
         // $employeeContext = $this->getEmployeeContext($user["employee_id"]);
 
-    //     $responsibilities = $this->effectiveResponsibilityService
-    // ->getForEmployee(
-    //     (int) $user["employee_id"]
-    // );
+        $perm = $permissionsByDocType[$doc["document_type_id"]] ?? null;
 
-    //     $responsibilities = collect(
-    //         data_get($employeeContext, "responsibilities", [])
-    //     )
-    //         ->pluck("code")
-    //         ->filter()
-    //         ->values()
-    //         ->toArray();
+        if (!$perm) {
+            return false;
+        }
 
-   
-
-        // if (!empty($stepWithSignPermission) && empty($completedStepWithSignPermission)) {
-
-        //  if (in_array("ACCOUNTING", $responsibilities)) {
-        //         return false;
-        //     }
-
-        // } else {
-
-        // }
+        $permissions = $perm["permissions"];
 
         $hasSignStep = !empty($stepWithSignPermission);
 
@@ -1035,21 +1018,15 @@ $query = $policy->apply(
 
         // throw new Exception(json_encode($responsibilities), 1);
 
-        if ($hasSignStep && !$hasCompletedSignStep && $isAccounting) {
+        if ($hasSignStep && !$hasCompletedSignStep && $isAccounting && !$permissions["view_all"]) {
             // throw new Exception(json_encode($responsibilities), 1);
 
-            // return false;
+            return false;
         }
 
         // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
 
-        $perm = $permissionsByDocType[$doc["document_type_id"]] ?? null;
 
-        if (!$perm) {
-            return false;
-        }
-
-        $permissions = $perm["permissions"];
 
         $isOwner = $doc["created_by"] === $userId;
 
