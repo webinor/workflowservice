@@ -24,6 +24,8 @@ class DocumentWorkflowService
     protected WorkflowInstanceService $workflowInstanceService;
     protected EffectiveResponsibilityService $effectiveResponsibilityService;
     protected VisibilityPolicyResolver $visibilityPolicyResolver;
+    protected DepartmentContextService $departmentContextService;
+    
 
     const CONTEXT_VALIDATION = "TO_VALIDATE";
     const CONTEXT_MY_DOCUMENTS = "MY_DOCUMENTS";
@@ -40,7 +42,8 @@ class DocumentWorkflowService
         DocumentServiceClient $documentClient,
         WorkflowInstanceService $workflowInstanceService,
         EffectiveResponsibilityService $effectiveResponsibilityService,
-        VisibilityPolicyResolver $visibilityPolicyResolver
+        VisibilityPolicyResolver $visibilityPolicyResolver,
+        DepartmentContextService $departmentContextService
         
     ) {
         $this->resolver = $workflowInstanceResolverService;
@@ -49,312 +52,471 @@ class DocumentWorkflowService
         $this->workflowInstanceService = $workflowInstanceService;
         $this->effectiveResponsibilityService = $effectiveResponsibilityService;
         $this->visibilityPolicyResolver = $visibilityPolicyResolver;
+        $this->departmentContextService = $departmentContextService;
     }
 
-    public function getDocuments(
-        array $params,
-        Request $request,
-        WorkflowPermissionService $permissionService
-    ): array {
-        [
-            "employeeId" => $employeeId,
-            "userId" => $userId,
-            "roleId" => $roleId,
-            "document_type" => $document_type,
-            "validationContext" => $validationContext,
-            "filters" => $filters,
-            "filterContext" => $filterContext,
-            "currentPage" => $currentPage,
-            "per_page" => $per_page,
-            "isStat" => $isStat,
-        ] = $params;
+  public function getDocuments(
+    array $params,
+    Request $request,
+    WorkflowPermissionService $permissionService
+): array {
 
-        // return $params;
-        // throw new Exception(json_encode($document_type), 1);
+    $benchmark = [];
+    $start = microtime(true);
 
-        /*
-    |--------------------------------------------------------------------------
-    | Query de base (réutilisable)
-    |--------------------------------------------------------------------------
-    */
-        $baseQuery = $this->buildWorkflowQuery($validationContext);
+    $mark = function ($name) use (&$benchmark, &$start) {
+        $now = microtime(true);
 
-        if (!empty($document_type)) {
-            $baseQuery->where(
-                "workflow_instances.document_type_relation_name",
-                $document_type
-            );
-        }
-
-         $responsibilities = $this->effectiveResponsibilityService
-    ->getForEmployee($employeeId);
-        /*
-    |--------------------------------------------------------------------------
-    | Documents filtrés
-    |--------------------------------------------------------------------------
-    */
-        $documentIdsNotPaginated = $this->getDocumentIds(
-            $filterContext,
-            clone $baseQuery,
-            $roleId,
-            $userId,
-            $validationContext,
-            $document_type[0],
-            $employeeId,
-            $responsibilities,
-            $filters,
-            !empty($filters["statut"]),
-            !empty($filters["statut"]),
-        );
-
-        // throw new Exception(json_encode($documentIdsNotPaginated), 1);
-
-        // $documentIds = collect($documentIdsNotPaginated->items())
-        $documentIds = collect($documentIdsNotPaginated)->pluck("document_id");
-
-        // throw new Exception(json_encode($documentIds->count()), 1);
-
-        $flatDocuments = collect(
-            $this->documentClient->getDocumentTypesByIds(
-                $documentIds->toArray()
-            )
-        )
-            ->sortByDesc("id")
-            ->values()
-            ->all();
-
-        // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
-        // throw new Exception(json_encode(collect($flatDocuments)->count()), 1);
-
-        $permissionsByDocType = $this->getPermissions(
-            $flatDocuments,
-            $userId,
-            $roleId,
-            $request,
-            $permissionService
-        );
-
-        // throw new Exception(json_encode(collect($flatDocuments)->pluck('id')->toArray()), 1);
-
-        $filteredDocuments = collect($flatDocuments)
-            ->filter(
-                fn($doc) => $this->canView(
-                    $doc,
-                    $permissionsByDocType,
-                    $employeeId,
-                    $userId,
-                    $validationContext,
-                    $document_type,
-                    $responsibilities
-                )
-            )
-            // ->sortByDesc('id')   // <-- ajoute ceci
-            // ->sortByDesc('created_ataa') // ou created_at
-            ->values();
-
-        // throw new Exception(json_encode($filteredDocuments ), 1);
-
-        $page = max((int) $currentPage, 1);
-        $perPage = max((int) $per_page, 1);
-
-        $total = $filteredDocuments->count();
-
-        $pagedDocuments = $filteredDocuments
-            ->slice(($page - 1) * $perPage, $perPage)
-            ->values();
-
-        //     throw new Exception(json_encode([
-        //     'page' => $page,
-        //     'perPage' => $perPage,
-        //     'filtered' => $filteredDocuments->pluck('id')->toArray(),
-        // ]));
-
-        // $isStat = (bool)$isStat;
-        // throw new Exception(json_encode($isStat  ), 1);
-
-        /*
-    |--------------------------------------------------------------------------
-    | Documents
-    |--------------------------------------------------------------------------
-    */
-
-        if ($isStat) {
-            // throw new Exception(json_encode("oui"), 1);
-
-            $filteredDocumentIds = $filteredDocuments->pluck("id");
-
-            $documents = $this->fetchDocuments(
-                $filteredDocumentIds,
-                $document_type,
-                $filters,
-                $request
-            );
-
-            return [
-                "count" => collect($documents)->count(),
-            ];
-        } else {
-            // throw new Exception(json_encode("non"), 1);
-
-            $filteredDocumentIds = $pagedDocuments->pluck("id");
-        }
-
-        //throw new Exception(json_encode($filteredDocumentIds), 1);
-
-        $documents = $this->fetchDocuments(
-            $filteredDocumentIds,
-            $document_type,
-            $filters,
-            $request
-        );
-
-        // throw new Exception(json_encode(collect($documents)->pluck('id')->toArray()), 1);
-
-        $pagination = [
-            "current_page" => $page,
-            "per_page" => $perPage,
-            "total" => $total,
-            "last_page" => max(1, (int) ceil($total / $perPage)),
+        $benchmark[$name] = [
+            'duration_ms' => round(($now - $start) * 1000, 2),
         ];
 
-        // throw new Exception(json_encode(($documents)), 1);
+        $start = $now;
+    };
 
-        if (collect($documents)->isEmpty()) {
-            return [
-                "data" => [],
-                "pagination" => $pagination,
-            ];
-        }
+    [
+        "employeeId" => $employeeId,
+        "userId" => $userId,
+        "roleId" => $roleId,
+        "document_type" => $document_type,
+        "validationContext" => $validationContext,
+        "filters" => $filters,
+        "filterContext" => $filterContext,
+        "currentPage" => $currentPage,
+        "per_page" => $per_page,
+        "isStat" => $isStat,
+    ] = $params;
 
-        /*
+
+    /*
     |--------------------------------------------------------------------------
-    | Workflow instances
+    | Base Query
     |--------------------------------------------------------------------------
     */
-        $workflowInstances = WorkflowInstance::query()
-            ->whereIn("document_id", $documentIds)
-            ->get()
-            ->keyBy("document_id");
 
-        /*
-    |--------------------------------------------------------------------------
-    | Availability Context
-    |--------------------------------------------------------------------------
-    */
-        $availabilityContexts = $this->availabilityContexts(
-            $filteredDocumentIds->toArray()
+    $baseQuery = $this->buildWorkflowQuery($validationContext);
+
+    if (!empty($document_type)) {
+        $baseQuery->where(
+            "workflow_instances.document_type_relation_name",
+            $document_type
         );
+    }
 
-        // throw new Exception(json_encode(($documents)), 1);
+    $mark("build_base_query");
 
-        $contextsByDocId = collect($availabilityContexts)->keyBy("document_id");
 
-        $documents = collect($documents)
-            ->map(function ($doc) use (
-                $contextsByDocId,
-                $workflowInstances,
-                $userId
-            ) {
-                $context = $contextsByDocId->get($doc["id"]);
+    $currentEmployeeContext = $this->effectiveResponsibilityService
+        ->getContext($employeeId);
 
-                return $this->enrichDocument(
-                    $doc,
-                    $workflowInstances[$doc["id"]],
-                    $userId,
-                    $context
-                );
-            })
-            ->values()
-            ->toArray();
+    
 
-        // throw new Exception(json_encode($documents), 1);
+    /*
+    |--------------------------------------------------------------------------
+    | Responsibilities
+    |--------------------------------------------------------------------------
+    */
 
-        /*
+    $responsibilities = $this->effectiveResponsibilityService
+        ->getForEmployee($employeeId , $currentEmployeeContext);
+
+    $mark("get_responsibilities");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document IDs
+    |--------------------------------------------------------------------------
+    */
+
+    $documentIdsNotPaginated = $this->getDocumentIds(
+        $filterContext,
+        clone $baseQuery,
+        $roleId,
+        $userId,
+        $validationContext,
+        $document_type[0],
+        $employeeId,
+        $responsibilities,
+        $filters,
+        !empty($filters["statut"]),
+        !empty($filters["statut"]),
+    );
+
+    $mark("get_document_ids");
+
+
+    $documentIds = collect($documentIdsNotPaginated)
+        ->pluck("document_id");
+
+    $mark("pluck_document_ids");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document Service
+    |--------------------------------------------------------------------------
+    */
+
+    $flatDocuments = collect(
+        $this->documentClient->getDocumentTypesByIds(
+            $documentIds->toArray()
+        )
+    )
+        ->sortByDesc("id")
+        ->values()
+        ->all();
+
+    $mark("get_documents_from_document_service");
+
+
+    /*
     |--------------------------------------------------------------------------
     | Permissions
     |--------------------------------------------------------------------------
     */
-        // $permissionsByDocType = $this->getPermissions(
-        //     $documents,
-        //     $userId,
-        //     $roleId,
-        //     $request,
-        //     $permissionService
-        // );
 
-        // throw new Exception(json_encode($permissionsByDocType), 1);
+    $permissionsByDocType = $this->getPermissions(
+        $flatDocuments,
+        $userId,
+        $roleId,
+        $request,
+        $permissionService
+    );
 
-        /*
+    $mark("get_permissions");
+
+    $actorIds = collect($flatDocuments)
+    ->pluck('actor_id')
+    ->filter()
+    ->unique()
+    ->values()
+    ->toArray();
+
+
+
+$currentDepartmentId = data_get(
+    $currentEmployeeContext,
+    'active_position.department_id'
+);
+
+
+
+$sameDepartmentMap = $this->getSameDepartmentMap(
+    $actorIds,
+    $currentDepartmentId
+);
+
+    // throw new Exception(json_encode($sameDepartmentMap), 1);
+
+    
+
+    /*
     |--------------------------------------------------------------------------
-    | Etapes actionnables
+    | Visibility
     |--------------------------------------------------------------------------
     */
-        $actionableSteps = WorkflowInstanceStep::query()
-            ->whereHas("assignments", function ($q) use ($roleId) {
-                $q->where("role_id", $roleId)->where("decision", "PENDING");
-            })
-            ->where("status", "PENDING")
-            ->with("assignments")
-            ->get()
-            ->keyBy("workflow_instance_id");
+    $workflowInstances = WorkflowInstance::query()
+    ->whereIn("document_id", $documentIds)
+    ->get()
+    ->keyBy("document_id");
 
-        // throw new Exception(json_encode($actionableSteps), 1);
+$workflowInstanceIds = $workflowInstances
+    ->pluck("id")
+    ->filter()
+    ->values()
+    ->toArray();
 
-        /*
-    |--------------------------------------------------------------------------
-    | Enrichissement final
-    |--------------------------------------------------------------------------
-    */
-        $documents = $this->enrichDocuments(
-            $documents,
+$workflowSteps = WorkflowInstanceStep::query()
+    ->whereIn("workflow_instance_id", $workflowInstanceIds)
+    ->with([
+        "workflowStep.workflowActionSteps.workflowAction"
+    ])
+    ->get()
+    ->groupBy("workflow_instance_id");
+
+    $filteredDocuments = collect($flatDocuments)
+        ->filter(
+            fn($doc) => $this->canView(
+            $doc,
             $permissionsByDocType,
-            $workflowInstances,
-            $actionableSteps,
             $employeeId,
             $userId,
-            $validationContext
+            $validationContext,
+            $document_type,
+            $responsibilities,
+            $workflowInstances,
+            $workflowSteps,
+            $sameDepartmentMap
+            )
+        )
+        ->values();
+
+    $mark("can_view_filter");
+
+
+      /*
+    |--------------------------------------------------------------------------
+    | Stat
+    |--------------------------------------------------------------------------
+    */
+
+    if ($isStat) {
+
+        $filteredDocumentIds = $filteredDocuments->pluck("id");
+
+        $documentsCount = $this->fetchDocuments(
+            $filteredDocumentIds,
+            $document_type,
+            $filters,
+            $request,
+            $isStat,
+            false
         );
 
-        // throw new Exception(json_encode($documents), 1);
+        $mark("fetch_documents_stat");
+
+        logger()->info("GET DOCUMENTS BENCHMARK", [
+            "employee_id" => $employeeId,
+            "document_count" => $documentIds->count(),
+            "filtered_count" => $filteredDocuments->count(),
+            "benchmark" => $benchmark,
+        ]);
 
         return [
-            "data" => $documents,
+            "count" =>$documentsCount// collect($documents)->count(),
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pagination
+    |--------------------------------------------------------------------------
+    */
+
+    $page = max((int) $currentPage, 1);
+    $perPage = max((int) $per_page, 1);
+
+    $total = $filteredDocuments->count();
+
+    $pagedDocuments = $filteredDocuments
+        ->slice(($page - 1) * $perPage, $perPage)
+        ->values();
+
+    $mark("pagination");
+
+
+
+    $filteredDocumentIds = $pagedDocuments->pluck("id");
+
+    $mark("prepare_filtered_ids");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Fetch Documents
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = $this->fetchDocuments(
+        $filteredDocumentIds,
+        $document_type,
+        $filters,
+        $request
+    );
+
+    $mark("fetch_documents");
+
+
+    $pagination = [
+        "current_page" => $page,
+        "per_page" => $perPage,
+        "total" => $total,
+        "last_page" => max(1, (int) ceil($total / $perPage)),
+    ];
+
+
+    if (collect($documents)->isEmpty()) {
+
+        logger()->info("GET DOCUMENTS BENCHMARK", [
+            "employee_id" => $employeeId,
+            "document_count" => $documentIds->count(),
+            "filtered_count" => $filteredDocuments->count(),
+            "benchmark" => $benchmark,
+        ]);
+
+        return [
+            "data" => [],
             "pagination" => $pagination,
         ];
     }
 
-    private function applyVisibilityFilter(
-        Builder $query,
-        int $roleId,
-        int $userId
-    ) {
-        $query->where(function ($q) use ($roleId, $userId) {
-            // Étape actuelle
-            $q->where(function ($q) use ($roleId) {
-                $q->where(
-                    "workflow_instance_steps.status",
-                    "PENDING"
-                )->whereHas("assignments", function ($a) use ($roleId) {
-                    $a->where("role_id", $roleId)->where("decision", "PENDING");
-                });
-            })
 
-                // Historique personnel
-                ->orWhere(function ($q) use ($userId) {
-                    $q->where(
-                        "workflow_instance_steps.status",
-                        "COMPLETE"
-                    )->whereHas("assignments", function ($a) use ($userId) {
-                        $a->where("user_id", $userId)->where(
-                            "decision",
-                            "APPROVED"
-                        );
-                    });
-                });
-        });
+    /*
+    |--------------------------------------------------------------------------
+    | Workflow Instances
+    |--------------------------------------------------------------------------
+    */
 
-        return $query;
+    $workflowInstances = WorkflowInstance::query()
+        ->whereIn("document_id", $documentIds)
+        ->get()
+        ->keyBy("document_id");
+
+    $mark("get_workflow_instances");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Availability
+    |--------------------------------------------------------------------------
+    */
+
+    $availabilityContexts = $this->availabilityContexts(
+        $filteredDocumentIds->toArray()
+    );
+
+    $mark("availability_contexts");
+
+
+    $contextsByDocId = collect($availabilityContexts)
+        ->keyBy("document_id");
+
+    $mark("key_by_contexts");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Enrichment
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = collect($documents)
+        ->map(function ($doc) use (
+            $contextsByDocId,
+            $workflowInstances,
+            $userId
+        ) {
+
+            $context = $contextsByDocId->get($doc["id"]);
+
+            return $this->enrichDocument(
+                $doc,
+                $workflowInstances[$doc["id"]],
+                $userId,
+                $context
+            );
+
+        })
+        ->values()
+        ->toArray();
+
+    $mark("enrich_document");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Actionable Steps
+    |--------------------------------------------------------------------------
+    */
+
+    $actionableSteps = WorkflowInstanceStep::query()
+        ->whereHas("assignments", function ($q) use ($roleId) {
+            $q->where("role_id", $roleId)
+                ->where("decision", "PENDING");
+        })
+        ->where("status", "PENDING")
+        ->with("assignments")
+        ->get()
+        ->keyBy("workflow_instance_id");
+
+    $mark("get_actionable_steps");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Final Enrichment
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = $this->enrichDocuments(
+        $documents,
+        $permissionsByDocType,
+        $workflowInstances,
+        $actionableSteps,
+        $employeeId,
+        $userId,
+        $validationContext
+    );
+
+    $mark("enrich_documents_final");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Benchmark
+    |--------------------------------------------------------------------------
+    */
+
+    $totalTime = array_sum(
+        array_column($benchmark, "duration_ms")
+    );
+
+    logger()->info("GET DOCUMENTS BENCHMARK", [
+        "employee_id" => $employeeId,
+        "user_id" => $userId,
+        "document_count" => $documentIds->count(),
+        "filtered_count" => $filteredDocuments->count(),
+        "returned_count" => count($documents),
+        "total_ms" => round($totalTime, 2),
+        "benchmark" => $benchmark,
+    ]);
+
+
+    return [
+        "data" => $documents,
+        "pagination" => $pagination,
+    ];
+}
+
+
+
+protected function getSameDepartmentMap(
+    array $employeeIds,
+    int $currentDepartmentId
+): array {
+
+    $employeeIds = array_values(array_unique(
+        array_filter($employeeIds)
+    ));
+
+    if (empty($employeeIds)) {
+        return [];
     }
+
+    $contexts = $this->departmentContextService
+        ->getEmployeeContextMap($employeeIds);
+
+    // throw new Exception(json_encode($contexts), 1);
+    
+
+    $result = [];
+
+    foreach ($contexts as $employeeId => $context) {
+
+        $departmentId = data_get(
+            $context,
+            'active_position.department_id'
+        );
+
+        $result[$employeeId] =
+            $departmentId !== null &&
+            (int) $departmentId === (int) $currentDepartmentId;
+    }
+
+    return $result;
+}
+
 
     private function buildWorkflowQuery(string $validationContext)
     {
@@ -596,7 +758,6 @@ class DocumentWorkflowService
         if ($validationContext === self::CONTEXT_VALIDATION) {
             // throw new Exception($validationContext, 1);
 
-            // $query = $this->applyVisibilityFilter($query, $roleId, $userId);
 
             $policy = $this->visibilityPolicyResolver->resolve(
     $document_type
@@ -726,7 +887,9 @@ $query = $policy->apply(
         $documentIds,
         array $documentTypes,
         ?array $filters,
-        Request $request
+        Request $request,
+        bool $isStat=false,
+        bool $shouldEnrich = true
     ): array {
         $response = Http::withToken($request->bearerToken())
             ->acceptJson()
@@ -734,6 +897,8 @@ $query = $policy->apply(
                 "ids" => $documentIds->toArray(),
                 "documentTypes" => $documentTypes,
                 "filters" => $filters,
+                "shouldEnrich" => $shouldEnrich,
+                "isStat"=>$isStat
             ]);
 
         // throw new Exception(json_encode($response->body()), 1);
@@ -930,29 +1095,293 @@ $query = $policy->apply(
             ->toArray();
     }
 
-    // protected function getEmployeeContext($employeeId)
-    // {
-    //     $response = Http::withToken(request()->bearerToken())
-    //         ->acceptJson()
-    //         ->get(
-    //             config("services.department_service.base_url") .
-    //                 "/employees/" .
-    //                 $employeeId .
-    //                 "/context"
-    //         );
-
-    //     $employeeContext = [];
-
-    //     if ($response->successful()) {
-    //         $employeeContext = $response->json();
-    //     } else {
-    //         throw new Exception(json_encode($response->body()), 1);
-    //     }
-
-    //     return $employeeContext;
-    // }
 
     protected function canView(
+    array $doc,
+    object $permissionsByDocType,
+    int $employeeId,
+    int $userId,
+    string $context,
+    array $currentDocTypeSlug,
+    array $responsibilities,
+     $workflowInstances,
+     $workflowSteps,
+     $sameDepartmentMap
+): bool {
+
+
+
+    $perm = $permissionsByDocType[
+    $doc["document_type_id"]
+] ?? null;
+
+if (!$perm) {
+    return false;
+}
+
+    /*
+    |--------------------------------------------------------------------------
+    | Owner / Actor
+    |--------------------------------------------------------------------------
+    */
+
+    $isOwner = $doc["created_by"] === $userId;
+
+    $isActor =
+        $doc["actor_type"] === "EMPLOYEE" &&
+        $doc["actor_id"] === $employeeId;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MY DOCUMENTS
+    |--------------------------------------------------------------------------
+    */
+
+    if ($context === "MY_DOCUMENTS") {
+        return $isOwner || $isActor;
+    }
+    /*
+    |--------------------------------------------------------------------------
+    | Document type
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        !in_array(
+            $doc["document_type"]["relation_name"],
+            $currentDocTypeSlug
+        )
+    ) { 
+        return false;
+    }
+
+
+
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Workflow
+    |--------------------------------------------------------------------------
+    */
+
+    $workflowInstance = $workflowInstances->get($doc["id"]);
+
+    if (!$workflowInstance) {
+        return false;
+    }
+
+    $steps = $workflowSteps->get($workflowInstance->id, collect());
+
+
+    // $completedSteps = $steps->where(
+    //     "status",
+    //     "COMPLETE"
+    // );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Signatures
+    |--------------------------------------------------------------------------
+    */
+
+    // $completedStepWithSignPermission =
+    //     $this->getStepsByPermissions(
+    //         $completedSteps->toArray(),
+    //         ["sign"]
+    //     );
+
+
+    // $stepWithSignPermission =
+    //     $this->getStepsByPermissions(
+    //         $steps->toArray(),
+    //         ["sign"]
+    //     );
+
+
+    // $hasSignStep = !empty($stepWithSignPermission);
+
+    // $hasCompletedSignStep = !empty($completedStepWithSignPermission);
+
+    $hasSignStep = false;
+$hasCompletedSignStep = false;
+
+foreach ($steps as $instanceStep) {
+
+    $actionSteps =
+        $instanceStep->workflowStep->workflowActionSteps ?? [];
+
+    foreach ($actionSteps as $actionStep) {
+
+        if (($actionStep->permission_required ?? null) !== "sign") {
+            continue;
+        }
+
+        $hasSignStep = true;
+
+        if ($instanceStep->status === "COMPLETE") {
+            $hasCompletedSignStep = true;
+        }
+
+        if ($hasSignStep && $hasCompletedSignStep) {
+            break 2;
+        }
+    }
+}
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Responsibilities
+    |--------------------------------------------------------------------------
+    */
+
+    $isAccounting = in_array(
+        "ACCOUNTING",
+        $responsibilities
+    );
+
+    $isSignatory = in_array(
+        "SIGNATORY",
+        $responsibilities
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Accounting visibility rule
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $hasSignStep &&
+        !$hasCompletedSignStep &&
+        $isAccounting &&
+        !$isSignatory
+    ) {
+        return false;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Permissions
+    |--------------------------------------------------------------------------
+    */
+
+    // $perm = $permissionsByDocType[
+    //     $doc["document_type_id"]
+    // ] ?? null;
+
+    // if (!$perm) {
+    //     return false;
+    // }
+
+    $permissions = $perm["permissions"];
+
+
+    // /*
+    // |--------------------------------------------------------------------------
+    // | Owner / Actor
+    // |--------------------------------------------------------------------------
+    // */
+
+    // $isOwner = $doc["created_by"] === $userId;
+
+    // $isActor =
+    //     $doc["actor_type"] === "EMPLOYEE" &&
+    //     $doc["actor_id"] === $employeeId;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Department
+    |--------------------------------------------------------------------------
+    */
+    // $start = microtime(true);
+
+    // $isSameDepartment = //true;
+    
+    // $this->checkSameDepartment(
+    //     $doc["actor_id"],
+    //     $employeeId
+    // );
+    $actorId = $doc["actor_id"] ?? null;
+
+    $isSameDepartment = $actorId !== null
+        ? ($sameDepartmentMap[$actorId] ?? false)
+        : false;
+
+    // $duration = (microtime(true) - $start) * 1000;
+
+    // if ($duration > 10) {
+    //     logger()->info("SLOW checkSameDepartment", [
+    //         "document_id" => $doc["id"],
+    //         "actor_id" => $doc["actor_id"],
+    //         "employee_id" => $employeeId,
+    //         "duration_ms" => round($duration, 2),
+    //     ]);
+    // }
+
+
+    // /*
+    // |--------------------------------------------------------------------------
+    // | MY DOCUMENTS
+    // |--------------------------------------------------------------------------
+    // */
+
+    // if ($context === "MY_DOCUMENTS") {
+    //     return $isOwner || $isActor;
+    // }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | TO VALIDATE / IN PROGRESS / COMPLETE
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $context === "TO_VALIDATE" ||
+        $context === "IN_PROGRESS" ||
+        $context === "COMPLETE"
+    ) {
+        return
+            ($permissions["view_department"] && $isSameDepartment)
+            ||
+            $permissions["view_all"];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ALL DOCUMENTS
+    |--------------------------------------------------------------------------
+    */
+
+    if ($context === "ALL_DOCUMENTS") {
+        return
+            $permissions["view_all"]
+            ||
+            (
+                $permissions["view_department"]
+                && $isSameDepartment
+            )
+            ||
+            (
+                $permissions["view_own"]
+                && $isOwner
+            );
+    }
+
+
+    return false;
+}
+
+    protected function OldcaneView(
         array $doc,
         object $permissionsByDocType,
         int $employeeId,
@@ -1014,24 +1443,8 @@ $query = $policy->apply(
 
         // throw new Exception(json_encode($responsibilities), 1);
 
-        // if ($hasSignStep && (!$hasCompletedSignStep && (!$isSignatory || $isAccounting) ) ) {
-
-
-
-        // if ($hasSignStep && !$hasCompletedSignStep && $isAccounting  ) {
-            
-        //     if ($isSignatory) {
-                
-        //     }
-        //     else{
-
-        //         return false;
-
-        //     }
+      
         
-
-            
-        // }
 
         if (
     $hasSignStep &&

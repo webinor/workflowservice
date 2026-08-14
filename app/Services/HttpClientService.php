@@ -16,6 +16,7 @@ class HttpClientService
         "workflow" => "services.workflow_service.base_url",
         "user" => "services.user_service.base_url",
         "employee" => "services.user_service.base_url",
+        "department" => "services.department_service.base_url",
     ];
 
     protected static string $defaultBaseUrl = "";
@@ -73,6 +74,7 @@ class HttpClientService
 
             if (!$response->ok()) {
 
+                //   throw new \Exception("{$this->baseUrl}/{$uri}", 1);
                   throw new \Exception(json_encode($response->body() ), 1);
 
             }

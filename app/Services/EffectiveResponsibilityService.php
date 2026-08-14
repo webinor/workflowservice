@@ -21,9 +21,14 @@ class EffectiveResponsibilityService
      * @return array
      * @throws Exception
      */
-    public function getForEmployee(int $employeeId): array
+    public function getForEmployee(int $employeeId , $employeeContext = null): array
     {
-        $employeeContext = $this->getEmployeeContext($employeeId);
+
+        if (!$employeeContext) {
+            # code...
+            $employeeContext = $this->getEmployeeContext($employeeId);
+            
+        }
 
         return collect(
             data_get($employeeContext, 'responsibilities', [])
