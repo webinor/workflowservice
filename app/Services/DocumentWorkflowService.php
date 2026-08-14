@@ -1000,32 +1000,8 @@ $query = $policy->apply(
 
         $user = request()->get("user");
 
-        // $employeeContext = $this->getEmployeeContext($user["employee_id"]);
-
-    //     $responsibilities = $this->effectiveResponsibilityService
-    // ->getForEmployee(
-    //     (int) $user["employee_id"]
-    // );
-
-    //     $responsibilities = collect(
-    //         data_get($employeeContext, "responsibilities", [])
-    //     )
-    //         ->pluck("code")
-    //         ->filter()
-    //         ->values()
-    //         ->toArray();
-
-   
-
-        // if (!empty($stepWithSignPermission) && empty($completedStepWithSignPermission)) {
-
-        //  if (in_array("ACCOUNTING", $responsibilities)) {
-        //         return false;
-        //     }
-
-        // } else {
-
-        // }
+       
+        
 
         $hasSignStep = !empty($stepWithSignPermission);
 
@@ -1038,11 +1014,33 @@ $query = $policy->apply(
 
         // throw new Exception(json_encode($responsibilities), 1);
 
-        if ($hasSignStep && !$hasCompletedSignStep && $isAccounting  ) {
-            // throw new Exception(json_encode($responsibilities), 1);
+        // if ($hasSignStep && (!$hasCompletedSignStep && (!$isSignatory || $isAccounting) ) ) {
 
-            return false;
-        }
+
+
+        // if ($hasSignStep && !$hasCompletedSignStep && $isAccounting  ) {
+            
+        //     if ($isSignatory) {
+                
+        //     }
+        //     else{
+
+        //         return false;
+
+        //     }
+        
+
+            
+        // }
+
+        if (
+    $hasSignStep &&
+    !$hasCompletedSignStep &&
+    $isAccounting &&
+    !$isSignatory
+) {
+    return false;
+}
 
         // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
 
