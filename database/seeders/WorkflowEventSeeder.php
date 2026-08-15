@@ -32,6 +32,12 @@ class WorkflowEventSeeder extends Seeder
                 'description' => 'Calcule les jours imputables et met à jour le solde de congé du collaborateur.',
             ],
 
+            [
+                'code' => 'NOTIFY_TAXI_PAPER_BENEFICIARY',
+                'name' => 'Notification du bénéficiaire du papier taxi',
+                'description' => 'Envoie une notification au bénéficiaire pour l’informer que sa demande de papier taxi a été validée.',
+            ],
+
         ];
 
         foreach ($events as $event) {

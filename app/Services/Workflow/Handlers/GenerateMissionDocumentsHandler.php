@@ -33,6 +33,7 @@ class GenerateMissionDocumentsHandler
                 $documentId,
                 $instance->id,
                 $template
+                
             );
 
         $dates = $this->buildMissionDates($documentData["mission"]);
@@ -42,17 +43,13 @@ class GenerateMissionDocumentsHandler
 
             'data' => [
 
-                'actor' =>
-                    $documentData["actor_details"]['nom'] ?? '',
+            'actor' => $documentData["actor_details"]['nom'] ?? '',
 
-                'mission_reference' =>
-                    $documentData["mission"]['code'] ?? '',
+                'mission_reference' =>  $documentData["mission"]['code'] ?? '',
 
-                'destination' =>
-                    $documentData["mission"]['destination'] ?? '',
+                'destination' => $documentData["mission"]['destination'] ?? '',
 
-                'period' =>
-                    $dates['period'] ?? '',
+                'period' => $dates['period'] ?? '',
             ],
 
             'attachments' =>

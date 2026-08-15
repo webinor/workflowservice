@@ -8,19 +8,23 @@ use App\Models\WorkflowEventAudience;
 use App\Models\WorkflowInstanceStep;
 use App\Services\User\UserServiceClient;
 use App\Services\Department\DepartmentServiceClient;
+use App\Services\Actor\ActorServiceClient;
 use Exception;
 
 class WorkflowAudienceResolver
 {
     protected UserServiceClient $userService;
+    protected ActorServiceClient $actorServiceClient;
     protected DepartmentServiceClient $departmentService;
 
     public function __construct(
         UserServiceClient $userService,
+        ActorServiceClient $actorServiceClient,
         DepartmentServiceClient $departmentService
     ) {
         $this->userService = $userService;
         $this->departmentService = $departmentService;
+        $this->actorServiceClient = $actorServiceClient;
     }
 
     /**
@@ -62,7 +66,7 @@ class WorkflowAudienceResolver
 
                    $recipients = $this->resolveActor(
                         $audience->target_value,
-                        $actor_details["user_id"]
+                        $document["actor_id"]
                     );
 
                     break;
@@ -206,8 +210,8 @@ $results[$channel][$recipientType] = array_merge(
 
                 // return ["ici"];
 
-             $user = $this->userService
-                    ->find(
+             $user = $this->actorServiceClient
+                    ->findEmployee(
                         $actor_id
                         // $instance->created_by
                     );
@@ -216,6 +220,27 @@ $results[$channel][$recipientType] = array_merge(
                     ? [$this->formatRecipient($user)]
                     : [];
 
+
+            case "OWNER":
+
+                // return ["ici"];
+                //    throw new Exception(json_encode($actor_id), 1);
+
+
+             $actor = $this->actorServiceClient
+                    ->findEmployee(
+                        (int)$actor_id
+                    );
+
+                //    throw new Exception(json_encode($actor), 1);
+                    
+
+                return $actor
+                    ? [$this->formatRecipient($actor)]
+                    : [];
+
+
+            
             default:
                 return [];
         }
@@ -321,13 +346,13 @@ $results[$channel][$recipientType] = array_merge(
      * =====================================
      */
     private function formatRecipient(
-        array $user
+        array $actor
     ): array {
 
         return [
-            'recipient_id' => $user['id'] ?? null,
-            'recipient_email' => $user['email'] ?? null,
-            'recipient_phone' => $user['phone'] ?? null,
+            'recipient_id' => $actor['id'] ?? null,
+            'recipient_email' => $actor['email'] ?? null,
+            'recipient_phone' => $actor['phone'] ?? null,
         ];
     }
 }

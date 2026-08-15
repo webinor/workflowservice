@@ -200,7 +200,9 @@ class WorkflowInstanceController extends Controller
             );
 
             if ($responseUsers->ok()) {
+              
                 $users = collect($responseUsers->json())->keyBy("id");
+
             }
         }
 
@@ -222,9 +224,9 @@ class WorkflowInstanceController extends Controller
 
                 $validatedAssignments = $assignments->where("decision", "APPROVED");
 
-$pendingAssignments = $assignments->filter(function ($assignment) {
-    return $assignment->decision == "PENDING";// is_null($assignment->decision);
-});
+                $pendingAssignments = $assignments->filter(function ($assignment) {
+                    return $assignment->decision == "PENDING"; 
+                });
 
                 $knownAssignments = $assignments->whereNotNull("user_id");
 
@@ -236,7 +238,8 @@ $pendingAssignments = $assignments->filter(function ($assignment) {
                 if (
                     in_array($instanceStep->status, ["COMPLETE", "REJECTED"]) &&
                     $validatedAssignments->isNotEmpty()
-                ) {
+                ) 
+                {
                     // utilisateur(s) ayant validé
                     $displayName = $validatedAssignments
                         ->pluck("user_id")
@@ -1697,58 +1700,7 @@ protected function canAdvanceWorkflow(
     $roleIdsToNotify = $result["roleIdsToNotify"];
 }
 
-            // =====================================
-            // NEXT STEP HANDLING
-            // =====================================
-            //old logic
-            // if ($currentStep->status === "COMPLETE") {
-
-            //     if ($nextStep) {
-            //         if ($nextStep->workflowStep->is_archived_step) {
-            //             $nextStep->update([
-            //                 "status" => "COMPLETE",
-            //                 "executed_at" => now(),
-            //             ]);
-
-            //             WorkflowInstanceStepAssignment::where(
-            //                 "instance_step_id",
-            //                 $nextStep->id
-            //             )->update([
-            //                 "decision" => "APPROVED",
-            //                 "decided_at" => now(),
-            //                 "user_id" => $user["id"],
-            //             ]);
-
-            //             $instance->update([
-            //                 "status" => "COMPLETE",
-            //                 "workflow_status_label_id" => $label->id ?? null,
-            //             ]);
-            //         } else {
-            //             $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
-
-            //             $nextStep->update([
-            //                 "status" => "PENDING",
-            //             ]);
-
-            //             $instance->update([
-            //                 "status" => "PENDING",
-            //                 "workflow_status_label_id" => $label->id ?? null,
-            //             ]);
-            //         }
-            //     } else {
-            //         $instance->update([
-            //             "status" => "COMPLETE",
-            //             "workflow_status_label_id" => $label->id ?? null,
-            //         ]);
-            //     }
-            // } else {
-            //     // L'étape n'a pas encore atteint son quorum
-            //     $instance->update([
-            //         "status" => "PENDING",
-            //         "workflow_status_label_id" => $label->id ?? null,
-            //     ]);
-            // }
-
+            
 
             // =====================================
             // HISTORY
@@ -1784,6 +1736,12 @@ protected function canAdvanceWorkflow(
 );
 
             DB::commit();
+
+                // $WorkflowEventEngine->handle(
+                //     $documentUuid,
+                //     $currentStep,
+                //     $actionStepId
+                // );
 
             // DB::afterCommit(function () use (
             //     $instance,

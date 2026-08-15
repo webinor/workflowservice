@@ -62,17 +62,17 @@ class DocumentWorkflowService
 ): array {
 
     $benchmark = [];
-    $start = microtime(true);
+    // $start = microtime(true);
 
-    $mark = function ($name) use (&$benchmark, &$start) {
-        $now = microtime(true);
+    // $mark = function ($name) use (&$benchmark, &$start) {
+    //     $now = microtime(true);
 
-        $benchmark[$name] = [
-            'duration_ms' => round(($now - $start) * 1000, 2),
-        ];
+    //     $benchmark[$name] = [
+    //         'duration_ms' => round(($now - $start) * 1000, 2),
+    //     ];
 
-        $start = $now;
-    };
+    //     $start = $now;
+    // };
 
     [
         "employeeId" => $employeeId,
@@ -103,7 +103,7 @@ class DocumentWorkflowService
         );
     }
 
-    $mark("build_base_query");
+    // $mark("build_base_query");
 
 
     $currentEmployeeContext = $this->effectiveResponsibilityService
@@ -120,7 +120,7 @@ class DocumentWorkflowService
     $responsibilities = $this->effectiveResponsibilityService
         ->getForEmployee($employeeId , $currentEmployeeContext);
 
-    $mark("get_responsibilities");
+    // $mark("get_responsibilities");
 
 
     /*
@@ -143,13 +143,13 @@ class DocumentWorkflowService
         !empty($filters["statut"]),
     );
 
-    $mark("get_document_ids");
+    // $mark("get_document_ids");
 
 
     $documentIds = collect($documentIdsNotPaginated)
         ->pluck("document_id");
 
-    $mark("pluck_document_ids");
+    // $mark("pluck_document_ids");
 
 
     /*
@@ -167,7 +167,7 @@ class DocumentWorkflowService
         ->values()
         ->all();
 
-    $mark("get_documents_from_document_service");
+    // $mark("get_documents_from_document_service");
 
 
     /*
@@ -184,7 +184,7 @@ class DocumentWorkflowService
         $permissionService
     );
 
-    $mark("get_permissions");
+    // $mark("get_permissions");
 
     $actorIds = collect($flatDocuments)
     ->pluck('actor_id')
@@ -252,7 +252,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         )
         ->values();
 
-    $mark("can_view_filter");
+    // $mark("can_view_filter");
 
 
       /*
@@ -274,14 +274,14 @@ $workflowSteps = WorkflowInstanceStep::query()
             false
         );
 
-        $mark("fetch_documents_stat");
+        // $mark("fetch_documents_stat");
 
-        logger()->info("GET DOCUMENTS BENCHMARK", [
-            "employee_id" => $employeeId,
-            "document_count" => $documentIds->count(),
-            "filtered_count" => $filteredDocuments->count(),
-            "benchmark" => $benchmark,
-        ]);
+        // logger()->info("GET DOCUMENTS BENCHMARK", [
+        //     "employee_id" => $employeeId,
+        //     "document_count" => $documentIds->count(),
+        //     "filtered_count" => $filteredDocuments->count(),
+        //     "benchmark" => $benchmark,
+        // ]);
 
         return [
             "count" =>$documentsCount// collect($documents)->count(),
@@ -303,13 +303,13 @@ $workflowSteps = WorkflowInstanceStep::query()
         ->slice(($page - 1) * $perPage, $perPage)
         ->values();
 
-    $mark("pagination");
+    // $mark("pagination");
 
 
 
     $filteredDocumentIds = $pagedDocuments->pluck("id");
 
-    $mark("prepare_filtered_ids");
+    // $mark("prepare_filtered_ids");
 
 
     /*
@@ -325,7 +325,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         $request
     );
 
-    $mark("fetch_documents");
+    // $mark("fetch_documents");
 
 
     $pagination = [
@@ -338,12 +338,12 @@ $workflowSteps = WorkflowInstanceStep::query()
 
     if (collect($documents)->isEmpty()) {
 
-        logger()->info("GET DOCUMENTS BENCHMARK", [
-            "employee_id" => $employeeId,
-            "document_count" => $documentIds->count(),
-            "filtered_count" => $filteredDocuments->count(),
-            "benchmark" => $benchmark,
-        ]);
+        // logger()->info("GET DOCUMENTS BENCHMARK", [
+        //     "employee_id" => $employeeId,
+        //     "document_count" => $documentIds->count(),
+        //     "filtered_count" => $filteredDocuments->count(),
+        //     "benchmark" => $benchmark,
+        // ]);
 
         return [
             "data" => [],
@@ -363,7 +363,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         ->get()
         ->keyBy("document_id");
 
-    $mark("get_workflow_instances");
+    // $mark("get_workflow_instances");
 
 
     /*
@@ -376,13 +376,13 @@ $workflowSteps = WorkflowInstanceStep::query()
         $filteredDocumentIds->toArray()
     );
 
-    $mark("availability_contexts");
+    // $mark("availability_contexts");
 
 
     $contextsByDocId = collect($availabilityContexts)
         ->keyBy("document_id");
 
-    $mark("key_by_contexts");
+    // $mark("key_by_contexts");
 
 
     /*
@@ -411,7 +411,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         ->values()
         ->toArray();
 
-    $mark("enrich_document");
+    // $mark("enrich_document");
 
 
     /*
@@ -430,7 +430,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         ->get()
         ->keyBy("workflow_instance_id");
 
-    $mark("get_actionable_steps");
+    // $mark("get_actionable_steps");
 
 
     /*
@@ -449,7 +449,7 @@ $workflowSteps = WorkflowInstanceStep::query()
         $validationContext
     );
 
-    $mark("enrich_documents_final");
+    // $mark("enrich_documents_final");
 
 
     /*
@@ -462,15 +462,15 @@ $workflowSteps = WorkflowInstanceStep::query()
         array_column($benchmark, "duration_ms")
     );
 
-    logger()->info("GET DOCUMENTS BENCHMARK", [
-        "employee_id" => $employeeId,
-        "user_id" => $userId,
-        "document_count" => $documentIds->count(),
-        "filtered_count" => $filteredDocuments->count(),
-        "returned_count" => count($documents),
-        "total_ms" => round($totalTime, 2),
-        "benchmark" => $benchmark,
-    ]);
+    // logger()->info("GET DOCUMENTS BENCHMARK", [
+    //     "employee_id" => $employeeId,
+    //     "user_id" => $userId,
+    //     "document_count" => $documentIds->count(),
+    //     "filtered_count" => $filteredDocuments->count(),
+    //     "returned_count" => count($documents),
+    //     "total_ms" => round($totalTime, 2),
+    //     "benchmark" => $benchmark,
+    // ]);
 
 
     return [

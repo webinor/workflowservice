@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services\User;
+namespace App\Services\Actor;
 
-
+use Exception;
 use Illuminate\Support\Facades\Http;
 
-class UserServiceClient
+class ActorServiceClient
 {
     protected string $baseUrl;
 
@@ -44,6 +44,29 @@ class UserServiceClient
         }
 
         return $response->json()["user"];
+    }
+
+      /**
+     * =========================================
+     * Trouver un employé
+     * =========================================
+     */
+    public function findEmployee(int $employeeCode): ?array
+    {
+        $response = Http::withHeaders(
+            $this->headers()
+        )->get(
+            "{$this->baseUrl}/employees/{$employeeCode}"
+        );
+
+        if (!$response->successful()) {
+
+            throw new Exception(json_encode($response->body()), 1);
+
+            return null;
+        }
+
+        return $response->json()['employee'] ?? null;
     }
 
     /**
