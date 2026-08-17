@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Enums\NotificationPolicy;
 use App\Models\DocumentTypeWorkflow;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
@@ -193,11 +194,273 @@ public function cancel(
     
 }
 
-    public function notifyNextValidator(
+protected function resolveNotificationUserIds(
+    array $identifiers,
+    string $policy,
+    $request
+): array {
+
+    if (empty($identifiers)) {
+        return [];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER
+    |--------------------------------------------------------------------------
+    | Les identifiants sont déjà des user_id.
+    */
+
+    if ($policy === "USER") {
+
+        return collect($identifiers)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ROLE
+    |--------------------------------------------------------------------------
+    | Les identifiants sont des role_id.
+    |--------------------------------------------------------------------------
+    */
+
+    if ($policy === "ROLE") {
+
+        $response = Http::acceptJson()
+            ->withToken($request->bearerToken())
+            ->post(
+                config("services.user_service.base_url") .
+                "/roles/users",
+                [
+                    "role_ids" => $identifiers,
+                ]
+            );
+
+        if (!$response->successful()) {
+            throw new Exception(
+                json_encode($response->body()),
+                $response->status()
+            );
+        }
+
+        return collect(
+            $response->json("data", [])
+        )
+            ->pluck("id")
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+    }
+
+    throw new Exception(
+        "Politique de notification inconnue : {$policy}"
+    );
+}
+
+protected function resolveNotificationTargets(
+    WorkflowInstanceStep $stepInstance,
+    $request
+): array {
+
+    $assignments = $stepInstance->assignments()
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Assignations utilisateur explicites
+    |--------------------------------------------------------------------------
+    */
+
+    $assignedUserIds = $assignments
+        ->pluck("assigned_user_id")
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+    // throw new Exception(json_encode($assignedUserIds), 1);
+    
+
+    if (!empty($assignedUserIds)) {
+        return [
+            "policy" => NotificationPolicy::USER,
+            "user_ids" => $assignedUserIds,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Assignation par rôle
+    |--------------------------------------------------------------------------
+    */
+
+    $roleIds = $assignments
+        ->pluck("role_id")
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+    if (empty($roleIds)) {
+        return [
+            "policy" => NotificationPolicy::ROLE,
+            "user_ids" => [],
+        ];
+    }
+
+    $response = Http::acceptJson()
+        ->withToken($request->bearerToken())
+        ->post(
+            config("services.user_service.base_url") .
+            "/roles/users",
+            [
+                "role_ids" => $roleIds,
+            ]
+        );
+
+    if (!$response->successful()) {
+        throw new Exception(
+            json_encode($response->body()),
+            $response->status()
+        );
+    }
+
+    $userIds = collect(
+        $response->json("data", [])
+    )
+        ->pluck("id")
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+    return [
+        "policy" => NotificationPolicy::ROLE,
+        "user_ids" => $userIds,
+    ];
+}
+
+public function notifyNextValidators(
+    WorkflowInstanceStep $stepInstance,
+    $request,
+    $departmentId = null
+) {
+    $workflowInstance = $stepInstance->workflowInstance;
+
+    $documentId = $workflowInstance->document_uuid;
+    $workflowId = $workflowInstance->workflow_id;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Déterminer les destinataires
+    |--------------------------------------------------------------------------
+    */
+
+    $notificationTargets = $this->resolveNotificationTargets(
+        $stepInstance,
+        $request
+    );
+
+    if (empty($notificationTargets["user_ids"])) {
+        return;
+    }
+
+    $userIds = $notificationTargets["user_ids"];
+
+    // throw new Exception(json_encode($notificationTargets), 1);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document type
+    |--------------------------------------------------------------------------
+    */
+
+    $documentTypeWorkflow = DocumentTypeWorkflow::where(
+        "workflow_id",
+        $workflowId
+    )->first();
+
+    $documentTypeId = $documentTypeWorkflow
+        ? $documentTypeWorkflow->document_type_id
+        : null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Récupérer le document
+    |--------------------------------------------------------------------------
+    */
+
+    $response = Http::acceptJson()
+        ->withToken($request->bearerToken())
+        ->get(
+            config("services.document_service.base_url") .
+            "/{$documentId}"
+        );
+
+    if (!$response->successful()) {
+        throw new Exception(
+            json_encode($response->body()),
+            $response->status()
+        );
+    }
+
+    $documentData = $response->json();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Construire le message
+    |--------------------------------------------------------------------------
+    */
+
+    $messageRegistry = new WorkflowNotificationMessageRegistry();
+
+    $messageBuilder = $messageRegistry->resolve(
+        $documentData["document_type"]["slug"]
+    );
+
+    $payload = $messageBuilder->build($documentData);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Notification
+    |--------------------------------------------------------------------------
+    */
+
+    $notifyResponse = Http::acceptJson()
+        ->withToken($request->bearerToken())
+        ->post(
+            config("services.user_service.base_url") .
+            "/notifications",
+            [
+                "user_ids" => $userIds,
+                "payload" => $payload,
+                "document_id" => $documentId,
+                "document_type_id" => $documentTypeId,
+            ]
+        );
+
+    if (!$notifyResponse->successful()) {
+        throw new Exception(
+            json_encode($notifyResponse->body()),
+            $notifyResponse->status()
+        );
+    }
+}
+
+    public function OldnotifyNextValidator(
         WorkflowInstanceStep $stepInstance,
         $request,
         $departmentId = "",
-        $stepRoles = []
+        $stepRoles = [],
+         string $notificationPolicy = "ROLE"
     ) {
         // $step = $stepInstance->load("workflowStep")->workflowStep;
         // $stepRoles = [];

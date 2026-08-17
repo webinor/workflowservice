@@ -2,11 +2,17 @@
 
 namespace App\Services\Workflow;
 
+use App\Services\EffectiveResponsibilityService;
 use Exception;
 use Illuminate\Support\Facades\Http;
 
 class WorkflowDynamicResolverService
 {
+    protected EffectiveResponsibilityService $effectiveResponsibilityService;
+
+    public function __construct(EffectiveResponsibilityService $effectiveResponsibilityService) {
+        $this->effectiveResponsibilityService = $effectiveResponsibilityService;
+    }
     public function resolveActor($document)
     {
         $mapper = [
@@ -269,4 +275,59 @@ class WorkflowDynamicResolverService
             ->groupBy("role_id")
             ->toArray();
     }
+
+    public function resolveExceptionalApprovers(
+    int $employeeId,
+    array $documentData
+): array {
+    return $this->effectiveResponsibilityService
+        ->getEmployeesWithResponsibility(
+            "APPROVAL_EXCEPTION"
+        );
+}
+public function formatExceptionalApprovers(
+    array $exceptionalApprovers
+): array {
+
+    $assignments = [];
+    $roleIds = [];
+
+    foreach ($exceptionalApprovers as $approver) {
+
+        $userId = $approver["user_id"] ?? null;
+
+        $employeeId = $approver["employee_id"] ?? null;
+
+        $roleId = data_get(
+            $approver,
+            "position.role_id"
+        );
+
+        if (!$userId || !$roleId) {
+            continue;
+        }
+
+        $roleId = (int) $roleId;
+
+        $assignments[] = [
+            "user_id" => (int) $userId,
+
+            "employee_id" => $employeeId
+                ? (int) $employeeId
+                : null,
+
+            "role_id" => $roleId,
+        ];
+
+        $roleIds[] = $roleId;
+    }
+
+    return [
+        "role_ids" => array_values(
+            array_unique($roleIds)
+        ),
+
+        "assignments" => $assignments,
+    ];
+}
 }

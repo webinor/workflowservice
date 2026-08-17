@@ -9,25 +9,14 @@ class EffectiveResponsibilityService
 {
     /**
      * Récupère les responsabilités effectives d'un employé.
-     *
-     * Les responsabilités sont calculées par le Department Service
-     * en tenant compte :
-     *
-     * - des responsabilités du poste/rôle
-     * - des GRANT de l'affectation
-     * - des REVOKE de l'affectation
-     *
-     * @param int $employeeId
-     * @return array
-     * @throws Exception
      */
-    public function getForEmployee(int $employeeId , $employeeContext = null): array
-    {
+    public function getForEmployee(
+        int $employeeId,
+        $employeeContext = null
+    ): array {
 
         if (!$employeeContext) {
-            # code...
             $employeeContext = $this->getEmployeeContext($employeeId);
-            
         }
 
         return collect(
@@ -39,17 +28,45 @@ class EffectiveResponsibilityService
             ->toArray();
     }
 
-        public function getContext(int $employeeId): array
+    /**
+     * Récupère le contexte complet d'un employé.
+     */
+    public function getContext(int $employeeId): array
     {
         return $this->getEmployeeContext($employeeId);
     }
 
     /**
-     * Récupère le contexte de l'employé depuis le Department Service.
-     *
-     * @param int $employeeId
-     * @return array
-     * @throws Exception
+     * Récupère tous les employés possédant une responsabilité.
+     */
+    public function getEmployeesWithResponsibility(
+        string $responsibilityCode
+    ): array {
+
+        $response = Http::withToken(
+            request()->bearerToken()
+        )
+            ->acceptJson()
+            ->get(
+                config('services.department_service.base_url') .
+                '/employees/by-responsibility',
+                [
+                    'responsibility' => $responsibilityCode,
+                ]
+            );
+
+        if (!$response->successful()) {
+            throw new Exception(
+                $response->body(),
+                $response->status()
+            );
+        }
+
+        return $response->json('data', []);
+    }
+
+    /**
+     * Récupère le contexte d'un employé depuis le Department Service.
      */
     protected function getEmployeeContext(int $employeeId): array
     {
