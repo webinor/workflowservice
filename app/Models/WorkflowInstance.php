@@ -65,4 +65,9 @@ public function lastActiveStep()
         ->with('workflowStep')
         ->orderByDesc('position'); // pas de limit nécessaire, hasOne prend la première
 }
+
+    public function histories()
+    {
+        return $this->morphMany(WorkflowStatusHistory::class, "model");
+    }
 }
