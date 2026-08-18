@@ -2070,7 +2070,7 @@ protected function canAdvanceWorkflow(
     $WorkflowEventEngine
 );
 
-            // DB::commit();
+            DB::commit();
 
                 // $WorkflowEventEngine->handle(
                 //     $documentUuid,
