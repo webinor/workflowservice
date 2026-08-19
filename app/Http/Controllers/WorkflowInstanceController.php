@@ -430,7 +430,7 @@ class WorkflowInstanceController extends Controller
 
 
 
-                    throw new Exception(json_encode($usersByRoles), 1);
+                    // throw new Exception(json_encode($usersByRoles), 1);
 
 
                     $flatUsers = collect($usersByRoles)
