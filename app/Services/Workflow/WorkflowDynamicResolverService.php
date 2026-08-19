@@ -242,6 +242,9 @@ class WorkflowDynamicResolverService
 
             $data = $response->json();
 
+            throw new Exception(json_encode($data), 1);
+            
+
             /**
              * Structure attendue :
              * [

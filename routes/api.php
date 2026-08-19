@@ -140,7 +140,6 @@ Route::post(
                     "/workflow-instances/{documentId}/check-for-blocker",
                     "checkIfHasBlocker"
                 );
-                //Route::get("/document/{id}", "history");
                 Route::get("/documents/{id}/timeline", "history");
 
                 Route::get(
