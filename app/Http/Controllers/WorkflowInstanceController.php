@@ -428,7 +428,9 @@ class WorkflowInstanceController extends Controller
 
                     $usersByRoles = $resolver->resolveUsersByRoles($roleIds);
 
-                    // throw new Exception(json_encode($usersByRoles), 1);
+
+
+                    throw new Exception(json_encode($usersByRoles), 1);
 
 
                     $flatUsers = collect($usersByRoles)
