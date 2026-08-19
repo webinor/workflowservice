@@ -35,8 +35,8 @@ class WorkflowInstanceStepController extends Controller
         case 'CANCELLED':
             return "Motif d'annulation : " . $history->comment;
 
-        case 'COMPLETED':
-            return "Motif d'annulation : " . $history->comment;
+        case 'COMPLETE':
+            return "Approuvé : " . $history->comment;
 
         default:
             // return $history->new_status . ' : ' . $history->comment;
