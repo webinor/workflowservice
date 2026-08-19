@@ -22,6 +22,28 @@ class WorkflowInstanceStepController extends Controller
         //
     }
 
+    private function formatHistoryComment($history): string
+{
+    switch ($history->new_status) {
+
+        case 'RETURNED_FOR_MODIFICATION':
+            return 'Motif de retour : ' . $history->comment;
+
+        case 'REJECTED':
+            return 'Motif de rejet : ' . $history->comment;
+
+        case 'CANCELLED':
+            return "Motif d'annulation : " . $history->comment;
+
+        case 'COMPLETED':
+            return "Motif d'annulation : " . $history->comment;
+
+        default:
+            // return $history->new_status . ' : ' . $history->comment;
+            return $history->comment;
+    }
+}
+
     public function getWorkflowComments(Request $request, $documentIdentifier)
 {
     // 1. Récupérer l'instance du workflow
@@ -73,7 +95,7 @@ class WorkflowInstanceStepController extends Controller
                 "changed_by" => $history->changed_by,
                 "old_status" => $history->old_status,
                 "new_status" => $history->new_status,
-                "comment" => $history->comment,
+                "comment" => $this->formatHistoryComment($history),
                 "created_at" => $history->created_at,
             ];
         });
@@ -106,7 +128,7 @@ class WorkflowInstanceStepController extends Controller
                         "changed_by" => $history->changed_by,
                         "old_status" => $history->old_status,
                         "new_status" => $history->new_status,
-                        "comment" => $history->comment,
+                        "comment" => $this->formatHistoryComment($history),
                         "created_at" => $history->created_at,
                     ];
                 });
