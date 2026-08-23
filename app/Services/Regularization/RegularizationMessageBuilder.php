@@ -16,7 +16,18 @@ class RegularizationMessageBuilder extends AbstractWorkflowNotificationMessageBu
 
         $reason = $regularization_sheet['reason'] ?? 'Sans motif';
         
-        $amount = $regularization_sheet['amount'] ?? 0;
+        // $amount = $regularization_sheet['amount'] ?? 0;
+
+        // throw new \Exception(json_encode(collect($regularization_sheet['items'])), 1);
+        
+
+         $amount = (float) collect($regularization_sheet['items'])->sum(function ($item) {
+    return (float) $item['planned_amount']
+        * (float) ($item['planned_quantity'] ?? 1);
+});
+
+        // throw new \Exception(json_encode($amount), 1);
+
 
         $view_route = ltrim($doc["document_type"]["view_route"], '/');
 

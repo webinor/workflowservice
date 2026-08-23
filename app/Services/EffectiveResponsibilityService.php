@@ -40,7 +40,7 @@ class EffectiveResponsibilityService
      * Récupère tous les employés possédant une responsabilité.
      */
     public function getEmployeesWithResponsibility(
-        string $responsibilityCode
+        string $responsibilityCode,$employeeId
     ): array {
 
         $response = Http::withToken(
@@ -52,6 +52,7 @@ class EffectiveResponsibilityService
                 '/employees/by-responsibility',
                 [
                     'responsibility' => $responsibilityCode,
+                    'employeeId' => $employeeId,
                 ]
             );
 

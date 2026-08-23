@@ -18,6 +18,12 @@ namespace App\Services\Regularization;
             && $s['signed']
         );
 
+    $hasAdvanceSignature = collect($ctx['signatures'] ?? [])
+        ->contains(fn ($s) =>
+            $s['code'] === 'REGULARIZATION_ADVANCE'
+            && $s['signed']
+        );
+
     // throw new Exception(json_encode($hasSignature), 1);
 
     $workflowCompleted =   ($ctx['workflow_status'] ?? null) === 'COMPLETE';
@@ -35,7 +41,7 @@ namespace App\Services\Regularization;
     ];
 
     $doc['availability'] = [
-        "can_download" =>$hasSignature,// $workflowCompleted && $hasSignature,
+        "can_download" => $hasAdvanceSignature,// $workflowCompleted && $hasSignature,
         "can_sign" => !$hasSignature,
     ];
 

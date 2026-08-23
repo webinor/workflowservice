@@ -669,6 +669,9 @@ class WorkflowInstanceController extends Controller
                         $documentData
                     );
 
+                    // throw new Exception(json_encode(collect($stepRoles)));
+
+
                     $initialStatus =
                         $index === 0
                             ? $STATUS_PENDING
@@ -1018,6 +1021,9 @@ class WorkflowInstanceController extends Controller
             );
         }
 
+                // throw new Exception(json_encode(["roles_ids" => $stepRoles , "assignments" => []]), 1);
+
+
         return ["roles_ids" => $stepRoles , "assignments" => []];
     }
 
@@ -1135,6 +1141,9 @@ class WorkflowInstanceController extends Controller
     */
 
     // throw new Exception(get_class($step), 1);
+
+                    // throw new Exception(json_encode(collect($stepRoles)));
+
     
 
     $assignments = $this->createStepAssignments(
@@ -1209,6 +1218,9 @@ protected function createStepAssignments(
 ): array {
     $assignmentModels = [];
 
+
+                    // throw new Exception(json_encode(collect($stepRoles)));
+
     /*
     |--------------------------------------------------------------------------
     | Assignments explicites
@@ -1277,11 +1289,21 @@ protected function createStepAssignments(
         return $assignmentModels;
     }
 
+                    // throw new Exception(json_encode(collect($stepRoles)));
+
+
     /*
     |--------------------------------------------------------------------------
     | Cas normal : assignment basé uniquement sur les rôles
     |--------------------------------------------------------------------------
     */
+
+    if (!isset($stepRoles["roles_ids"])) {
+        
+                    // throw new Exception(json_encode(collect($step)));
+    
+
+    }
 
     foreach ($stepRoles["roles_ids"] as $roleId) {
 
@@ -1898,7 +1920,7 @@ protected function canAdvanceWorkflow(
             $user = $request->get("user");
             $actionStepId = Str::lower($request->get("actionStepId"));
 
-            // return
+            return
             // =====================================
             // WORKFLOW INSTANCE
             // =====================================
@@ -2074,61 +2096,7 @@ protected function canAdvanceWorkflow(
 
             DB::commit();
 
-                // $WorkflowEventEngine->handle(
-                //     $documentUuid,
-                //     $currentStep,
-                //     $actionStepId
-                // );
-
-            // DB::afterCommit(function () use (
-            //     $instance,
-            //     $currentStep,
-            //     $request,
-            //     $user,
-            //     $nextStep,
-            //     $roleIdsToNotify,
-            //     $WorkflowEventEngine,
-            //     $documentUuid,
-            //     $actionStepId
-            // ) {
-            //     // =====================================
-            //     // PAYMENT
-            //     // =====================================
-
-            //     $this->registerPayment(
-            //         $instance,
-            //         $currentStep,
-            //         $request,
-            //         $user
-            //     );
-
-            //     if (
-            //         $currentStep->status === "COMPLETE" &&
-            //         $nextStep &&
-            //         !$nextStep->workflowStep->is_archived_step
-            //     ) {
-            //         $this->workflowInstanceService->notifyNextValidator(
-            //             $nextStep,
-            //             $request,
-            //             $request->get("department_id"),
-            //             $roleIdsToNotify
-            //         );
-            //     }
-
-            //     $WorkflowEventEngine->handle(
-            //         $documentUuid,
-            //         $currentStep,
-            //         $actionStepId
-            //     );
-            // });
-
-            // $WorkflowEventEngine->handle(
-            //     $documentUuid,
-            //     $currentStep,
-            //     $actionStepId
-            // );
-
-      
+            
 
             return response()->json([
                 "success" => true,
@@ -2246,41 +2214,6 @@ protected function canAdvanceWorkflow(
 );
 
 DB::commit();
-
-
-        // // =====================================
-        // // AFTER COMMIT
-        // // =====================================
-
-        // DB::afterCommit(function () use (
-        //     $instance,
-        //     $currentStep,
-        //     $request,
-        //     $user,
-        //     $nextStep,
-        //     $roleIdsToNotify,
-        //     $WorkflowEventEngine,
-        //     $documentuuid
-        // ) {
-
-        //     if (
-        //         $nextStep &&
-        //         !$nextStep->workflowStep->is_archived_step
-        //     ) {
-        //         $this->workflowInstanceService->notifyNextValidator(
-        //             $nextStep,
-        //             $request,
-        //             $instance->department_id ?? null,
-        //             $roleIdsToNotify
-        //         );
-        //     }
-
-        //     $WorkflowEventEngine->handle(
-        //         $documentuuid,
-        //         $currentStep,
-        //         null
-        //     );
-        // });
 
         return response()->json([
             "success" => true,

@@ -38,6 +38,9 @@ class WorkflowInstanceStepController extends Controller
         case 'COMPLETE':
             return "Approuvé : " . $history->comment;
 
+        case 'BYPASSED':
+            return "Motif du bypass : " . $history->comment;
+
         default:
             // return $history->new_status . ' : ' . $history->comment;
             return $history->comment;

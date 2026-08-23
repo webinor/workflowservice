@@ -285,7 +285,7 @@ class WorkflowDynamicResolverService
 ): array {
     return $this->effectiveResponsibilityService
         ->getEmployeesWithResponsibility(
-            "APPROVAL_EXCEPTION"
+            "APPROVAL_EXCEPTION",$employeeId
         );
 }
 public function formatExceptionalApprovers(
