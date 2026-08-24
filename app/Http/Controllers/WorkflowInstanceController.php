@@ -2350,19 +2350,19 @@ class WorkflowInstanceController extends Controller
                 "comment" => $request->get("comment"),
             ]);
 
-            // DB::commit();
+            DB::commit();
 
 
-                       $workflowEventEngine->handleEvent(
-    $documentUuid,
-    "DOCUMENT_RETURNED",
-    $currentStep,
-     [
-        "comment" => $request->get("comment"),
-        "target_step_id" => $targetStep->id,
-        // "action_step_id" => $actionStepId,
-    ]
-);
+//                        $workflowEventEngine->handleEvent(
+//     $documentUuid,
+//     "DOCUMENT_RETURNED",
+//     $currentStep,
+//      [
+//         "comment" => $request->get("comment"),
+//         "target_step_id" => $targetStep->id,
+//         // "action_step_id" => $actionStepId,
+//     ]
+// );
 
 
             /**
