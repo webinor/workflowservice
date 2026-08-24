@@ -30,7 +30,7 @@ class WorkflowAudienceResolver
     /**
      * Résolution complète des audiences
      */
-    public function resolve(WorkflowEvent $event, WorkflowInstanceStep $instance , array $document)//: array
+    public function resolve(WorkflowEvent $event, WorkflowInstanceStep $instance , array $document , array $context=[])//: array
     {
         $audiences = WorkflowEventAudience::where(
             'workflow_event_id',
@@ -57,7 +57,8 @@ class WorkflowAudienceResolver
                  */
                 case 'ACTOR':
 
-                    $actor_details = $document['actor_details']['organization']['position'];
+                    // $actor_details = $document['actor_details']['organization']['position'];
+                    $actor_details = $document;
                     // $document[$document['document_type']['slug']]["actor_details"];
                     
                     // $document['organization']['position']['position']['user_id]
@@ -66,7 +67,8 @@ class WorkflowAudienceResolver
 
                    $recipients = $this->resolveActor(
                         $audience->target_value,
-                        $document["actor_id"]
+                        $document["actor_id"],
+                        $document["creator_employee_id"]
                     );
 
                     break;
@@ -193,7 +195,8 @@ $results[$channel][$recipientType] = array_merge(
      */
     private function resolveActor(
         string $actor,
-        int $actor_id
+        int $actor_id,
+        int $owner_id
     )//: array 
     {
 
@@ -229,7 +232,7 @@ $results[$channel][$recipientType] = array_merge(
 
              $actor = $this->actorServiceClient
                     ->findEmployee(
-                        (int)$actor_id
+                       $owner_id ? (int)$owner_id : (int)$actor_id
                     );
 
                 //    throw new Exception(json_encode($actor), 1);

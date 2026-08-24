@@ -52,6 +52,10 @@ return [
         'token' => env('DOCUMENT_SERVICE_TOKEN'),
     ],
 
+      'frontend_service' => [
+        'base_url' => env('FRONTEND_SERVICE_BASE_URL', 'http://localhost:5173'),
+    ],
+
      "notification_service" => [
         "base_url" => env(
             "NOTIFICATION_SERVICE_BASE_URL",

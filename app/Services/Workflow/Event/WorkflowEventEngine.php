@@ -25,87 +25,185 @@ class WorkflowEventEngine
     $this->recipientResolver = $recipientResolver;
 }
 
-    /**
-     * Point d'entrée du moteur
+
+/**
+     * ============================================================
+     * ÉVÉNEMENTS LIÉS À UNE ACTION DE WORKFLOW
+     * ============================================================
      */
-    public function handle(
+    public function handleActionStep(
         string $documentUuid,
         WorkflowInstanceStep $instance,
-        string $actionStepId
-    ) {
+        int $actionStepId
+    ): void {
 
-        $actionStepEvents = WorkflowActionStepEvent::where(
-            "workflow_action_step_id",
-            $actionStepId
-        )
-            ->with(["event.handlers"])
-            ->where("is_active", true)
-            ->orderBy("execution_order")
-            ->get();
+        $actionStepEvents =
+            WorkflowActionStepEvent::query()
+                ->where(
+                    "workflow_action_step_id",
+                    $actionStepId
+                )
+                ->with([
+                    "event.handlers"
+                ])
+                ->where("is_active", true)
+                ->orderBy("execution_order")
+                ->get();
 
-        $document = $this->documentClient->getDocument($documentUuid);
+        if ($actionStepEvents->isEmpty()) {
+            return;
+        }
 
         foreach ($actionStepEvents as $actionStepEvent) {
-            /**
-             * =========================================
-             * 1️⃣ Exécution métier
-             * =========================================
-             */
+
             $event = $actionStepEvent->event;
-            $handlers = $event->handlers;
 
-                 /**
-                 * =========================================
-                 * 2️⃣ Résolution audiences
-                 * =========================================
-                 */
-                $audiences = $this->workflow_audience_resolver->resolve(
-                    $event,
-                    $instance,
-                    $document
-                );
-
-                $recipients = $this->recipientResolver->resolve(
-                    $audiences
-                );
-          
+            $this->executeEvent(
+                $event,
+                $documentUuid,
+                $instance
+            );
+        }
+    }
 
 
+    /**
+     * ============================================================
+     * DÉCLENCHEMENT DIRECT D'UN ÉVÉNEMENT
+     * ============================================================
+     */
+    public function handleEvent(
+        string $documentUuid,
+        string $eventCode,
+        ?WorkflowInstanceStep $instance=null,
+        array $context = []
+    ): void {
 
-            //  throw new Exception(json_encode($recipients), 1);
-            
+        $event = WorkflowEvent::query()
+            ->where("code", $eventCode)
+            ->where("enabled", true)
+            ->with([
+                "handlers"
+            ])
+            ->first();
 
-            foreach ($handlers as $handler) {
+        if (!$event) {
 
-                $handler_class = app($handler->handler_class);
+            throw new \Exception(
+                "Événement workflow introuvable : {$eventCode}"
+            );
+        }
 
-                $result = $handler_class->execute(
+        $this->executeEvent(
+             $event,
+             $documentUuid,
+             $instance,
+             $context
+        );
+    }
+
+
+    /**
+     * ============================================================
+     * MOTEUR D'EXÉCUTION COMMUN
+     * ============================================================
+     */
+    protected function executeEvent(
+        WorkflowEvent $event,
+        string $documentUuid,
+        WorkflowInstanceStep $instance,
+        array $context = []
+    ): void {
+
+
+                    if ($event->handlers->count() == 0) {
+
+            throw new \Exception(
+                "Handlers introuvable : {$event->code}"
+            );
+        }
+
+        /*
+         * ============================================
+         * DOCUMENT
+         * ============================================
+         */
+
+        $document =
+            $this->documentClient->getDocument(
+                $documentUuid
+            );
+
+
+        /*
+         * ============================================
+         * AUDIENCES
+         * ============================================
+         */
+
+        $audiences =
+            $this->workflow_audience_resolver->resolve(
+                $event,
+                $instance,
+                $document,
+                $context
+            );
+
+
+        /*
+         * ============================================
+         * DESTINATAIRES
+         * ============================================
+         */
+
+        $recipients =
+            $this->recipientResolver->resolve(
+                $audiences
+            );
+
+
+        /*
+         * ============================================
+         * HANDLERS
+         * ============================================
+         */
+
+        foreach ($event->handlers as $handler) {
+
+            $handlerClass =  app($handler->handler_class);
+
+
+            $result =
+                $handlerClass->execute(
                     $documentUuid,
                     $instance,
                     $document,
-                    $event->config ?? []
+                    array_merge(
+                        $event->config ?? [],
+                        $context
+                    )
                 );
 
-           
 
-                $this->dispatchNotifications(
-                    $event,
-                    $audiences,
-                    $instance,
-                    $documentUuid,
-                    $result,
-                    $recipients,
-                    $document
-                );
-            }
+            /*
+             * ========================================
+             * NOTIFICATIONS
+             * ========================================
+             */
 
-            return;
-
+            $this->dispatchNotifications(
+                $event,
+                $audiences,
+                $instance,
+                $documentUuid,
+                $result,
+                $recipients,
+                $document
+            );
         }
-
     }
 
-    private function dispatchNotifications(
+      private function dispatchNotifications(
         WorkflowEvent $event,
         array $audiences,
         WorkflowInstanceStep $instance,
@@ -114,52 +212,52 @@ class WorkflowEventEngine
         array $recipients,
         array $document
     ) {
-        $url = config("services.notification_service.base_url") . "/bulk";
+                    $url = config("services.notification_service.base_url") . "/bulk";
 
-        // throw new Exception(json_encode($recipients), 1);
+                    // throw new Exception(json_encode($recipients), 1);
 
-      
+                
 
-        // throw new Exception(json_encode($data), 1);
-
-
-    
-
-        foreach ($audiences as $channel => $audience) {
+                    // throw new Exception(json_encode($data), 1);
 
 
-          $recipient = $recipients[$channel]["to"][0] ?? [];
+                
 
-$data = 
-    [
-        "document_uuid" => $documentUuid,
-
-        "civilite" => $recipient["civilite"] ?? "",
-
-        "nom_complet" => $recipient["nom_complet"] ?? "",
-
-        "reference" => $document["reference"] ?? "",
-    ];
+                    foreach ($audiences as $channel => $audience) {
 
 
-            Http::acceptJson()->post($url, [
-                "code" => $event->code,
+                    $recipient = $recipients[$channel]["to"][0] ?? [];
 
-                "channel" => $channel,
+            $data = 
+                [
+                    "document_uuid" => $documentUuid,
 
-                "to" => $audience["to"] ?? [],
+                    "civilite" => $recipient["civilite"] ?? "",
 
-                "cc" => $audience["cc"] ?? [],
+                    "nom_complet" => $recipient["nom_complet"] ?? "",
 
-                "bcc" => $audience["bcc"] ?? [],
+                    "reference" => $document["reference"] ?? "",
+                ];
 
-                "attachments" => $result["attachments"] ?? [],
 
-                "data" => array_merge(
-                    $data,
-                    $result["data"] ?? []
-                ),
-            ]);
-        }
+                        Http::acceptJson()->post($url, [
+                            "code" => $event->code,
+
+                            "channel" => $channel,
+
+                            "to" => $audience["to"] ?? [],
+
+                            "cc" => $audience["cc"] ?? [],
+
+                            "bcc" => $audience["bcc"] ?? [],
+
+                            "attachments" => $result["attachments"] ?? [],
+
+                            "data" => array_merge(
+                                $data,
+                                $result["data"] ?? []
+                            ),
+                        ]);
+                    }
     }
 }

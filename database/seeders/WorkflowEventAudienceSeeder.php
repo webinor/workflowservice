@@ -3,16 +3,80 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\WorkflowEvent;
+use App\Models\WorkflowEventAudience;
 
 class WorkflowEventAudienceSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     *
-     * @return void
      */
     public function run()
     {
-        //
+        $audiences = [
+
+            [
+                'event' => 'DOCUMENT_RETURNED',
+                'target_type' => 'ACTOR',
+                'target_value' => 'OWNER',
+                'channel' => 'EMAIL',
+                'recipient_type' => 'TO',
+                'notification_template_id' => null,
+            ],
+
+            [
+                'event' => 'DOCUMENT_REJECTED',
+                'target_type' => 'ACTOR',
+                'target_value' => 'OWNER',
+                'channel' => 'EMAIL',
+                'recipient_type' => 'TO',
+                'notification_template_id' => null,
+            ],
+
+            [
+                'event' => 'DOCUMENT_VALIDATED',
+                'target_type' => 'ACTOR',
+                'target_value' => 'OWNER',
+                'channel' => 'EMAIL',
+                'recipient_type' => 'TO',
+                'notification_template_id' => null,
+            ],
+
+            [
+                'event' => 'DOCUMENT_WORKFLOW_COMPLETED',
+                'target_type' => 'ACTOR',
+                'target_value' => 'OWNER',
+                'channel' => 'EMAIL',
+                'recipient_type' => 'TO',
+                'notification_template_id' => null,
+            ],
+
+        ];
+
+        foreach ($audiences as $audience) {
+
+            $event = WorkflowEvent::where(
+                'code',
+                $audience['event']
+            )->first();
+
+            if (!$event) {
+                continue;
+            }
+
+            WorkflowEventAudience::updateOrCreate(
+                [
+                    'workflow_event_id' => $event->id,
+                    'target_type' => $audience['target_type'],
+                    'target_value' => $audience['target_value'],
+                    'channel' => $audience['channel'],
+                    'recipient_type' => $audience['recipient_type'],
+                ],
+                [
+                    'notification_template_id' =>
+                        $audience['notification_template_id'],
+                ]
+            );
+        }
     }
 }

@@ -38,6 +38,30 @@ class WorkflowEventSeeder extends Seeder
                 'description' => 'Envoie une notification au bénéficiaire pour l’informer que sa demande de papier taxi a été validée.',
             ],
 
+            [
+                'code' => 'DOCUMENT_RETURNED',
+                'name' => 'Document retourné',
+                'description' => 'Déclenché lorsqu’un document est retourné à l’étape précédente du workflow pour correction ou complément d’information.',
+            ],
+
+            [
+                'code' => 'DOCUMENT_REJECTED',
+                'name' => 'Document rejeté',
+                'description' => 'Déclenché lorsqu’un document est définitivement rejeté au cours du workflow.',
+            ],
+
+            [
+                'code' => 'DOCUMENT_VALIDATED',
+                'name' => 'Document validé',
+                'description' => 'Déclenché lorsqu’un document est validé au cours du workflow.',
+            ],
+
+            [
+                'code' => 'DOCUMENT_WORKFLOW_COMPLETED',
+                'name' => 'Workflow du document terminé',
+                'description' => 'Déclenché lorsque toutes les étapes du workflow du document sont terminées.',
+            ],
+
         ];
 
         foreach ($events as $event) {
@@ -49,7 +73,7 @@ class WorkflowEventSeeder extends Seeder
                 [
                     'name' => $event['name'],
                     'description' => $event['description'],
-                    'enabled' => true,
+                    // 'enabled' => true,
                 ]
             );
         }
