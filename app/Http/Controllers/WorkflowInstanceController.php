@@ -1683,7 +1683,7 @@ class WorkflowInstanceController extends Controller
 
             // 🔹 Vérifier les règles de blocage avant validation
             // return
-            if ($currentStep->workflowStep->checkBefore) {
+            if ($currentStep->workflowStep->check_before) {
 
             // throw new Exception("Verification avant", 1);
 
@@ -1835,7 +1835,7 @@ class WorkflowInstanceController extends Controller
             // BLOCKING RULES
             // =====================================
 
-            if (!$currentStep->workflowStep->checkBefore) {
+            if (!$currentStep->workflowStep->check_before) {
 
             
             $blockingData = $this->checkBlockingRules(
