@@ -33,6 +33,9 @@ class WorkflowStep extends Model
         "is_payment_step" => "boolean",
     'is_bypassable' => 'boolean',
         'completion_rule_config' => 'array',
+
+    'check_before' => 'boolean',
+        
     ];
 
     public function workflow()

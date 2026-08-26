@@ -415,6 +415,13 @@ class WorkflowController extends Controller
             "transaction_types" => $transactionTypes,
         ]);
 
+       $is_signable = !empty(
+    array_intersect(
+        ['sign', 'validate'],
+        $permissions_required
+    )
+);
+
         $response = [
             "status" => $instance->status,
             "is_active" => in_array($instance->status , ["PENDING", "IN_PROGRESS"]),
@@ -425,6 +432,7 @@ class WorkflowController extends Controller
                 $instance
             ),
             "currentInstanceStep" => $currentInstanceStep,
+            "is_signable" => $is_signable,
             "is_bypassable" => $currentInstanceStep->workflowStep->is_bypassable,
             "signatures" => $signatures,
             "step" => $step->name,

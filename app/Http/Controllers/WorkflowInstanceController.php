@@ -1683,13 +1683,17 @@ class WorkflowInstanceController extends Controller
 
             // 🔹 Vérifier les règles de blocage avant validation
             // return
+            if ($currentStep->workflowStep->checkBefore) {
+
+            // throw new Exception("Verification avant", 1);
+
             $blockingData = $this->checkBlockingRules(
                 $instance,
                 $currentStep,
                 $documentData
             );
 
-            if (!$blockingData["isValid"] /*&& false*/) {
+            if (!$blockingData["isValid"]) {
                 $step = WorkflowStep::with("attachmentTypes")->find(
                     $currentStep->workflowStep->id
                 );
@@ -1715,6 +1719,7 @@ class WorkflowInstanceController extends Controller
                         ? $response->json()
                         : [],
                 ]);
+            }
             }
 
             DB::commit();
@@ -1829,19 +1834,24 @@ class WorkflowInstanceController extends Controller
             // =====================================
             // BLOCKING RULES
             // =====================================
-            // $blockingData = $this->checkBlockingRules(
-            //     $instance,
-            //     $currentStep,
-            //     $documentData
-            // );
 
-            // if (!$blockingData["isValid"] && false) {
-            //     return response()->json([
-            //         "success" => false,
-            //         "message" => $blockingData["data"]["message"],
-            //         "currentStep" => $currentStep,
-            //     ]);
-            // }
+            if (!$currentStep->workflowStep->checkBefore) {
+
+            
+            $blockingData = $this->checkBlockingRules(
+                $instance,
+                $currentStep,
+                $documentData
+            );
+
+            if (!$blockingData["isValid"]) {
+                return response()->json([
+                    "success" => false,
+                    "message" => $blockingData["data"]["message"],
+                    "currentStep" => $currentStep,
+                ]);
+            }
+        }
 
             // =====================================
             // VALIDATION VIA ASSIGNMENTS

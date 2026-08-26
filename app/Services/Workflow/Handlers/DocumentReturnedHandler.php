@@ -407,19 +407,19 @@ class DocumentReturnedHandler
         'papier-taxi' =>
             'Papier taxi retourné pour modification',
 
-        'fiche-regularisation' =>
+        'fiche-a-regulariser' =>
             'Fiche de régularisation retournée pour modification',
 
-        'ordre-mission' =>
-            'Ordre de mission retourné pour modification',
+        'mission' =>
+            'Demande de mission retournée pour modification',
 
-        'demande-conge' =>
+        'demande-d-absence' =>
             'Demande de congé retournée pour modification',
 
         'absence' =>
             'Demande d’absence retournée pour modification',
 
-        'note-frais' =>
+        'note-de-frais' =>
             'Note de frais retournée pour modification',
 
         'facture-fournisseur' =>
