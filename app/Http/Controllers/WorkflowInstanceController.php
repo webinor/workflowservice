@@ -2387,7 +2387,7 @@ class WorkflowInstanceController extends Controller
                         $workflowEventEngine->handleEvent(
     $documentUuid,
     "DOCUMENT_RETURNED",
-    $instance,
+    $currentStep,
      [
         "comment" => $request->get("comment"),
         "target_step_id" => $targetStep->id,

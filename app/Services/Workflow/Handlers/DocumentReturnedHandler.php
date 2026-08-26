@@ -170,7 +170,7 @@ public function execute(
     */
 
     Log::info('[RETURN_NOTIFICATION] Searching return history', [
-        'instance_id' => $instance->id ?? null,
+        'instance_id' => $instance->workflowInstance->id ?? null,
         'model_type' => WorkflowInstance::class,
         'new_status' => 'RETURNED_FOR_MODIFICATION',
     ]);
@@ -178,7 +178,7 @@ public function execute(
     $returnHistory = WorkflowStatusHistory::query()
         ->where(
             'model_id',
-            $instance->id
+            $instance->workflowInstance->id
         )
         ->where(
             'model_type',
