@@ -2417,7 +2417,7 @@ class WorkflowInstanceController extends Controller
         }
     }
 
-    public function rejectStep(Request $request, string $documentuuid)
+    public function rejectStep(Request $request,WorkflowEventEngine $workflowEventEngine, string $documentUuid)
     {
         DB::beginTransaction();
 
@@ -2428,7 +2428,7 @@ class WorkflowInstanceController extends Controller
 
             // 1️⃣ Récupérer l'instance de workflow
             $instance = WorkflowInstance::whereDocumentUuid(
-                $documentuuid
+                $documentUuid
             )->firstOrFail();
 
             // 2️⃣ Récupérer l'étape en cours
@@ -2493,6 +2493,24 @@ class WorkflowInstanceController extends Controller
             }
 
             DB::commit();
+
+                DB::afterCommit(function () use ( $request, $workflowEventEngine , $documentUuid, $currentStep, $userConnected) {
+             
+                
+
+                        $workflowEventEngine->handleEvent(
+    $documentUuid,
+    "DOCUMENT_RETURNED",
+    $currentStep,
+     [
+        "comment" => $request->get("comment"),
+        "validator_id" => $userConnected["id"]
+    ]
+);
+
+               
+                
+            });
 
             return response()->json([
                 "success" => true,
