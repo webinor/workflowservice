@@ -2363,14 +2363,14 @@ class WorkflowInstanceController extends Controller
             DB::commit();
 
 
-//                        $workflowEventEngine->handleEvent(
+//                $workflowEventEngine->handleEvent(
 //     $documentUuid,
 //     "DOCUMENT_RETURNED",
 //     $currentStep,
 //      [
 //         "comment" => $request->get("comment"),
 //         "target_step_id" => $targetStep->id,
-//         // "action_step_id" => $actionStepId,
+//         "validator_id" => $user["id"]
 //     ]
 // );
 
@@ -2378,7 +2378,7 @@ class WorkflowInstanceController extends Controller
             /**
              * 7. Notifications
              */
-            DB::afterCommit(function () use ($targetStep, $request, $workflowEventEngine, $instance , $documentUuid, $currentStep) {
+            DB::afterCommit(function () use ($targetStep, $request, $workflowEventEngine, $instance , $documentUuid, $currentStep, $user) {
                 // $this->notifyReturnedUser(
                 //     $targetStep,
                 //     $request
@@ -2391,7 +2391,7 @@ class WorkflowInstanceController extends Controller
      [
         "comment" => $request->get("comment"),
         "target_step_id" => $targetStep->id,
-        // "action_step_id" => $actionStepId,
+        "validator_id" => $user["id"]
     ]
 );
 
