@@ -118,8 +118,8 @@ class DocumentRejectedHandler
         */
 
         $actorId =
-            isset($config['actor_id'])
-                ? (int) $config['actor_id']
+            isset($config['validator_id'])
+                ? (int) $config['validator_id']
                 : null;
 
 

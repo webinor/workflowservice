@@ -95,8 +95,8 @@ class RegularizationSheetSignedHandler
         */
 
         $actorId =
-            isset($config['actorId'])
-                ? (int) $config['actorId']
+            isset($config['validatorId'])
+                ? (int) $config['validatorId']
                 : null;
 
         if (!$actorId) {
