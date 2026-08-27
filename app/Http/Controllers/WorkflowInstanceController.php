@@ -1978,20 +1978,21 @@ class WorkflowInstanceController extends Controller
                 $user,
                 $documentUuid,
                 $actionStepId,
-                $WorkflowEventEngine
+                $WorkflowEventEngine,
+                $documentData
             );
 
-            $WorkflowEventEngine->handleActionStep(
-            $documentUuid,
-            $currentStep,
-            $actionStepId,
-            [
-        "validatorId" => $user["id"],
-        "actorId" => $documentData['actor_id']
-    ]
-        );
+    //         $WorkflowEventEngine->handleActionStep(
+    //         $documentUuid,
+    //         $currentStep,
+    //         $actionStepId,
+    //         [
+    //     "validatorId" => $user["id"],
+    //     "actorId" => $documentData['actor_id']
+    // ]
+    //     );
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 "success" => true,
@@ -2095,7 +2096,8 @@ class WorkflowInstanceController extends Controller
                 $user,
                 $documentUuid,
                 $actionStepId,
-                $WorkflowEventEngine
+                $WorkflowEventEngine,
+                $documentData
             );
 
             DB::commit();
@@ -2128,7 +2130,8 @@ class WorkflowInstanceController extends Controller
         array $user,
         string $documentUuid,
         ?string $actionStepId,
-        $WorkflowEventEngine
+        $WorkflowEventEngine,
+        array $documentData
     ): void {
         DB::afterCommit(function () use (
             $instance,
@@ -2139,7 +2142,8 @@ class WorkflowInstanceController extends Controller
             $user,
             $documentUuid,
             $actionStepId,
-            $WorkflowEventEngine
+            $WorkflowEventEngine,
+            $documentData
         ) {
             $this->executeAfterCommit(
                 $instance,
@@ -2150,7 +2154,8 @@ class WorkflowInstanceController extends Controller
                 $user,
                 $documentUuid,
                 $actionStepId,
-                $WorkflowEventEngine
+                $WorkflowEventEngine,
+                $documentData
             );
         });
     }
@@ -2799,13 +2804,14 @@ class WorkflowInstanceController extends Controller
         array $user,
         string $documentUuid,
         ?string $actionStepId,
-        $WorkflowEventEngine
+        $WorkflowEventEngine,
+        array $documentData
     ): void {
         // =====================================
         // PAYMENT
         // =====================================
 
-        $this->registerPayment($instance, $currentStep, $request, $user);
+        $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
 
         // =====================================
         // NOTIFICATION
@@ -2831,8 +2837,14 @@ class WorkflowInstanceController extends Controller
         $WorkflowEventEngine->handleActionStep(
             $documentUuid,
             $currentStep,
-            $actionStepId
+            $actionStepId,
+             [
+        "validatorId" => $user["id"],
+        "actorId" => $documentData['actor_id']
+    ]
         );
+
+        
     }
 
     protected function findNextStep(
