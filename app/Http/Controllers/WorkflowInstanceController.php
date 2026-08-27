@@ -1982,17 +1982,17 @@ class WorkflowInstanceController extends Controller
                 $documentData
             );
 
-    //         $WorkflowEventEngine->handleActionStep(
-    //         $documentUuid,
-    //         $currentStep,
-    //         $actionStepId,
-    //         [
-    //     "validatorId" => $user["id"],
-    //     "actorId" => $documentData['actor_id']
-    // ]
-    //     );
+            $WorkflowEventEngine->handleActionStep(
+            $documentUuid,
+            $currentStep,
+            $actionStepId,
+            [
+        "validatorId" => $user["id"],
+        "actorId" => $documentData['actor_id']
+    ]
+        );
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 "success" => true,
