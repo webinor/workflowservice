@@ -12,6 +12,12 @@ class WorkflowHandler extends Model
         'priority',
         'is_async',
         'enabled',
+        'config'
+    ];
+
+        protected $casts = [
+        'config' => 'array',
+        'is_async' => 'boolean',
     ];
 
     public function event()

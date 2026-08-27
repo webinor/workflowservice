@@ -51,6 +51,40 @@ class WorkflowEventAudienceSeeder extends Seeder
                 'notification_template_id' => null,
             ],
 
+
+            /*
+|--------------------------------------------------------------------------
+| Documents signés
+|--------------------------------------------------------------------------
+*/
+
+[
+    'event' => 'REGULARIZATION_SHEET_SIGNED',
+    'target_type' => 'ACTOR',
+    'target_value' => 'OWNER',
+    'channel' => 'EMAIL',
+    'recipient_type' => 'TO',
+    'notification_template_id' => null,
+],
+
+[
+    'event' => 'TAXI_PAPER_SIGNED',
+    'target_type' => 'ACTOR',
+    'target_value' => 'OWNER',
+    'channel' => 'EMAIL',
+    'recipient_type' => 'TO',
+    'notification_template_id' => null,
+],
+
+[
+    'event' => 'FEE_NOTE_SIGNED',
+    'target_type' => 'ACTOR',
+    'target_value' => 'OWNER',
+    'channel' => 'EMAIL',
+    'recipient_type' => 'TO',
+    'notification_template_id' => null,
+],
+
         ];
 
         foreach ($audiences as $audience) {

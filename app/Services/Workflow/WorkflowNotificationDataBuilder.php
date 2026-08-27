@@ -81,6 +81,106 @@ class WorkflowNotificationDataBuilder
     }
 
     /**
+ * Construit l'URL frontend d'un document
+ * selon son type et son contexte.
+ *
+ * Contextes possibles :
+ *
+ * MY_DOCUMENTS
+ * TO_VALIDATE
+ */
+public function buildDocumentUrl(
+    string $documentUuid,
+    ?string $context = null,
+    ?string $documentTypeCode = null
+): string {
+
+// throw new \Exception($documentTypeCode, 1);
+// throw new \Exception($context, 1);
+
+
+    $routes = [
+
+        'MY_DOCUMENTS' => [
+
+            'papier-taxi' =>
+                "/mes-papiers-taxi/{$documentUuid}",
+
+            'taxi_paper' =>
+                "/mes-papiers-taxi/{$documentUuid}",
+
+            'note-de-frais' =>
+                "/mes-notes-de-frais/{$documentUuid}",
+
+            'fee_note' =>
+                "/mes-notes-de-frais/{$documentUuid}",
+
+            'fiche-a-regulariser' =>
+                "/mes-fiches-a-regulariser/{$documentUuid}",
+
+            'regularization_sheet' =>
+                "/mes-fiches-a-regulariser/{$documentUuid}",
+        ],
+
+        'TO_VALIDATE' => [
+
+            'papier-taxi' =>
+                "/papiers-taxi-a-valider/{$documentUuid}",
+
+            'taxi_paper' =>
+                "/papiers-taxi-a-valider/{$documentUuid}",
+
+            'note-de-frais' =>
+                "/notes-de-frais-a-valider/{$documentUuid}",
+
+            'fee_note' =>
+                "/notes-de-frais-a-valider/{$documentUuid}",
+
+            'fiche-a-regulariser' =>
+                "/fiches-a-regulariser-a-valider/{$documentUuid}",
+
+            'regularization_sheet' =>
+                "/fiches-a-regulariser-a-valider/{$documentUuid}",
+        ],
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | URL par défaut
+    |--------------------------------------------------------------------------
+    */
+
+    $path = "/details-du-document/{$documentUuid}";
+
+    /*
+    |--------------------------------------------------------------------------
+    | Contexte + type connus
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $context &&
+        $documentTypeCode &&
+        isset(
+            $routes[$context][$documentTypeCode]
+        )
+    ) {
+        $path =
+            $routes[$context][$documentTypeCode];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | URL finale
+    |--------------------------------------------------------------------------
+    */
+
+    return config(
+        'services.frontend_service.base_url'
+    ) . $path;
+}
+
+    /**
      * Résout le propriétaire du document.
      */
     public function buildOwner(
@@ -135,7 +235,7 @@ class WorkflowNotificationDataBuilder
     /**
      * Construit les informations communes du document.
      */
-    public function buildDocument(
+    public function OldbuildDocument(
         string $documentUuid,
         array $documentData
     ): array {
@@ -196,6 +296,93 @@ class WorkflowNotificationDataBuilder
     }
 
     /**
+ * Construit les informations communes du document.
+ */
+public function buildDocument(
+    string $documentUuid,
+    array $documentData,
+    ?array $config = null
+): array {
+
+    $beneficiary =
+        isset($documentData['actor_details'])
+            && is_array($documentData['actor_details'])
+            ? $documentData['actor_details']
+            : [];
+
+    $documentType =
+        isset($documentData['document_type'])
+            && is_array($documentData['document_type'])
+            ? $documentData['document_type']
+            : [];
+
+    $documentTypeCode = $documentType['slug']
+        ?? null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Contexte de navigation
+    |--------------------------------------------------------------------------
+    */
+
+    $context =
+        isset($config['context'])
+            ? $config['context']
+            : null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | URL frontend
+    |--------------------------------------------------------------------------
+    */
+
+    $documentUrl =
+        $this->buildDocumentUrl(
+            $documentUuid,
+            $context,
+            $documentTypeCode
+        );
+
+    return [
+
+        'document_url' =>
+            $documentUrl,
+
+        'document_title' =>
+            isset($documentData['title'])
+                ? $documentData['title']
+                : '',
+
+        'document_reference' =>
+            isset($documentData['reference'])
+                ? $documentData['reference']
+                : '',
+
+        'document_id' =>
+            $documentUuid,
+
+        'document_type' =>
+            $documentType['name']
+            ?? $documentType['code']
+            ?? $documentType['slug']
+            ?? '',
+
+        'document_type_code' =>
+            $documentTypeCode
+            ?? '',
+
+        'beneficiary_name' =>
+            $beneficiary['name']
+            ?? $beneficiary['nom']
+            ?? '',
+
+        'beneficiary_email' =>
+            $beneficiary['email']
+            ?? '',
+    ];
+}
+
+    /**
      * Formate une date d'historique.
      */
     public function formatHistoryDate(
@@ -238,113 +425,145 @@ class WorkflowNotificationDataBuilder
         );
     }
 
-    /**
-     * Retourne le sujet correspondant au type
-     * de document et à l'action workflow.
-     *
-     * Cette méthode est volontairement générique :
-     *
-     * returned
-     * rejected
-     * validated
-     * approved
-     * etc.
-     */
-    public function getSubject(
-        array $documentData,
-        string $action
-    ): string {
+/**
+ * Retourne le sujet correspondant au type
+ * de document et à l'action workflow.
+ *
+ * Exemples :
+ *
+ * returned
+ * rejected
+ * validated
+ * approved
+ * signed
+ * submitted
+ */
+public function getSubject(
+    array $documentData,
+    string $action
+): string {
 
-        $documentType =
-            $documentData['document_type']['code']
-            ?? $documentData['document_type']['slug']
-            ?? null;
+    $documentType =
+        $documentData['document_type']['code']
+        ?? $documentData['document_type']['slug']
+        ?? null;
 
-        $subjects = [
+    $subjects = [
 
-            'returned' => [
+        /*
+        |--------------------------------------------------------------------------
+        | RETURNED
+        |--------------------------------------------------------------------------
+        */
 
-                'papier-taxi' =>
-                    'Papier taxi retourné pour modification',
+        'returned' => [
 
-                'fiche-a-regulariser' =>
-                    'Fiche de régularisation retournée pour modification',
+            'papier-taxi' =>
+                'Papier taxi retourné pour modification',
 
-                'mission' =>
-                    'Demande de mission retournée pour modification',
+            'fiche-a-regulariser' =>
+                'Fiche de régularisation retournée pour modification',
 
-                'demande-d-absence' =>
-                    'Demande de congé retournée pour modification',
+            'mission' =>
+                'Demande de mission retournée pour modification',
 
-                'absence' =>
-                    'Demande d’absence retournée pour modification',
+            'demande-d-absence' =>
+                'Demande de congé retournée pour modification',
 
-                'note-de-frais' =>
-                    'Note de frais retournée pour modification',
+            'absence' =>
+                'Demande d’absence retournée pour modification',
 
-                'facture-fournisseur' =>
-                    'Facture fournisseur retournée pour modification',
-            ],
+            'note-de-frais' =>
+                'Note de frais retournée pour modification',
 
-            'rejected' => [
+            'facture-fournisseur' =>
+                'Facture fournisseur retournée pour modification',
+        ],
 
-                'papier-taxi' =>
-                    'Papier taxi rejeté',
+        /*
+        |--------------------------------------------------------------------------
+        | REJECTED
+        |--------------------------------------------------------------------------
+        */
 
-                'fiche-a-regulariser' =>
-                    'Fiche de régularisation rejetée',
+        'rejected' => [
 
-                'mission' =>
-                    'Demande de mission rejetée',
+            'papier-taxi' =>
+                'Papier taxi rejeté',
 
-                'demande-d-absence' =>
-                    'Demande de congé rejetée',
+            'fiche-a-regulariser' =>
+                'Fiche de régularisation rejetée',
 
-                'absence' =>
-                    'Demande d’absence rejetée',
+            'mission' =>
+                'Demande de mission rejetée',
 
-                'note-de-frais' =>
-                    'Note de frais rejetée',
+            'demande-d-absence' =>
+                'Demande de congé rejetée',
 
-                'facture-fournisseur' =>
-                    'Facture fournisseur rejetée',
-            ],
-        ];
+            'absence' =>
+                'Demande d’absence rejetée',
 
-        return $subjects[$action][$documentType]
-            ?? $this->getDefaultSubject($action);
-    }
+            'note-de-frais' =>
+                'Note de frais rejetée',
 
-    /**
-     * Sujet générique lorsqu'aucun mapping
-     * spécifique n'est défini.
-     */
-    protected function getDefaultSubject(
-        string $action
-    ): string {
+            'facture-fournisseur' =>
+                'Facture fournisseur rejetée',
+        ],
 
-        $defaults = [
+        /*
+        |--------------------------------------------------------------------------
+        | SIGNED
+        |--------------------------------------------------------------------------
+        */
 
-            'returned' =>
-                'Document retourné pour modification',
+        'signed' => [
 
-            'rejected' =>
-                'Document rejeté',
+            'papier-taxi' =>
+                'Papier taxi signé pour accord de paiement',
 
-            'validated' =>
-                'Document validé',
+            'fiche-a-regulariser' =>
+                'Fiche de régularisation signée pour accord de paiement',
 
-            'approved' =>
-                'Document approuvé',
+            'note-de-frais' =>
+                'Note de frais signée pour accord de paiement',
 
-            'signed' =>
-                'Document signé',
+        ],
+    ];
 
-            'submitted' =>
-                'Document soumis',
-        ];
+    return $subjects[$action][$documentType]
+        ?? $this->getDefaultSubject($action);
+}
 
-        return $defaults[$action]
-            ?? 'Notification concernant votre document';
-    }
+/**
+ * Sujet générique lorsqu'aucun mapping
+ * spécifique n'est défini.
+ */
+protected function getDefaultSubject(
+    string $action
+): string {
+
+    $defaults = [
+
+        'returned' =>
+            'Document retourné pour modification',
+
+        'rejected' =>
+            'Document rejeté',
+
+        'validated' =>
+            'Document validé',
+
+        'approved' =>
+            'Document approuvé',
+
+        'signed' =>
+            'Document signé pour accord de paiement',
+
+        'submitted' =>
+            'Document soumis',
+    ];
+
+    return $defaults[$action]
+        ?? 'Notification concernant votre document';
+}
 }

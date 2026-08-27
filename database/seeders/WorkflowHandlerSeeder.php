@@ -15,6 +15,9 @@ use App\Services\Workflow\Handlers\DocumentReturnedHandler;
 use App\Services\Workflow\Handlers\DocumentRejectedHandler;
 use App\Services\Workflow\Handlers\DocumentValidatedHandler;
 use App\Services\Workflow\Handlers\DocumentWorkflowCompletedHandler;
+use App\Services\Workflow\Handlers\FeeNoteSignedHandler;
+use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
+use App\Services\Workflow\Handlers\TaxiPaperSignedHandler;
 
 class WorkflowHandlerSeeder extends Seeder
 {
@@ -105,6 +108,48 @@ class WorkflowHandlerSeeder extends Seeder
                 'is_async' => false,
             ],
 
+
+            /*
+|--------------------------------------------------------------------------
+| Signatures
+|--------------------------------------------------------------------------
+*/
+
+[
+    'event' => 'REGULARIZATION_SHEET_SIGNED',
+    'handler' => RegularizationSheetSignedHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+        'config' => [
+        'context' => 'MY_DOCUMENTS',
+    ],
+    
+    
+],
+
+[
+    'event' => 'TAXI_PAPER_SIGNED',
+    'handler' => TaxiPaperSignedHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+      'config' => [
+        'context' => 'MY_DOCUMENTS',
+    ],
+    
+    
+],
+
+[
+    'event' => 'FEE_NOTE_SIGNED',
+    'handler' => FeeNoteSignedHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+          'config' => [
+        'context' => 'MY_DOCUMENTS',
+    ],
+    
+],
+
         ];
 
         foreach ($handlers as $item) {
@@ -126,6 +171,7 @@ class WorkflowHandlerSeeder extends Seeder
                 [
                     'priority' => $item['priority'],
                     'is_async' => $item['is_async'],
+                    'config' => $item['config'] ?? null,
                     // 'enabled' => true,
                 ]
             );

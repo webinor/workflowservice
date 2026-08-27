@@ -62,6 +62,31 @@ class WorkflowEventSeeder extends Seeder
                 'description' => 'Déclenché lorsque toutes les étapes du workflow du document sont terminées.',
             ],
 
+
+            /*
+    |--------------------------------------------------------------------------
+    | Signatures
+    |--------------------------------------------------------------------------
+    */
+
+    [
+        'code' => 'REGULARIZATION_SHEET_SIGNED',
+        'name' => 'Fiche de régularisation signée',
+        'description' => 'Déclenché lorsqu’une fiche de régularisation est signée.',
+    ],
+
+    [
+        'code' => 'TAXI_PAPER_SIGNED',
+        'name' => 'Papier taxi signé',
+        'description' => 'Déclenché lorsqu’un papier taxi est signé.',
+    ],
+
+    [
+        'code' => 'FEE_NOTE_SIGNED',
+        'name' => 'Note de frais signée',
+        'description' => 'Déclenché lorsqu’une note de frais est signée.',
+    ],
+
         ];
 
         foreach ($events as $event) {

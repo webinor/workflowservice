@@ -34,7 +34,8 @@ class WorkflowEventEngine
     public function handleActionStep(
         string $documentUuid,
         WorkflowInstanceStep $instance,
-        int $actionStepId
+        int $actionStepId,
+        array $context = []
     ): void {
 
         $actionStepEvents =
@@ -61,7 +62,8 @@ class WorkflowEventEngine
             $this->executeEvent(
                 $event,
                 $documentUuid,
-                $instance
+                $instance,
+                $context
             );
         }
     }
@@ -179,7 +181,7 @@ class WorkflowEventEngine
                     $instance,
                     $document,
                     array_merge(
-                        $event->config ?? [],
+                        $handler->config ?? [],
                         $context
                     )
                 );
