@@ -87,15 +87,15 @@ class TaxiPaperSignedHandler
         |--------------------------------------------------------------------------
         */
 
-        $actorId =
-            isset($config['actorId'])
-                ? (int) $config['actorId']
+        $validatorId =
+            isset($config['validatorId'])
+                ? (int) $config['validatorId']
                 : null;
 
-        if (!$actorId) {
+        if (!$validatorId) {
 
             Log::warning(
-                '[WORKFLOW:TAXI_PAPER_SIGNED] Aucun actorId fourni.',
+                '[WORKFLOW:TAXI_PAPER_SIGNED] Aucun validatorId fourni.',
                 [
                     'document_uuid' =>
                         $documentUuid,
@@ -122,7 +122,7 @@ class TaxiPaperSignedHandler
 
         $actor =
             $this->builder->buildActor(
-                $actorId
+                $validatorId
             );
 
         /*
@@ -226,8 +226,8 @@ class TaxiPaperSignedHandler
                 'document_uuid' =>
                     $documentUuid,
 
-                'actorId' =>
-                    $actorId,
+                'validatorId' =>
+                    $validatorId,
             ]
         );
 
