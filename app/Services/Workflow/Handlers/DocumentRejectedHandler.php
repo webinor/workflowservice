@@ -7,6 +7,7 @@ use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Services\Workflow\WorkflowHistoryResolver;
 use App\Services\Workflow\WorkflowNotificationDataBuilder;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class DocumentRejectedHandler
@@ -30,6 +31,9 @@ class DocumentRejectedHandler
         array $documentData,
         array $config = []
     ): array {
+
+            // throw new Exception(json_encode($config), 1);
+
 
         Log::info(
             '[WORKFLOW:REJECTED] ===== START =====',

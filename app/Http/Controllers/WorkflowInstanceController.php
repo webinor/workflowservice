@@ -2472,8 +2472,7 @@ class WorkflowInstanceController extends Controller
                 "model_type" => get_class($currentStep),
                 "changed_by" => $userConnected["id"],
                 "old_status" => $oldStatus,
-                "new_status" =>
-                    $currentStep->status == "COMPLETE"
+                "new_status" => $currentStep->status == "COMPLETE"
                         ? "COMPLETED"
                         : ($currentStep->status == "REJECT"
                             ? "REJECTED"
@@ -2492,20 +2491,31 @@ class WorkflowInstanceController extends Controller
                 WorkflowStatusHistory::create($historyData);
             }
 
+
+            
+
             DB::commit();
+
+//               $workflowEventEngine->handleEvent(
+//         $documentUuid,
+//         "DOCUMENT_REJECTED",
+//         $currentStep,
+//         [
+//             "comment" => $request->get("comment"),
+//             "validator_id" => $userConnected["id"]
+//         ]
+// );
 
                 DB::afterCommit(function () use ( $request, $workflowEventEngine , $documentUuid, $currentStep, $userConnected) {
              
-                
-
-                        $workflowEventEngine->handleEvent(
-    $documentUuid,
-    "DOCUMENT_RETURNED",
-    $currentStep,
-     [
-        "comment" => $request->get("comment"),
-        "validator_id" => $userConnected["id"]
-    ]
+    $workflowEventEngine->handleEvent(
+        $documentUuid,
+        "DOCUMENT_REJECTED",
+        $currentStep,
+        [
+            "comment" => $request->get("comment"),
+            "validator_id" => $userConnected["id"]
+        ]
 );
 
                

@@ -5,6 +5,7 @@ namespace App\Services\Workflow\Participant;
 use App\Services\Workflow\Participant\Resolvers\AbsenceParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\FeeNoteParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\MissionParticipantResolver;
+use App\Services\Workflow\Participant\Resolvers\RegularizationSheetParticipantResolver;
 use App\Services\Workflow\Participant\Resolvers\TaxiParticipantResolver;
 use Exception;
 
@@ -32,7 +33,7 @@ class ParticipantResolverFactory
 
                           case
             'fiche-a-regulariser':
-              return  app(FeeNoteParticipantResolver::class);
+              return  app(RegularizationSheetParticipantResolver::class);
 
 
             default :

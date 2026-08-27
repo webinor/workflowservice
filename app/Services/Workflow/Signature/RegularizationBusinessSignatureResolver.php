@@ -15,7 +15,7 @@ class RegularizationBusinessSignatureResolver
             ->with('signatureType')
             ->where('document_id', $documentId)
             ->whereHas('signatureType', function ($q) {
-                $q->where('code', 'REGULARIZATION_SETTLEMENT');
+                $q->where('code', 'REGULARIZATION_ADVANCE');
             })
             ->get()
             ->toArray();

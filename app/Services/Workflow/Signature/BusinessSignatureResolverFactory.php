@@ -24,9 +24,9 @@ class BusinessSignatureResolverFactory
                 return new RegularizationBusinessSignatureResolver();
 
             default:
-            return new TaxiBusinessSignatureResolver();
+            // return new TaxiBusinessSignatureResolver();
 
-            // throw new Exception("Aucun resolver defini pour : $documentType", 1);
+            throw new Exception("Aucun resolver defini pour : $documentType", 1);
 
             // case 'mission':
             //     // return new MissionBusinessSignatureResolver();

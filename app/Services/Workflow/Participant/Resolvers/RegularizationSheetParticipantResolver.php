@@ -11,118 +11,239 @@ class RegularizationSheetParticipantResolver implements ParticipantResolver
     {
         $participants = [];
 
-        // $document = $instance->document;
-        // $taxi = $document->taxi;
-
         /*
         |--------------------------------------------------------------------------
-        | 1. ACTEUR PRINCIPAL
+        | 1. Identifier l'instance step de la régularisation
         |--------------------------------------------------------------------------
+        |
+        | On recherche l'instance step qui contient une action step dont
+        | transaction_type_code = REGULARIZATION_ADVANCE.
+        |
+        | La position appartient à WorkflowInstanceStep.
+        |
         */
 
-        // $participants[] = [
-        //     'type' => 'PRIMARY_ACTOR',
-        //     'label' => 'Bénéficiaire',
-        //     'user_id' => $taxi->beneficiary_id,
-        //     'name' => $taxi->beneficiary->name ?? null,
-        // ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2. CHAÎNE DE WORKFLOW (ORDER + DECISION + SOURCE_VALUE)
-        |--------------------------------------------------------------------------
-        */
-
-        $instance_steps = $instance
+        $regularizationStep = $instance
             ->instance_steps()
-            ->with(["assignments"])
-            ->orderBy("position")
+            ->whereHas(
+                'workflowStep.workflowActionSteps',
+                function ($query) {
+                    $query->where(
+                        'transaction_type_code',
+                        'REGULARIZATION_ADVANCE'
+                    );
+                }
+            )
+            ->first();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. Récupérer la position de la régularisation
+        |--------------------------------------------------------------------------
+        */
+
+        $regularizationPosition = $regularizationStep
+            ? $regularizationStep->position
+            : null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. Récupérer uniquement les étapes AVANT la régularisation
+        |--------------------------------------------------------------------------
+        */
+
+        $instanceSteps = $instance
+            ->instance_steps()
+            ->with([
+                'assignments'
+            ])
+            ->when(
+                $regularizationPosition !== null,
+                function ($query) use ($regularizationPosition) {
+
+                    $query->where(
+                        'position',
+                        '<',
+                        $regularizationPosition
+                    );
+
+                }
+            )
+            ->orderBy('position')
             ->get();
 
-        foreach ($instance_steps as $instance_step) {
-            foreach ($instance_step->assignments as $assignment) {
-                $isApproved = $assignment->decision === "APPROVED";
+        /*
+        |--------------------------------------------------------------------------
+        | 4. Construire les participants
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($instanceSteps as $instanceStep) {
+
+            foreach ($instanceStep->assignments as $assignment) {
+
+                $isApproved =
+                    $assignment->decision === 'APPROVED';
 
                 $participants[] = [
+
                     /*
-                    | rôle métier réel issu du workflow
+                    |--------------------------------------------------------------------------
+                    | Rôle métier
+                    |--------------------------------------------------------------------------
                     */
-                    "type" => $this->mapSourceValueToType(
-                        $assignment->source_value
-                    ),
+
+                    'type' =>
+                        $this->mapSourceValueToType(
+                            $assignment->source_value
+                        ),
 
                     /*
-                    | label dynamique (important pour PDF)
+                    |--------------------------------------------------------------------------
+                    | Nom de l'étape
+                    |--------------------------------------------------------------------------
                     */
-                    "label" => $instance_step->name,
 
-                    "decided_at" => $assignment->decided_at,
-
-                    /*
-                     * Règles de rendu
-                     */
-                    "signature_visibility" => $assignment->signature_visibility,
-                    "signature_mode" => $assignment->signature_mode,
-
-                    "paraph_visibility" => $assignment->paraph_visibility,
-                    "paraph_mode" => $assignment->paraph_mode,
+                    'label' =>
+                        $instanceStep->name,
 
                     /*
-                    | utilisateur réel qui a exécuté
+                    |--------------------------------------------------------------------------
+                    | Informations de décision
+                    |--------------------------------------------------------------------------
                     */
-                    "user_id" => $assignment->user_id,
-                    "role_id" => $assignment->role_id,
-                    "name" => $assignment->user->name ?? null,
+
+                    'decided_at' =>
+                        $assignment->decided_at,
+
+                    'status' =>
+                        $assignment->decision,
 
                     /*
-                    | état du workflow
+                    |--------------------------------------------------------------------------
+                    | Signature
+                    |--------------------------------------------------------------------------
                     */
-                    "status" => $assignment->decision,
+
+                    'signature_visibility' =>
+                        $assignment->signature_visibility,
+
+                    'signature_mode' =>
+                        $assignment->signature_mode,
 
                     /*
-            |--------------------------------------------------------------------------
-            | SIGNATURE LOGIC
-            |--------------------------------------------------------------------------
-            */
-                    "signed" => $isApproved,
-
-                    /*
-                    | traçabilité métier
+                    |--------------------------------------------------------------------------
+                    | Paraphe
+                    |--------------------------------------------------------------------------
                     */
-                    "source_type" => $assignment->source_type,
-                    "source_value" => $assignment->source_value,
+
+                    'paraph_visibility' =>
+                        $assignment->paraph_visibility,
+
+                    'paraph_mode' =>
+                        $assignment->paraph_mode,
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Utilisateur
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'user_id' =>
+                        $assignment->user_id,
+
+                    'role_id' =>
+                        $assignment->role_id,
+
+                    'name' =>
+                        $assignment->user->name ?? null,
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | État de signature
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'signed' =>
+                        $isApproved,
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Traçabilité
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'source_type' =>
+                        $assignment->source_type,
+
+                    'source_value' =>
+                        $assignment->source_value,
                 ];
             }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | 3. SIGNATAIRE FINAL (si existant)
+        | 5. Signataire final
         |--------------------------------------------------------------------------
+        |
+        | Le signataire final est ajouté séparément s'il existe.
+        |
         */
 
         if ($instance->final_signer_id) {
+
             $participants[] = [
-                "type" => "SIGNER",
-                "label" => "Signataire final",
-                "user_id" => $instance->final_signer_id,
-                "name" => $instance->finalSigner->name ?? null,
-                "status" => "APPROVED",
+
+                'type' =>
+                    'SIGNER',
+
+                'label' =>
+                    'Signataire final',
+
+                'user_id' =>
+                    $instance->final_signer_id,
+
+                'name' =>
+                    $instance->finalSigner->name ?? null,
+
+                'status' =>
+                    'APPROVED',
+
+                'signed' =>
+                    true,
             ];
         }
 
         return $participants;
     }
 
-    private function mapSourceValueToType(string $value): string
-    {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mapper le source_value vers un type métier
+    |--------------------------------------------------------------------------
+    */
+
+    private function mapSourceValueToType(
+        string $value
+    ): string {
+
         $map = [
-            "DIRECT_MANAGER" => "APPROVER",
-            "HEAD_OF_DEPARTMENT" => "APPROVER",
-            "SIGNATORY" => "SIGNER",
-            "OWNER" => "PRIMARY_ACTOR",
+
+            'DIRECT_MANAGER' =>
+                'APPROVER',
+
+            'HEAD_OF_DEPARTMENT' =>
+                'APPROVER',
+
+            'SIGNATORY' =>
+                'SIGNER',
+
+            'OWNER' =>
+                'PRIMARY_ACTOR',
         ];
 
-        return $map[$value] ?? "APPROVER";
+        return $map[$value] ?? 'APPROVER';
     }
 }

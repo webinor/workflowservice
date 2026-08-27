@@ -50,7 +50,7 @@ class SignatureTypeSeeder extends Seeder
 
             [
                 'code' => 'REGULARIZATION_ADVANCE',
-                'name' => 'Paiement de la fiche à régulariser',
+                'name' => 'Paiement initial à régulariser',
                 'description' => 'Signature attestant la réception de l\'avance ou du paiement lié à une fiche à régulariser',
             ],
             [
