@@ -87,6 +87,12 @@ class WorkflowEventSeeder extends Seeder
         'description' => 'Déclenché lorsqu’une note de frais est signée.',
     ],
 
+    [
+    'code' => 'APPLY_REGULARIZATION_SUPPORTING_DOCUMENT_SIGNATURES',
+    'name' => 'Apposition des signatures sur les pièces justificatives',
+    'description' => 'Appose automatiquement sur les pièces justificatives d’une fiche de régularisation les signatures configurées aux positions prévues.',
+],
+
         ];
 
         foreach ($events as $event) {

@@ -1659,7 +1659,9 @@ class WorkflowInstanceController extends Controller
 
         try {
             $user = $request->get("user");
-            $action = Str::lower($request->get("condition"));
+            $action = Str::lower($request->get("condition"));//actionStepId
+
+            $actionStep = WorkflowActionStep::find($request->get('actionStepId'));
 
             // 1️⃣ Récupérer l'instance de workflow
             $instance = $this->getCurrentWorkflowInstance($documentId);
@@ -1742,6 +1744,7 @@ class WorkflowInstanceController extends Controller
                 "message" => "Aucun blocker à cette etape",
                 "currentStep" => $currentStep,
                 "nextStep" => $nextStep,
+                "actionStep"=>$actionStep,
                 "isDynamicStep" => $isDynamic,
             ]);
         } catch (\Throwable $th) {
@@ -1837,12 +1840,17 @@ class WorkflowInstanceController extends Controller
 
             if (!$currentStep->workflowStep->check_before) {
 
+
+
             
             $blockingData = $this->checkBlockingRules(
                 $instance,
                 $currentStep,
                 $documentData
             );
+
+
+                // throw new \Exception(json_encode($blockingData));
 
             if (!$blockingData["isValid"]) {
                 return response()->json([
@@ -1968,6 +1976,20 @@ class WorkflowInstanceController extends Controller
             foreach ($historyDataArray as $historyData) {
                 WorkflowStatusHistory::create($historyData);
             }
+
+
+             $this->executeBeforeCommit(
+                $instance,
+                $currentStep,
+                $nextStep,
+                $roleIdsToNotify,
+                $request,
+                $user,
+                $documentUuid,
+                $actionStepId,
+                $WorkflowEventEngine,
+                $documentData
+            );
 
             $this->registerWorkflowAfterCommit(
                 $instance,
@@ -2811,7 +2833,7 @@ class WorkflowInstanceController extends Controller
         // PAYMENT
         // =====================================
 
-        $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
+        // $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
 
         // =====================================
         // NOTIFICATION
@@ -2829,6 +2851,59 @@ class WorkflowInstanceController extends Controller
                 // $roleIdsToNotify
             );
         }
+
+        // =====================================
+        // EVENTS
+        // =====================================
+
+    //     $WorkflowEventEngine->handleActionStep(
+    //         $documentUuid,
+    //         $currentStep,
+    //         $actionStepId,
+    //          [
+    //     "validatorId" => $user["id"],
+    //     "actorId" => $documentData['actor_id']
+    // ]
+    //     );
+
+        
+    }
+
+
+        protected function executeBeforeCommit(
+        WorkflowInstance $instance,
+        WorkflowInstanceStep $currentStep,
+        ?WorkflowInstanceStep $nextStep,
+        array $roleIdsToNotify,
+        Request $request,
+        array $user,
+        string $documentUuid,
+        ?string $actionStepId,
+        $WorkflowEventEngine,
+        array $documentData
+    ): void {
+        // =====================================
+        // PAYMENT
+        // =====================================
+
+        $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
+
+        // =====================================
+        // NOTIFICATION
+        // =====================================
+
+        // if (
+        //     $nextStep &&
+        //     $nextStep->status === "PENDING" &&
+        //     !$nextStep->workflowStep->is_archived_step
+        // ) {
+        //     $this->workflowInstanceService->notifyNextValidators(
+        //         $nextStep,
+        //         $request,
+        //         $instance->department_id ?? null
+        //         // $roleIdsToNotify
+        //     );
+        // }
 
         // =====================================
         // EVENTS
@@ -3128,24 +3203,37 @@ class WorkflowInstanceController extends Controller
         // throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
 
+        $requiredIds = $condition->required_id;
+
+        $haystack = $requiredIds;
+
         // Si le type de condition est 'exists' (vérifie la présence d'un document ou d'une valeur)
         if ($condition->condition_type === "exists") {
-            if ($condition->required_id) {
+            if ($requiredIds) {
                 // Convertir les chaînes en entiers si nécessaire
-                $haystack_int = array_map("intval", $condition->required_id);
+                // $haystack_int = array_map("intval", $condition->required_id);
+
+                if (
+    is_array($requiredIds) &&
+    collect($requiredIds)->every(function ($value) {
+        return filter_var($value, FILTER_VALIDATE_INT) !== false;
+    })
+) {
+    $haystack = array_map('intval', $haystack);
+}
 
                 if (is_array($fieldValue)) {
                     // throw new Exception(json_encode(array_diff($haystack_int, $fieldValue)), 1);
 
                     return !empty($fieldValue) &&
                         //!empty(array_intersect($fieldValue, $haystack_int));
-                        empty(array_diff($haystack_int, $fieldValue));
+                        empty(array_diff($haystack, $fieldValue));
                 } else {
                     //throw new Exception(json_encode($fieldValue), 1);
-                    //throw new Exception(json_encode($haystack_int), 1);
-                    // throw new Exception(json_encode(in_array($fieldValue , $haystack_int) ), 1);
+                    // throw new Exception(json_encode($haystack), 1);
+                    // throw new Exception(json_encode(in_array($fieldValue , $haystack) ), 1);
 
-                    return in_array($fieldValue, $haystack_int);
+                    return in_array($fieldValue, $haystack);
                 }
             } else {
                 return !empty($fieldValue);

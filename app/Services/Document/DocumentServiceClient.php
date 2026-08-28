@@ -11,7 +11,10 @@ class DocumentServiceClient
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(env("DOCUMENT_SERVICE_URL"), "/");
+        $this->baseUrl = rtrim(
+            env("DOCUMENT_SERVICE_URL"),
+            "/"
+        );
     }
 
     /**
@@ -20,7 +23,7 @@ class DocumentServiceClient
      * =========================================
      */
     public function generateMissionDocuments(
-         $documentUuid,
+        $documentUuid,
         int $instanceId,
         string $context
     ) {
@@ -29,7 +32,6 @@ class DocumentServiceClient
             ->post(
                 config("services.document_service.base_url") .
                     "/missions/generate",
-
                 [
                     "document_uuid" => $documentUuid,
                     "instance_id" => $instanceId,
@@ -38,68 +40,75 @@ class DocumentServiceClient
             );
 
         if (!$response->successful()) {
-            throw new \Exception("DocumentService error: " . $response->body());
+            throw new Exception(
+                "DocumentService error: " . $response->body()
+            );
         }
 
         return $response->json();
     }
 
     /**
- * =========================================
- * Déduction des jours de congé
- * =========================================
- */
-public function deductLeaveDays(
-     $documentUuid,
-    int $instanceId,
-    string $context = 'workflow_validation'
-) {
-    $response = Http::withToken(request()->bearerToken())
-        ->acceptJson()
-        ->post(
-            config('services.document_service.base_url') .
-                '/leave-balances/deduct',
-            [
-                'document_uuid' => $documentUuid,
-                'instance_id' => $instanceId,
-                'context' => $context,
-            ]
-        );
+     * =========================================
+     * Déduction des jours de congé
+     * =========================================
+     */
+    public function deductLeaveDays(
+        $documentUuid,
+        int $instanceId,
+        string $context = 'workflow_validation'
+    ) {
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()
+            ->post(
+                config('services.document_service.base_url') .
+                    '/leave-balances/deduct',
+                [
+                    'document_uuid' => $documentUuid,
+                    'instance_id' => $instanceId,
+                    'context' => $context,
+                ]
+            );
 
-    if (!$response->successful()) {
-        throw new \Exception(
-            'EmployeeService error: '.$response->body()
-        );
+        if (!$response->successful()) {
+            throw new Exception(
+                'DocumentService error: ' . $response->body()
+            );
+        }
+
+        return $response->json();
     }
 
-    return $response->json();
-}
+    /**
+     * =========================================
+     * Génération documents congé
+     * =========================================
+     */
+    public function generateLeaveDocuments(
+        $documentUuid,
+        int $instanceId,
+        string $context
+    ) {
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()
+            ->post(
+                config('services.document_service.base_url') .
+                    '/leave/generate',
+                [
+                    'document_uuid' => $documentUuid,
+                    'instance_id' => $instanceId,
+                    'context' => $context,
+                ]
+            );
 
-public function generateLeaveDocuments(
-    $documentUuid,
-    int $instanceId,
-    string $context
-)
-{
-    $response = Http::withToken(request()->bearerToken())
-        ->acceptJson()
-        ->post(
-            config('services.document_service.base_url') . '/leave/generate',
-            [
-                'document_uuid' => $documentUuid,
-                'instance_id' => $instanceId,
-                'context' => $context,
-            ]
-        );
+        if (!$response->successful()) {
+            throw new Exception(
+                'DocumentService error: ' . $response->body()
+            );
+        }
 
-    if (!$response->successful()) {
-        throw new \Exception(
-            'DocumentService error : ' . $response->body()
-        );
+        return $response->json();
     }
-
-    return $response->json();
-}
 
     /**
      * =========================================
@@ -111,70 +120,88 @@ public function generateLeaveDocuments(
         $response = Http::withToken(request()->bearerToken())
             ->acceptJson()
             ->get(
-                config("services.document_service.base_url") . "/{$documentUuid}"
+                config("services.document_service.base_url") .
+                    "/{$documentUuid}"
             );
 
         if (!$response->successful()) {
-            throw new \Exception("DocumentService error: " . $response->body());
+            throw new Exception(
+                "DocumentService error: " . $response->body()
+            );
         }
 
         return $response->json();
     }
 
-    // public function getDocumentTypesByIds(array $documentUuids , $token = null): array
-    // {
-    //     $url = config("services.document_service.base_url");
+    /**
+     * =========================================
+     * Apposer les signatures sur les pièces
+     * justificatives d'une fiche de régularisation
+     * =========================================
+     */
+    public function applyRegularizationSupportingDocumentSignatures(
+        string $documentUuid
+    ) {
+        $response = Http::withToken(request()->bearerToken())
+            ->acceptJson()
+            ->post(
+                config("services.document_service.base_url") .
+                    "/{$documentUuid}/regularization/supporting-documents/apply-signatures"
+            );
 
-    //     $response = Http::timeout(20)->acceptJson()->withToken(request()->bearerToken()) ->post("{$url}/types-by-ids", [
-    //         "ids" => $documentUuids,
-    //     ]);
+        if (!$response->successful()) {
+            throw new Exception(
+                "DocumentService error: " . $response->body()
+            );
+        }
 
-    //     if (!$response->ok()) {
-    //         throw new Exception($response->url(), 1);
-    //         return [];
-    //     }
+        // throw new Exception(json_encode($response->json()), 1);
+        
 
-    //     return $response->json("data") ?? [];
-    // }
-
-    public function getDocumentTypesByIds(array $documentUuids, ?string $token = null): array
-{
-    $url = config("services.document_service.base_url");
-
-
-    $http = Http::timeout(20)
-        ->acceptJson();
-
-
-    if ($token) {
-
-        $http = $http->withHeaders([
-            'X-Service-Token' => $token,
-        ]);
-
-    } else {
-
-        $http = $http->withToken(
-            request()->bearerToken()
-        );
+        return $response->json();
     }
 
+    /**
+     * =========================================
+     * Récupérer les types de documents
+     * =========================================
+     */
+    public function getDocumentTypesByIds(
+        array $documentUuids,
+        ?string $token = null
+    ): array {
+        $url = config("services.document_service.base_url");
 
-    $response = $http->post(
-        "{$url}/types-by-ids",
-        [
-            "ids" => $documentUuids,
-        ]
-    );
+        $http = Http::timeout(20)
+            ->acceptJson();
 
+        if ($token) {
 
-    if (!$response->ok()) {
-        throw new Exception(
-            "Document service error : ".$response->body()
+            $http = $http->withHeaders([
+                'X-Service-Token' => $token,
+            ]);
+
+        } else {
+
+            $http = $http->withToken(
+                request()->bearerToken()
+            );
+        }
+
+        $response = $http->post(
+            "{$url}/types-by-ids",
+            [
+                "ids" => $documentUuids,
+            ]
         );
+
+        if (!$response->ok()) {
+            throw new Exception(
+                "Document service error : " .
+                $response->body()
+            );
+        }
+
+        return $response->json("data") ?? [];
     }
-
-
-    return $response->json("data") ?? [];
-}
 }

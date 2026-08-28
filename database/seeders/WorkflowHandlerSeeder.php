@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\WorkflowEvent;
 use App\Models\WorkflowHandler;
-
+use App\Services\Workflow\Handlers\ApplyRegularizationSupportingDocumentSignaturesHandler;
 use App\Services\Workflow\Handlers\DeductLeaveDaysHandler;
 use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
 use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
@@ -149,6 +149,20 @@ class WorkflowHandlerSeeder extends Seeder
     ],
     
 ],
+
+
+[
+    'event' => 'APPLY_REGULARIZATION_SUPPORTING_DOCUMENT_SIGNATURES',
+    'handler' => ApplyRegularizationSupportingDocumentSignaturesHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+    'config' => [
+        'context' => 'TO_VALIDATE',
+    ],
+],
+
+
+
 
         ];
 
