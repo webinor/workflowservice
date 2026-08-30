@@ -2,22 +2,22 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\WorkflowEvent;
 use App\Models\WorkflowHandler;
 use App\Services\Workflow\Handlers\ApplyRegularizationSupportingDocumentSignaturesHandler;
 use App\Services\Workflow\Handlers\DeductLeaveDaysHandler;
-use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
-use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
-use App\Services\Workflow\Handlers\NotifyTaxiPaperBeneficiaryHandler;
-
-use App\Services\Workflow\Handlers\DocumentReturnedHandler;
 use App\Services\Workflow\Handlers\DocumentRejectedHandler;
+use App\Services\Workflow\Handlers\DocumentReturnedHandler;
 use App\Services\Workflow\Handlers\DocumentValidatedHandler;
 use App\Services\Workflow\Handlers\DocumentWorkflowCompletedHandler;
 use App\Services\Workflow\Handlers\FeeNoteSignedHandler;
+use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
+use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
+use App\Services\Workflow\Handlers\NotifyTaxiPaperBeneficiaryHandler;
+use App\Services\Workflow\Handlers\RegularizationSheetRegularizedHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
 use App\Services\Workflow\Handlers\TaxiPaperSignedHandler;
+use Illuminate\Database\Seeder;
 
 class WorkflowHandlerSeeder extends Seeder
 {
@@ -158,6 +158,17 @@ class WorkflowHandlerSeeder extends Seeder
     'is_async' => false,
     'config' => [
         'context' => 'TO_VALIDATE',
+    ],
+],
+
+
+[
+    'event' => 'REGULARIZATION_SHEET_REGULARIZED',
+    'handler' => RegularizationSheetRegularizedHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+    'config' => [
+        'context' => 'MY_DOCUMENTS',
     ],
 ],
 

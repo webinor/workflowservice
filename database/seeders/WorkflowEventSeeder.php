@@ -62,6 +62,12 @@ class WorkflowEventSeeder extends Seeder
                 'description' => 'Déclenché lorsque toutes les étapes du workflow du document sont terminées.',
             ],
 
+            [
+    'code' => 'REGULARIZATION_SHEET_REGULARIZED',
+    'name' => 'Fiche de régularisation régularisée',
+    'description' => 'Déclenché lorsqu’une fiche de régularisation a été entièrement régularisée et que toutes les étapes requises sont terminées.',
+],
+
 
             /*
     |--------------------------------------------------------------------------
