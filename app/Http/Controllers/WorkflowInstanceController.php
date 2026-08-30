@@ -1798,7 +1798,7 @@ class WorkflowInstanceController extends Controller
         Request $request,
         WorkflowEventEngine $WorkflowEventEngine,
         WorkflowCompletionEvaluator $completionEvaluator,
-        $documentUuid
+        string $documentUuid
     ) {
         DB::beginTransaction();
 
@@ -2018,7 +2018,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 "success" => true,
