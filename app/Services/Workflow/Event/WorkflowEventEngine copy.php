@@ -74,7 +74,7 @@ class WorkflowEventEngine
 
 
 
-            //  throw new Exception(json_encode($recipients), 1);
+             throw new Exception(json_encode($recipients), 1);
             
 
             foreach ($handlers as $handler) {
