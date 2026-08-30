@@ -71,12 +71,12 @@ Route::middleware("jwt.check")
 );
 
 Route::post(
-        '/users/dashboard-context',
-        [UserDashboardContextController::class, 'show']
+        '/users/dashboard-context',[UserDashboardContextController::class, 'show']
     );
             
             
             Route::apiResource("/", WorkflowController::class);
+
         });
 
 
@@ -131,7 +131,7 @@ Route::post(
                     "/workflow-instances/{documentuuid}/reject",
                     "rejectStep"
                 );
-
+                
                 Route::post(
     '/workflow-instances/{documentuuid}/bypass',
     [WorkflowInstanceController::class, 'bypassStep']
