@@ -5,6 +5,7 @@ namespace App\Services\Workflow\Event;
 use App\Models\WorkflowActionStepEvent;
 use App\Models\WorkflowEvent;
 use App\Models\WorkflowInstanceStep;
+use App\Models\WorkflowTransitionEvent;
 use App\Services\Document\DocumentServiceClient;
 use Exception;
 use Illuminate\Support\Facades\Http;
@@ -38,7 +39,9 @@ class WorkflowEventEngine
         array $context = []
     ): void {
 
-        $actionStepEvents =
+        $events = [];
+
+        $events =
             WorkflowActionStepEvent::query()
                 ->where(
                     "workflow_action_step_id",
@@ -51,11 +54,25 @@ class WorkflowEventEngine
                 ->orderBy("execution_order")
                 ->get();
 
-        if ($actionStepEvents->isEmpty()) {
-            return;
+        if ($events->isEmpty()) {
+
+
+        $events = WorkflowTransitionEvent::query()
+    ->where('transition_id', $context["transitionId"])
+    ->with(['event.handlers'])
+    // ->where('is_active', true)
+    // ->orderBy('execution_order')
+    ->get();
+
+
+    // throw new Exception(json_encode($context), 1);
+    // throw new Exception(json_encode($events), 1);
+    
+            
+        
         }
 
-        foreach ($actionStepEvents as $actionStepEvent) {
+        foreach ($events as $actionStepEvent) {
 
             $event = $actionStepEvent->event;
 

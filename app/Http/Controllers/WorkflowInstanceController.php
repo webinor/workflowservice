@@ -557,7 +557,8 @@ class WorkflowInstanceController extends Controller
     public function store(
         StoreWorkflowInstanceRequest $request,
         WorkflowDynamicResolverService $resolver,
-        WorkflowPathResolverService $pathResolver
+        WorkflowPathResolverService $pathResolver,
+        WorkflowEventEngine $WorkflowEventEngine
     ) {
         DB::beginTransaction();
 
@@ -666,6 +667,7 @@ class WorkflowInstanceController extends Controller
             );
 
             $nextStep = $stepData["next_step"];
+            $transition = $stepData["transition"];
 
             //  throw new Exception(json_encode($nextStep->assignments), 1);
 
@@ -695,6 +697,19 @@ class WorkflowInstanceController extends Controller
             //    throw new Exception(json_encode($roleIdsToNotify), 1);
 
             DB::commit();
+
+             $userConnected = $request->get("user");
+
+              $WorkflowEventEngine->handleActionStep(
+            $documentData['uuid'],
+            $firstStep,
+            0,
+             [
+        "validatorId" => $userConnected["id"],
+        "actorId" => $documentData['actor_id'],
+        "transitionId" => $transition->id,
+    ]
+        );
 
             return response()->json(
                 $workflowInstance->load(["instance_steps"]),
@@ -1289,6 +1304,7 @@ class WorkflowInstanceController extends Controller
         $stepData = $this->getNextStep($instance, $currentStep, $documentData);
 
         $nextStep = $stepData["next_step"];
+        $transition = $stepData["transition"];
 
         // =====================================
         // 2. Résoudre le label
@@ -1338,6 +1354,7 @@ class WorkflowInstanceController extends Controller
 
             return [
                 "nextStep" => $nextStep,
+                "transition" => $transition,
                 "roleIdsToNotify" => [],
             ];
         }
@@ -1363,6 +1380,7 @@ class WorkflowInstanceController extends Controller
 
         return [
             "nextStep" => $nextStep,
+            "transition" => $transition,
             "roleIdsToNotify" => $roleIdsToNotify,
         ];
     }
@@ -1926,6 +1944,7 @@ class WorkflowInstanceController extends Controller
             // NEXT STEP LOGIC
             // =====================================
             $nextStep = null;
+            $transition = null;
 
             //old logic
             // if ($currentStep->status === "COMPLETE") {
@@ -1953,8 +1972,12 @@ class WorkflowInstanceController extends Controller
                 );
 
                 $nextStep = $result["nextStep"];
+                $transition = $result["transition"];
                 $roleIdsToNotify = $result["roleIdsToNotify"];
             }
+
+            throw new Exception(json_encode($transition), 1);
+            
 
             // =====================================
             // HISTORY
@@ -1988,7 +2011,8 @@ class WorkflowInstanceController extends Controller
                 $documentUuid,
                 $actionStepId,
                 $WorkflowEventEngine,
-                $documentData
+                $documentData,
+                $transition
             );
 
             $this->registerWorkflowAfterCommit(
@@ -2018,7 +2042,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 "success" => true,
@@ -2884,13 +2908,14 @@ class WorkflowInstanceController extends Controller
         string $documentUuid,
         ?string $actionStepId,
         $WorkflowEventEngine,
-        array $documentData
+        array $documentData,
+        WorkflowTransition $transition
     ): void {
         // =====================================
         // PAYMENT
         // =====================================
 
-        $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
+        $this->registerPayment($instance, $currentStep, $request, $user,$documentData,$transition);
 
         // =====================================
         // NOTIFICATION
@@ -2919,7 +2944,8 @@ class WorkflowInstanceController extends Controller
             $actionStepId,
              [
         "validatorId" => $user["id"],
-        "actorId" => $documentData['actor_id']
+        "actorId" => $documentData['actor_id'],
+        "transitionId" => $transition->id,
     ]
         );
 
@@ -3174,6 +3200,7 @@ class WorkflowInstanceController extends Controller
             return [
                 "isDynamic" => $isDynamic,
                 "next_step" => $tempWorkflowInstanceStep,
+                "transition" => $transition
             ];
         }
     }
