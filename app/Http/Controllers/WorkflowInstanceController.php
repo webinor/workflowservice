@@ -2042,7 +2042,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 "success" => true,
