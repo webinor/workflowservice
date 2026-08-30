@@ -163,7 +163,7 @@ class WorkflowEventEngine
                 $audiences
             );
 
-             throw new Exception(json_encode($recipients), 1);
+            //  throw new Exception(json_encode($recipients), 1);
         
 
 
