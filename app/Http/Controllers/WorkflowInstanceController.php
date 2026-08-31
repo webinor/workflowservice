@@ -1979,7 +1979,7 @@ class WorkflowInstanceController extends Controller
 
             if (isset($isTest) && $isTest) {
                 
-            throw new Exception(json_encode($transition), 1);
+            throw new Exception(json_encode('$transition'), 1);
 
             
             }
@@ -2051,7 +2051,7 @@ class WorkflowInstanceController extends Controller
             DB::commit();
 
 
-            
+
 
             return response()->json([
                 "success" => true,
