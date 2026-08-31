@@ -1827,7 +1827,7 @@ class WorkflowInstanceController extends Controller
             // =====================================
             $user = $request->get("user");
             $isTest = $request->get("isTest");
-            $actionStepId = Str::lower($request->get("actionStepId"));
+            $actionStepId = (int)Str::lower($request->get("actionStepId"));
 
                 // =====================================
                 // WORKFLOW INSTANCE
@@ -2048,7 +2048,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 "success" => true,
