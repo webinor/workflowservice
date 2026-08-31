@@ -5,7 +5,7 @@ namespace App\Contracts;
 interface WorkflowEventHandlerInterface
 {
     public function execute(
-        int $documentId,
+        string $documentUuid,
         $instance,
         array $documentData,
         array $config = []

@@ -68,6 +68,12 @@ class WorkflowEventSeeder extends Seeder
     'description' => 'Déclenché lorsqu’une fiche de régularisation a été entièrement régularisée et que toutes les étapes requises sont terminées.',
 ],
 
+[
+    'code' => 'LEAVE_REQUEST_APPROVED',
+    'name' => 'Demande de congé approuvée',
+    'description' => 'Déclenché lorsqu’une demande de congé est approuvée par le workflow.',
+],
+
 
             /*
     |--------------------------------------------------------------------------

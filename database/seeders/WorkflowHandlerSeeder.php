@@ -13,6 +13,7 @@ use App\Services\Workflow\Handlers\DocumentWorkflowCompletedHandler;
 use App\Services\Workflow\Handlers\FeeNoteSignedHandler;
 use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
 use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
+use App\Services\Workflow\Handlers\LeaveRequestApprovedHandler;
 use App\Services\Workflow\Handlers\NotifyTaxiPaperBeneficiaryHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetRegularizedHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
@@ -46,6 +47,16 @@ class WorkflowHandlerSeeder extends Seeder
             | Congés
             |--------------------------------------------------------------------------
             */
+
+[
+    'event' => 'LEAVE_REQUEST_APPROVED',
+    'handler' => LeaveRequestApprovedHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+    'config' => [
+        'context' => '',
+    ],
+],
 
             [
                 'event' => 'DEDUCT_LEAVE_DAYS',
@@ -170,7 +181,11 @@ class WorkflowHandlerSeeder extends Seeder
     'config' => [
         'context' => 'MY_DOCUMENTS',
     ],
+
+    
 ],
+
+
 
 
 

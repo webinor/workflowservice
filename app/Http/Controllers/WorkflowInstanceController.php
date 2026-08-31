@@ -1826,6 +1826,7 @@ class WorkflowInstanceController extends Controller
             // CONTEXTE UTILISATEUR
             // =====================================
             $user = $request->get("user");
+            $isTest = $request->get("isTest");
             $actionStepId = Str::lower($request->get("actionStepId"));
 
                 // =====================================
@@ -1976,7 +1977,12 @@ class WorkflowInstanceController extends Controller
                 $roleIdsToNotify = $result["roleIdsToNotify"];
             }
 
-            // throw new Exception(json_encode($transition), 1);
+            if (isset($isTest) && $isTest) {
+                
+            throw new Exception(json_encode($transition), 1);
+
+            
+            }
             
 
             // =====================================
@@ -2042,7 +2048,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 "success" => true,

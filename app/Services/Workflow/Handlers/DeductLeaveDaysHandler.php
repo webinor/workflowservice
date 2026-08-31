@@ -17,14 +17,14 @@ class DeductLeaveDaysHandler implements WorkflowEventHandlerInterface
     }
 
     public function execute(
-        int $documentId,
+        string $documentUuid,
         $instance,
         array $documentData,
         array $config = []
     ): array {
 
         $result = $this->documentClient->deductLeaveDays(
-            $documentId,
+            $documentUuid,
             $instance->id
         );
 

@@ -510,6 +510,22 @@ public function getSubject(
                 'Facture fournisseur rejetée',
         ],
 
+
+                /*
+        |--------------------------------------------------------------------------
+        | APPROVED
+        |--------------------------------------------------------------------------
+        */
+
+        'approved' => [
+
+            'demande-d-absence' =>
+                'Demande de congé approuvée',
+
+            'absence' =>
+                'Demande d’absence approuvée',
+        ],
+        
         /*
         |--------------------------------------------------------------------------
         | SIGNED

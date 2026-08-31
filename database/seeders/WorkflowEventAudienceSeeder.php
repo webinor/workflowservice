@@ -94,6 +94,23 @@ class WorkflowEventAudienceSeeder extends Seeder
     'notification_template_id' => null,
 ],
 
+
+
+/*
+|--------------------------------------------------------------------------
+| Demande de congé approuvée
+|--------------------------------------------------------------------------
+*/
+
+[
+    'event' => 'LEAVE_REQUEST_APPROVED',
+    'target_type' => 'ACTOR',
+    'target_value' => 'OWNER',
+    'channel' => 'EMAIL',
+    'recipient_type' => 'TO',
+    'notification_template_id' => null,
+],
+
         ];
 
         foreach ($audiences as $audience) {
