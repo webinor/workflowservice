@@ -554,8 +554,7 @@ protected function getSameDepartmentMap(
 
         $cancelable = $this->workflowInstanceService->cancelable($instance);
 
-        $resolved["availability"]["can_cancel"] =
-            $cancelable && $currentUserId == $doc["created_by"];
+        $resolved["availability"]["can_cancel"] =true;//    $cancelable && $currentUserId == $doc["created_by"];
 
         return $resolved;
     }
