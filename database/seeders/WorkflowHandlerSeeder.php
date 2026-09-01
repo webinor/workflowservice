@@ -15,6 +15,7 @@ use App\Services\Workflow\Handlers\GenerateLeaveDocumentsHandler;
 use App\Services\Workflow\Handlers\GenerateMissionDocumentsHandler;
 use App\Services\Workflow\Handlers\LeaveRequestApprovedHandler;
 use App\Services\Workflow\Handlers\NotifyTaxiPaperBeneficiaryHandler;
+use App\Services\Workflow\Handlers\RegularizationSheetReadyForFinalizationHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetRegularizedHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
 use App\Services\Workflow\Handlers\TaxiPaperSignedHandler;
@@ -169,6 +170,17 @@ class WorkflowHandlerSeeder extends Seeder
     'is_async' => false,
     'config' => [
         'context' => 'TO_VALIDATE',
+    ],
+],
+
+
+[
+    'event' => 'REGULARIZATION_SHEET_READY_FOR_FINALIZATION',
+    'handler' => RegularizationSheetReadyForFinalizationHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+    'config' => [
+        'context' => 'MY_DOCUMENTS',
     ],
 ],
 

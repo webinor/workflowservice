@@ -69,10 +69,18 @@ class WorkflowEventSeeder extends Seeder
 ],
 
 [
+    'code' => 'REGULARIZATION_SHEET_READY_FOR_FINALIZATION',
+    'name' => 'Fiche de régularisation prête à être finalisée',
+    'description' => 'Déclenché lorsque toutes les pièces justificatives requises de la fiche de régularisation ont été signées et que la fiche est prête pour sa finalisation.',
+],
+
+[
     'code' => 'LEAVE_REQUEST_APPROVED',
     'name' => 'Demande de congé approuvée',
     'description' => 'Déclenché lorsqu’une demande de congé est approuvée par le workflow.',
 ],
+
+
 
 
             /*

@@ -11,11 +11,11 @@ use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\WorkflowInstanceController;
 use App\Http\Controllers\WorkflowInstanceStepController;
 use App\Http\Controllers\WorkflowParticipantController;
+use App\Http\Controllers\WorkflowSearchController;
 use App\Http\Controllers\WorkflowStepController;
+use App\Http\Controllers\WorkflowTransactionController;
 use App\Http\Controllers\WorkflowTransferController;
 use App\Http\Controllers\WorkflowValidationController;
-use App\Http\Controllers\WorkflowSearchController;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,12 +32,19 @@ use Illuminate\Support\Facades\Route;
 
   Route::prefix("workflows")
     ->controller(SignatureController::class)->group(function () {
+
             Route::post(
                 "signatures/beneficiary",
                 "storeBeneficiarySignature"
             );
 
         });
+
+
+Route::get(
+    'workflows/documents/{documentUuid}/payment-initiator',
+    [WorkflowTransactionController::class, 'paymentInitiator']
+);
 Route::middleware("jwt.check")
     ->prefix("workflows")
     ->group(function () {

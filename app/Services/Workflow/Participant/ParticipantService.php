@@ -48,6 +48,9 @@ class ParticipantService
 $businessSignatures = app(ActorEnricher::class)
     ->enrich($businessSignatures , "actor_id");
 
+        // throw new \Exception(json_encode($businessSignatures), 1);
+
+
     return ["participants"=>$participants,
     "business_signatures"=>$businessSignatures];
 
