@@ -2159,7 +2159,7 @@ class WorkflowInstanceController extends Controller
                 $documentData
             );
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 "success" => true,
