@@ -43,6 +43,15 @@ class WorkflowInstanceStep extends Model
         return $this->belongsTo(WorkflowInstance::class);
     }
 
+   
+
+        protected function serializeDate(\DateTimeInterface $date)
+    {
+        return $date
+            ->setTimezone(new \DateTimeZone('Africa/Douala'))
+            ->format('Y-m-d\TH:i:s.uP');
+    }
+
     public function workflowStep(): BelongsTo
     {
         return $this->belongsTo(WorkflowStep::class);

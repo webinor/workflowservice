@@ -1176,4 +1176,57 @@ class WorkflowController extends Controller
     {
         //
     }
+
+  
+
+public function destroyByDocument($documentId)
+{
+    DB::beginTransaction();
+
+    try {
+
+        $workflows = WorkflowInstance::where(
+            'document_uuid',
+            $documentId
+        )->get();
+
+        foreach ($workflows as $workflow) {
+
+            // Propagation vers Transaction Service
+            $response = Http::timeout(15)
+                ->delete(
+                    config('services.user_service.base_url') .
+                    "/transactions/by-workflow/{$documentId}"
+                );
+
+            if ($response->failed()) {
+                throw new \Exception(
+                    "Impossible de supprimer les transactions du workflow {$documentId}."
+                );
+            }
+
+            // Suppression du workflow
+            $workflow->delete();
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Workflow supprimé avec succès.',
+            'document_id' => $documentId,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        report($e);
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
 }

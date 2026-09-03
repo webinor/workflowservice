@@ -45,9 +45,17 @@ Route::get(
     'workflows/documents/{documentUuid}/payment-initiator',
     [WorkflowTransactionController::class, 'paymentInitiator']
 );
+
+
 Route::middleware("jwt.check")
     ->prefix("workflows")
     ->group(function () {
+
+
+    Route::delete(
+    '/workflows/by-document/{documentId}',
+    [WorkflowController::class, 'destroyByDocument']
+);
 
 
     
@@ -174,6 +182,8 @@ Route::get(
     '/documents/{documentId}/participants',
     [WorkflowParticipantController::class, 'index']
 );
+
+
 
 Route::get('/roles/{roleId}/usage', [RoleUsageController::class, 'workflowUsage']);
 

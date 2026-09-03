@@ -25,6 +25,7 @@ class DocumentWorkflowService
     protected EffectiveResponsibilityService $effectiveResponsibilityService;
     protected VisibilityPolicyResolver $visibilityPolicyResolver;
     protected DepartmentContextService $departmentContextService;
+    protected ResponsibilityService $responsibilityService;
     
 
     const CONTEXT_VALIDATION = "TO_VALIDATE";
@@ -43,7 +44,8 @@ class DocumentWorkflowService
         WorkflowInstanceService $workflowInstanceService,
         EffectiveResponsibilityService $effectiveResponsibilityService,
         VisibilityPolicyResolver $visibilityPolicyResolver,
-        DepartmentContextService $departmentContextService
+        DepartmentContextService $departmentContextService,
+        ResponsibilityService $responsibilityService
         
     ) {
         $this->resolver = $workflowInstanceResolverService;
@@ -53,6 +55,7 @@ class DocumentWorkflowService
         $this->effectiveResponsibilityService = $effectiveResponsibilityService;
         $this->visibilityPolicyResolver = $visibilityPolicyResolver;
         $this->departmentContextService = $departmentContextService;
+        $this->responsibilityService = $responsibilityService;
     }
 
   public function getDocuments(
@@ -552,10 +555,32 @@ protected function getSameDepartmentMap(
 
         $resolved = $resolver->enrich($doc, $context);
 
+        // throw new Exception(json_encode($resolved), 1);
+
+
         $cancelable = $this->workflowInstanceService->cancelable($instance);
 
         $resolved["availability"]["can_cancel"] =  $cancelable && $currentUserId == $doc["created_by"];
         // $resolved["availability"]["can_cancel"] =true;
+
+
+          $user = request()->get('user');
+
+    // return
+    $responsibilities =
+    $user['employeeContext']['responsibilities'] ?? [];
+
+    $canDelete = $this->responsibilityService->hasAnyCode(
+    $responsibilities,
+    [
+        'SUPER_ADMIN',
+        'DOCUMENT_ADMIN',
+    ]
+);
+
+$resolved["availability"]['can_delete'] = $canDelete;
+
+
 
         return $resolved;
     }
