@@ -85,9 +85,9 @@ class DocumentServiceClient
      * =========================================
      */
     public function generateLeaveDocuments(
-        $documentUuid,
+        string $documentUuid,
         int $instanceId,
-        string $context
+        array $context
     ) {
         $response = Http::withToken(request()->bearerToken())
             ->acceptJson()

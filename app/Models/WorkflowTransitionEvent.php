@@ -18,7 +18,13 @@ class WorkflowTransitionEvent extends Model
         'workflow_event_id',
         'is_active',
         'execution_order',
+        'is_active'
     ];
+
+    protected $casts = [
+    // ...
+    'is_active' => 'boolean',
+];
 
     public function transition(): BelongsTo
     {

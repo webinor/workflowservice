@@ -37,7 +37,7 @@ class ParticipantResolverFactory
 
 
             default :
-            throw new Exception("Aucun resolver defini pour : $type", 1);
+            throw new Exception("Aucun participant resolver defini pour : $type", 1);
             
             //    return app(DefaultParticipantResolver::class);
         };

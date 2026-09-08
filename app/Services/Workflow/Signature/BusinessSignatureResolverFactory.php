@@ -23,10 +23,13 @@ class BusinessSignatureResolverFactory
                   case 'fiche-a-regulariser':
                 return new RegularizationBusinessSignatureResolver();
 
+                 case 'demande-d-absence':
+                return new AbsenceBusinessSignatureResolver();
+
             default:
             // return new TaxiBusinessSignatureResolver();
 
-            throw new Exception("Aucun resolver defini pour : $documentType", 1);
+            throw new Exception("Aucun business resolver defini pour : $documentType", 1);
 
             // case 'mission':
             //     // return new MissionBusinessSignatureResolver();

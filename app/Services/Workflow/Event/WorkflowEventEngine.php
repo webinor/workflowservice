@@ -60,7 +60,7 @@ class WorkflowEventEngine
         $events = WorkflowTransitionEvent::query()
     ->where('transition_id', $context["transitionId"])
     ->with(['event.handlers'])
-    // ->where('is_active', true)
+    ->where('is_active', true)
     // ->orderBy('execution_order')
     ->get();
 
@@ -206,6 +206,8 @@ class WorkflowEventEngine
                         $context
                     )
                 );
+            
+            
 
 
             /*
@@ -224,6 +226,9 @@ class WorkflowEventEngine
                 $document
             );
         }
+
+    // throw new Exception(json_encode($result), 1);
+
     }
 
       private function dispatchNotifications(

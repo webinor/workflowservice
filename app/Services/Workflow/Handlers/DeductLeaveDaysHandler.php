@@ -28,6 +28,30 @@ class DeductLeaveDaysHandler implements WorkflowEventHandlerInterface
             $instance->id
         );
 
+
+        // throw new \Exception(json_encode([
+        //         'result'=>$result,
+
+        //         'actor' => $documentData['actor_details']['nom'] ?? '',
+
+        //         'document_reference' =>
+        //             $documentData['reference'] ?? '',
+
+        //         'leave_type' =>
+        //             $documentData['absence_request']['leave_type']['name']
+        //             ?? 'Absence',
+
+        //         'departure_date' =>
+        //             $documentData['absence_request']['departure_date']
+        //             ?? null,
+
+        //         'return_date' =>
+        //             $documentData['absence_request']['return_date']
+        //             ?? null,
+
+        //     ]), 1);
+        
+
         return [
 
             'data' => [
