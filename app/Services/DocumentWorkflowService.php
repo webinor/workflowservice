@@ -557,26 +557,29 @@ protected function getSameDepartmentMap(
 
         // throw new Exception(json_encode($resolved), 1);
 
-
-        $cancelable = $this->workflowInstanceService->cancelable($instance);
-
-        $resolved["availability"]["can_cancel"] =  $cancelable && $currentUserId == $doc["created_by"];
-        // $resolved["availability"]["can_cancel"] =true;
-
-
-          $user = request()->get('user');
+            $user = request()->get('user');
 
     // return
     $responsibilities =
     $user['employeeContext']['responsibilities'] ?? [];
 
-    $canDelete = $this->responsibilityService->hasAnyCode(
+    $isSuperAdmin = $this->responsibilityService->hasAnyCode(
     $responsibilities,
     [
         'SUPER_ADMIN',
         'DOCUMENT_ADMIN',
     ]
 );
+
+        $cancelable = $this->workflowInstanceService->cancelable($instance);
+
+        $resolved["availability"]["can_cancel"] = $isSuperAdmin || ( $cancelable && $currentUserId == $doc["created_by"]);
+        // $resolved["availability"]["can_cancel"] =true;
+
+
+      
+
+    $canDelete = $isSuperAdmin;
 
 $resolved["availability"]['can_delete'] = $canDelete;
 
