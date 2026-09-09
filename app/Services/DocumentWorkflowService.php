@@ -569,11 +569,14 @@ protected function getSameDepartmentMap(
         'SUPER_ADMIN',
         'DOCUMENT_ADMIN',
     ]
-);
+); 
+
+
+
 
         $cancelable = $this->workflowInstanceService->cancelable($instance);
 
-        $resolved["availability"]["can_cancel"] = // $isSuperAdmin ||
+        $resolved["availability"]["can_cancel"] = $isSuperAdmin ||
          ( $cancelable && $currentUserId == $doc["created_by"]);
         // $resolved["availability"]["can_cancel"] =true;
 

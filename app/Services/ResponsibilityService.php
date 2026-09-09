@@ -12,7 +12,7 @@ class ResponsibilityService
     {
         if (empty($responsibilities) || empty($codes)) {
             return false;
-        }
+        }    
 
         $codes = array_map('strtoupper', $codes);
 
