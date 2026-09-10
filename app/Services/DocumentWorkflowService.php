@@ -922,6 +922,7 @@ $query = $policy->apply(
         bool $isStat=false,
         bool $shouldEnrich = true
     ): array {
+        
         $response = Http::withToken($request->bearerToken())
             ->acceptJson()
             ->get(config("services.document_service.base_url") . "/by-ids", [
@@ -933,7 +934,13 @@ $query = $policy->apply(
             ]);
 
         // throw new Exception(json_encode($response->body()), 1);
-        // throw new Exception(json_encode($documentTypes), 1);
+        // throw new Exception(json_encode([
+        //         "ids" => $documentIds->toArray(),
+        //         "documentTypes" => $documentTypes,
+        //         "filters" => $filters,
+        //         "shouldEnrich" => $shouldEnrich,
+        //         "isStat"=>$isStat
+        //     ]), 1);
 
         if ($response->ok()) {
             return $response->json();

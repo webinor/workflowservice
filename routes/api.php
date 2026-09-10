@@ -4,6 +4,7 @@ use App\Http\Controllers\DocumentWorkflowController;
 use App\Http\Controllers\RoleUsageController;
 use App\Http\Controllers\SignatureController;
 use App\Http\Controllers\UserDashboardContextController;
+use App\Http\Controllers\WorkflowReminderController;
 use App\Http\Controllers\WorkflowActionController;
 use App\Http\Controllers\WorkflowActionStepController;
 use App\Http\Controllers\WorkflowActionTypeController;
@@ -37,6 +38,14 @@ use Illuminate\Support\Facades\Route;
                 "signatures/beneficiary",
                 "storeBeneficiarySignature"
             );
+
+    // Route::get("/by-status", [DocumentController::class, "getByStatus"]);
+
+    Route::get(
+    '/reminders/documents/by-status',
+    [WorkflowReminderController::class, 'getDocumentsByStatus']
+);
+
 
         });
 
