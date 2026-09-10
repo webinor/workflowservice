@@ -18,11 +18,16 @@ class WorkflowInstanceService
     use ResolveDepartmentValidator;
 
     protected WorkflowInstanceResolverService $resolver;
+    protected ResponsibilityService $responsibilityService;
 
     public function __construct(
-        WorkflowInstanceResolverService $workflowInstanceResolverService
+        WorkflowInstanceResolverService $workflowInstanceResolverService,
+        ResponsibilityService $responsibilityService
+
     ) {
         $this->resolver = $workflowInstanceResolverService;
+        $this->responsibilityService = $responsibilityService;
+
     }
 
 
@@ -114,6 +119,26 @@ public function isReturnedForModification(
 }
 public function cancelable(WorkflowInstance $instance): bool
 {
+          $user = request()->get('user');
+
+    // return
+    $responsibilities =
+    $user['employeeContext']['responsibilities'] ?? [];
+
+    $isSuperAdmin = $this->responsibilityService->hasAnyCode(
+    $responsibilities,
+    [
+        'SUPER_ADMIN',
+        'DOCUMENT_ADMIN',
+    ]
+); 
+
+    if ($isSuperAdmin) {
+        
+        return true;
+    
+    }
+
     // workflow déjà terminé
     if (in_array($instance->status, [
         'COMPLETE',
