@@ -904,7 +904,7 @@ $query = $policy->apply(
                     $query->whereHas("workflowInstance", function ($q) use (
                     $statut
                 ) {
-                    $q->where("status",  '!=', 'COMPLETE');
+                    $q->where("status",  'PENDING');
                 });
 
                 }
