@@ -21,4 +21,12 @@ class Signature extends Model
     {
         return $this->belongsTo(SignatureType::class, );
     }
+
+       public function instanceStep()
+    {
+        return $this->belongsTo(
+            WorkflowInstanceStep::class,
+            'workflow_instance_step_id'
+        );
+    }
 }

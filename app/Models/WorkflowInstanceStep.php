@@ -33,6 +33,14 @@ class WorkflowInstanceStep extends Model
     "bypassed_at" => "datetime",
 ];
 
+
+   public function signature()
+    {
+        return $this->hasOne(
+            Signature::class,
+            'workflow_instance_step_id'
+        );
+    }
     /**
      * Get the workflowInstance that owns the WorkflowInstanceStep
      *

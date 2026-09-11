@@ -8,136 +8,177 @@ use App\Models\Signature;
 use App\Models\SignatureType;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
+use App\Services\Workflow\Status\WorkflowStatusManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SignatureController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    protected WorkflowStatusManager $workflowStatusManager;
+
+    public function __construct(
+        WorkflowStatusManager $workflowStatusManager
+    ) {
+        $this->workflowStatusManager = $workflowStatusManager;
+    }
+
     public function index()
     {
         //
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \App\Http\Requests\StoreSignatureRequest  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(StoreSignatureRequest $request)
     {
         //
     }
 
     public function storeBeneficiarySignature(Request $request)
-{
-    $request->validate([
-        'document_id' => 'required|integer',
-        'document_uuid' => 'required|string',
-        'actor_type' => 'required|string',
-        'actor_id' => 'required|integer',
-        'actor_name' => 'required|string',
-        'actor_role' => 'required|string',
-        'transaction_type_code' => 'required|string',
-    ]);
+    {
+        $request->validate([
+            'document_id' => 'required|integer',
+            'document_uuid' => 'required|string',
+            'actor_type' => 'required|string',
+            'actor_id' => 'required|integer',
+            'actor_name' => 'required|string',
+            'actor_role' => 'required|string',
+            'transaction_type_code' => 'required|string',
+        ]);
 
-    $signatureType = SignatureType::whereCode($request->transaction_type_code)->first();
+        return DB::transaction(function () use ($request) {
 
-    if (!$signatureType) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Aucun type de signature actif'
-        ], 404);
+            /*
+             * ---------------------------------------------------------
+             * 1. Récupération du type de signature
+             * ---------------------------------------------------------
+             */
+            $signatureType = SignatureType::whereCode(
+                $request->transaction_type_code
+            )->first();
+
+            if (!$signatureType) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun type de signature actif'
+                ], 404);
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * 2. Récupération de l'instance workflow
+             * ---------------------------------------------------------
+             */
+            $instance = WorkflowInstance::where(
+                'document_id',
+                $request->document_id
+            )->first();
+
+            if (!$instance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune instance workflow trouvée'
+                ], 404);
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * 3. Récupération de l'étape PENDING courante
+             * ---------------------------------------------------------
+             */
+            $instanceStep = WorkflowInstanceStep::where(
+                'workflow_instance_id',
+                $instance->id
+            )
+                ->where('status', 'PENDING')
+                ->orderBy('position')
+                ->first();
+
+            if (!$instanceStep) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune étape active'
+                ], 404);
+            }
+
+            /*
+             * ---------------------------------------------------------
+             * 4. Enregistrement de la signature
+             * ---------------------------------------------------------
+             */
+            $signature = Signature::create([
+                'document_id' => $request->document_id,
+                'document_uuid' => $request->document_uuid,
+                'signature_type_id' => $signatureType->id,
+                'workflow_instance_step_id' => $instanceStep->id,
+                'actor_type' => $request->actor_type,
+                'actor_id' => $request->actor_id,
+                'actor_name' => $request->actor_name,
+                'actor_role' => $request->actor_role,
+                'comment' => $request->comment,
+                'signed_at' => now(),
+            ]);
+
+            /*
+             * ---------------------------------------------------------
+             * 5. Détermination du type de document
+             * ---------------------------------------------------------
+             *
+             * IMPORTANT :
+             * Ne pas utiliser transaction_type_code ici.
+             *
+             * Le transaction_type_code concerne la signature /
+             * transaction.
+             *
+             * Le WorkflowStatusManager doit travailler avec
+             * le type de document.
+             */
+            $documentTypeCode = $instance->document_type_relation_name;
+
+            /*
+             * ---------------------------------------------------------
+             * 6. Application du statut spécifique au document
+             * ---------------------------------------------------------
+             */
+            $instanceStep = $this->workflowStatusManager->handle(
+                $instanceStep,
+                $documentTypeCode
+            );
+
+            /*
+             * ---------------------------------------------------------
+             * 7. Réponse
+             * ---------------------------------------------------------
+             */
+            return response()->json([
+                'success' => true,
+                'message' => 'Signature enregistrée',
+                'signature' => $signature,
+                'workflow_instance_step' => $instanceStep,
+            ]);
+        });
     }
 
-    $instance = WorkflowInstance::where('document_id', $request->document_id)
-    ->firstOrFail();
-
-  $instanceStep = WorkflowInstanceStep::where('workflow_instance_id', $instance->id)
-    ->where('status', 'PENDING')
-    ->orderBy('position')
-    ->firstOrFail();
-
-    if (!$instanceStep) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Aucune étape active'
-        ], 404);
-    }
-
-    Signature::create([
-        'document_id' => $request->document_id,
-        'document_uuid' => $request->document_uuid,
-        'signature_type_id' => $signatureType -> id,
-        'workflow_instance_step_id' => $instanceStep->id,
-        'actor_type' => $request->actor_type,
-        'actor_id' => $request->actor_id,
-        'actor_name' => $request->actor_name,
-        'actor_role' => $request->actor_role,
-        'comment' => $request->comment,
-        'signed_at' => now(),
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Signature enregistrée'
-    ]);
-}
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Signature  $signature
-     * @return \Illuminate\Http\Response
-     */
     public function show(Signature $signature)
     {
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Signature  $signature
-     * @return \Illuminate\Http\Response
-     */
     public function edit(Signature $signature)
     {
         //
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\UpdateSignatureRequest  $request
-     * @param  \App\Models\Signature  $signature
-     * @return \Illuminate\Http\Response
-     */
-    public function update(UpdateSignatureRequest $request, Signature $signature)
-    {
+    public function update(
+        UpdateSignatureRequest $request,
+        Signature $signature
+    ) {
         //
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Signature  $signature
-     * @return \Illuminate\Http\Response
-     */
     public function destroy(Signature $signature)
     {
         //

@@ -45,6 +45,15 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'is_configurable' => true,
         'status_type' => 'COMMON',
     ],
+
+      [
+        'code' => 'PAID_WAITING_REGULARIZATION',
+        'label' => 'Payé et en attente de régularisation',
+        'emoji' => '🛠️',
+        'color' => 'info',
+        'is_configurable' => true,
+        'status_type' => 'COMMON',
+    ],
         [
         'code' => 'IN_REGULARIZATION',
         'label' => 'En cours de régularisation',
@@ -130,6 +139,28 @@ class WorkflowStatusLabelsSeeder extends Seeder
     'is_configurable' => true,
     'status_type' => 'COMMON',
 ],
+
+[
+    'code' => 'PAID_WAITING_CLOSURE',
+    'label' => 'Payé et en attente de clôture',
+    'emoji' => '⏳',
+    'color' => 'warning',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
+
+[
+    'code' => 'WAITING_CLOSURE',
+    'label' => 'En attente de clôture',
+    'emoji' => '⏳',
+    'color' => 'warning',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
+
+
 ];foreach ($statuses as $status) {
     DB::table('workflow_status_labels')->updateOrInsert(
         ['code' => $status['code']],

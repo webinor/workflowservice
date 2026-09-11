@@ -2037,18 +2037,6 @@ class WorkflowInstanceController extends Controller
                 $documentData
             );
 
-    //         $WorkflowEventEngine->handleActionStep(
-    //         $documentUuid,
-    //         $currentStep,
-    //         $actionStepId,
-    //         [
-    //     "validatorId" => $user["id"],
-    //     "actorId" => $documentData['actor_id']
-    // ]
-    //     );
-
-
-
 
     
             DB::commit();
@@ -2873,7 +2861,6 @@ class WorkflowInstanceController extends Controller
         // PAYMENT
         // =====================================
 
-        // $this->registerPayment($instance, $currentStep, $request, $user,$documentData);
 
         // =====================================
         // NOTIFICATION
