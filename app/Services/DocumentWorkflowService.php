@@ -33,6 +33,7 @@ class DocumentWorkflowService
 
     const FILTER_PENDING = "PENDING";
     const FILTER_IN_PROGRESS = "IN_PROGRESS";
+    const FILTER_WAITING_CLOSURE = "PAID_WAITING_CLOSURE";
     const FILTER_COMPLETE = "COMPLETE";
     const FILTER_REJECTED = "REJECTED";
     const FILTER_ALL_DOCUMENTS = "ALL_DOCUMENTS";
@@ -132,7 +133,21 @@ class DocumentWorkflowService
     |--------------------------------------------------------------------------
     */
 
-    $documentIdsNotPaginated = $this->getDocumentIds(
+    // $documentIdsNotPaginated = $this->getDocumentIds(
+    //     $filterContext,
+    //     clone $baseQuery,
+    //     $roleId,
+    //     $userId,
+    //     $validationContext,
+    //     $document_type[0],
+    //     $employeeId,
+    //     $responsibilities,
+    //     $filters,
+    //     !empty($filters["statut"]),
+    //     !empty($filters["statut"]),
+    // );
+
+      $documentIdsNotPaginated = $this->getDocumentIds(
         $filterContext,
         clone $baseQuery,
         $roleId,
@@ -142,8 +157,8 @@ class DocumentWorkflowService
         $employeeId,
         $responsibilities,
         $filters,
-        !empty($filters["statut"]),
-        !empty($filters["statut"]),
+        $filterContext['applyStatus'],
+        $filterContext['applyRole'],
     );
 
     // $mark("get_document_ids");
@@ -704,6 +719,227 @@ $resolved["availability"]['can_delete'] = $canDelete;
     }
 
     private function getDocumentIds(
+        array $filterContext,
+        Builder $query,
+        int $roleId,
+        int $userId,
+        string $validationContext,
+        string $document_type,
+        int $employeeId,
+        array $responsibilities,
+        array $filters = [],
+        bool $applyStatusFilter = true,
+        bool $applyRoleFilter = true
+    ) {
+        // $filterContext = $filters["statut"];
+        $statut = $filters["statut"] ?? null;
+
+        // $applyStatusFilter = false;
+        // $applyRoleFilter = false;
+
+                // throw new Exception($applyRoleFilter, 1);
+                // throw new Exception($applyRoleFilter, 1);
+
+
+        if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
+            if ($filterContext['context'] === self::FILTER_PENDING) {
+                // throw new Exception($filterContext['context'], 1);
+
+                /*
+    |--------------------------------------------------------------------------
+    | FILTRE ROLE (OPTIONNEL)
+    |--------------------------------------------------------------------------
+    */
+
+                if ($applyRoleFilter) {
+                    $query->whereHas("assignments", function ($q) use (
+                        $roleId,
+                        $statut
+                    ) {
+                        $q->where("role_id", $roleId)->where(
+                            "decision",
+                            "PENDING"
+                            // $statut != "COMPLETE" ? $statut : "APPROVED"
+                        );
+                    });
+                }
+
+                /*
+    |--------------------------------------------------------------------------
+    | FILTRE STATUT
+    |--------------------------------------------------------------------------
+    */
+                if ($applyStatusFilter && !empty($statut)) {
+                // if ($applyRoleFilter && !empty($statut)) {
+
+                // throw new Exception($filterContext['context'], 1);
+
+                    $query->where(function ($q) use ($roleId, $statut) {
+                        $q->whereHas("assignments", function ($a) use (
+                            $roleId,
+                            $statut
+                        ) {
+                            $a->where("role_id", $roleId)->where(
+                                "decision",
+                                "PENDING"
+                                // $statut != "COMPLETE" ? $statut : "APPROVED"
+                            );
+                        })->where("status", "PENDING");
+                    });
+                }
+            }
+
+            if ($filterContext['context'] === self::FILTER_IN_PROGRESS) {
+                if ($applyStatusFilter && !empty($statut)) {
+                    // throw new Exception($filterContext['context'], 1);
+
+                    $query->whereHas("workflowInstance", function ($q) use (
+                        $statut
+                    ) {
+                        $q->where("status", "PENDING");
+                    });
+                }
+            }
+
+            if ($filterContext['context'] === self::FILTER_COMPLETE) {
+                // throw new Exception($filterContext['context'], 1);
+
+                $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status", $statut);
+                });
+            }
+        }
+
+        if ($validationContext === self::CONTEXT_VALIDATION) {
+            // throw new Exception($validationContext, 1);
+
+
+            $policy = $this->visibilityPolicyResolver->resolve(
+    $document_type
+);
+
+$query = $policy->apply(
+    $query,
+    $roleId,
+    $userId,
+    $employeeId,
+    $responsibilities
+);
+
+
+
+            if ($filterContext['context'] === self::FILTER_PENDING) {
+             
+            
+
+
+                /*
+    |--------------------------------------------------------------------------
+    | FILTRE ROLE (OPTIONNEL)
+    |--------------------------------------------------------------------------
+    */
+
+                if ($applyRoleFilter) {
+                    // throw new Exception($applyRoleFilter, 1);
+
+                    $query
+                        ->where("workflow_instance_steps.status", "PENDING")
+                        ->whereHas("assignments", function ($q) use (
+                            $roleId,
+                            $statut
+                        ) {
+                            $q->where("role_id", $roleId)->where(
+                                "decision",
+                                "PENDING"
+                            );
+                        });
+                }
+
+                /*
+    |--------------------------------------------------------------------------
+    | FILTRE STATUT
+    |--------------------------------------------------------------------------
+    */
+
+                // if ($applyStatusFilter && !empty($statut)) {
+                //     $query->where(function ($q) use ($roleId, $statut) {
+                //         $q->whereHas("assignments", function ($a) use (
+                //             $roleId,
+                //             $statut
+                //         ) {
+                //             $a->where("role_id", $roleId)->where("decision","PENDING");
+                //         })->where("status", $statut);
+                //     });
+                // }
+            }
+
+            if ($filterContext['context'] === self::FILTER_IN_PROGRESS) {
+                if ($applyStatusFilter && !empty($statut)) {
+                   
+
+                    $query->whereHas("workflowInstance", function ($q) use (
+                        $statut
+                    ) {
+                        $q->where("status", "PENDING");
+                    });
+                }
+            }
+
+                    // throw new Exception($filterContext['context'], 1);
+
+
+              if ($filterContext['context'] === self::FILTER_WAITING_CLOSURE) {
+
+
+                if ($applyStatusFilter && !empty($statut)) {
+                    
+                    $status_label = WorkflowStatusLabel::whereCode($statut)->first();
+                    
+                    // throw new Exception($status_label, 1);
+
+                    $query->where('workflow_instance_steps.workflow_status_label_id', $status_label->id);
+                }
+            }
+
+            //COMPLETE
+
+            if ($filterContext['context'] === self::FILTER_COMPLETE) {
+                // throw new Exception($filterContext['context'], 1);
+
+                $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status", $statut);
+                });
+            }
+
+            if ($filterContext['context'] === self::FILTER_ALL_DOCUMENTS) {
+            }
+        }
+
+
+        
+        
+
+        return $query
+            ->select("workflow_instances.document_id")
+            ->distinct()
+            ->get();
+        // ->paginate($count);
+
+        // return $query
+        //     ->get()
+        //     ->pluck("workflowInstance.document_id")
+        //     ->filter()
+        //     ->unique()
+        //     ->values();
+    }
+
+
+
+      private function OldgetDocumentIds(
         string $filterContext,
         Builder $query,
         int $roleId,
@@ -718,6 +954,13 @@ $resolved["availability"]['can_delete'] = $canDelete;
     ) {
         // $filterContext = $filters["statut"];
         $statut = $filters["statut"] ?? null;
+
+        // $applyStatusFilter = false;
+        // $applyRoleFilter = false;
+
+                // throw new Exception($applyStatusFilter, 1);
+                // throw new Exception($applyRoleFilter, 1);
+
 
         if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
             if ($filterContext === self::FILTER_PENDING) {
@@ -862,6 +1105,22 @@ $query = $policy->apply(
                     ) {
                         $q->where("status", "PENDING");
                     });
+                }
+            }
+
+                    // throw new Exception($filterContext, 1);
+
+
+              if ($filterContext === self::FILTER_WAITING_CLOSURE) {
+
+                if ($applyStatusFilter && !empty($statut)) {
+                 
+                    
+                    $status_label = WorkflowStatusLabel::whereCode($statut)->first();
+                    
+                    // throw new Exception($status_label, 1);
+
+                    $query->where( 'workflow_instance_steps.workflow_status_label_id', $status_label->id);
                 }
             }
 

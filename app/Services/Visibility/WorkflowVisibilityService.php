@@ -9,12 +9,19 @@ class WorkflowVisibilityService
     /**
      * Applique la visibilité workflow standard.
      *
-     * Un utilisateur voit :
+     * Un utilisateur voit un document si AU MOINS UNE étape
+     * de son workflow satisfait l'une des conditions suivantes :
      *
-     * - les documents dont une étape PENDING lui est attribuée via son rôle
-     * - les documents qu'il a déjà approuvés
-     * - les documents qu'il a retournés pour modification
-     * - les documents qu'il a rejetés
+     * - une étape PENDING est attribuée à son rôle
+     * - une étape COMPLETE a été approuvée par l'utilisateur
+     * - une étape PENDING a été retournée par l'utilisateur
+     * - une étape a été BYPASSED par l'utilisateur
+     * - une étape a été REJECTED par l'utilisateur
+     *
+     * IMPORTANT :
+     * La recherche est effectuée sur TOUTES les étapes du workflow,
+     * et non uniquement sur l'étape actuellement sélectionnée
+     * par la requête principale.
      */
     public function apply(
         Builder $query,
@@ -22,133 +29,149 @@ class WorkflowVisibilityService
         int $userId
     ): Builder {
 
-        return $query->where(function ($q) use (
-            $roleId,
-            $userId
-        ) {
+        return $query->whereHas(
+            'workflowInstance.instance_steps',
+            function ($instance_steps) use (
+                $roleId,
+                $userId
+            ) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | 1. Étape actuelle PENDING
-            |--------------------------------------------------------------------------
-            */
+                $instance_steps->where(function ($q) use (
+                    $roleId,
+                    $userId
+                ) {
 
-            $q->where(function ($q) use ($roleId) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 1. Une étape PENDING est attribuée au rôle de l'utilisateur
+                    |--------------------------------------------------------------------------
+                    */
 
-                $q->where(
-                    'workflow_instance_steps.status',
-                    'PENDING'
-                )
-                ->whereHas(
-                    'assignments',
-                    function ($a) use ($roleId) {
+                    $q->where(function ($q) use ($roleId) {
 
-                        $a->where(
-                            'role_id',
-                            $roleId
-                        )
-                        ->where(
-                            'decision',
+                        $q->where(
+                            'workflow_instance_steps.status',
                             'PENDING'
+                        )
+                        ->whereHas(
+                            'assignments',
+                            function ($a) use ($roleId) {
+
+                                $a->where(
+                                    'role_id',
+                                    $roleId
+                                )
+                                ->where(
+                                    'decision',
+                                    'PENDING'
+                                );
+                            }
                         );
-                    }
-                );
-            })
+                    })
 
-            /*
-            |--------------------------------------------------------------------------
-            | 2. Historique personnel - APPROVED
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 2. L'utilisateur a déjà approuvé une étape
+                    |--------------------------------------------------------------------------
+                    */
 
-            ->orWhere(function ($q) use ($userId) {
+                    ->orWhere(function ($q) use ($userId) {
 
-                $q->where(
-                    'workflow_instance_steps.status',
-                    'COMPLETE'
-                )
-                ->whereHas(
-                    'assignments',
-                    function ($a) use ($userId) {
+                        $q->where(
+                            'workflow_instance_steps.status',
+                            'COMPLETE'
+                        )
+                        ->whereHas(
+                            'assignments',
+                            function ($a) use ($userId) {
 
-                        $a->where(
-                            'user_id',
-                            $userId
+                                $a->where(
+                                    'user_id',
+                                    $userId
+                                )
+                                ->where(
+                                    'decision',
+                                    'APPROVED'
+                                );
+                            }
+                        );
+                    })
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 3. L'utilisateur a retourné une étape pour modification
+                    |--------------------------------------------------------------------------
+                    */
+
+                    ->orWhere(function ($q) use ($userId) {
+
+                        $q->where(
+                            'workflow_instance_steps.status',
+                            'PENDING'
+                        )
+                        ->whereHas(
+                            'assignments',
+                            function ($a) use ($userId) {
+
+                                $a->where(
+                                    'user_id',
+                                    $userId
+                                )
+                                ->where(
+                                    'decision',
+                                    'RETURNED'
+                                );
+                            }
+                        );
+                    })
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 4. L'utilisateur a bypassé une étape
+                    |--------------------------------------------------------------------------
+                    */
+
+                    ->orWhere(function ($q) use ($userId) {
+
+                        $q->where(
+                            'workflow_instance_steps.status',
+                            'BYPASSED'
                         )
                         ->where(
-                            'decision',
-                            'APPROVED'
-                        );
-                    }
-                );
-            })
-
-            /*
-            |--------------------------------------------------------------------------
-            | 3. Retour pour modification
-            |--------------------------------------------------------------------------
-            */
-
-            ->orWhere(function ($q) use ($userId) {
-
-                $q->where(
-                    'workflow_instance_steps.status',
-                    'PENDING'
-                )
-                ->whereHas(
-                    'assignments',
-                    function ($a) use ($userId) {
-
-                        $a->where(
-                            'user_id',
+                            'workflow_instance_steps.bypassed_by',
                             $userId
-                        )
-                        ->where(
-                            'decision',
-                            'RETURNED'
                         );
-                    }
-                );
-            })
+                    })
 
-            ->orWhere(function ($q) use ($userId) {
-    $q->where(
-        'workflow_instance_steps.status',
-        'BYPASSED'
-    )
-    ->where(
-        'workflow_instance_steps.bypassed_by',
-        $userId
-    );
-})
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 5. L'utilisateur a rejeté une étape
+                    |--------------------------------------------------------------------------
+                    */
 
-            /*
-            |--------------------------------------------------------------------------
-            | 4. Document rejeté par l'utilisateur
-            |--------------------------------------------------------------------------
-            */
+                    ->orWhere(function ($q) use ($userId) {
 
-            ->orWhere(function ($q) use ($userId) {
-
-                $q->where(
-                    'workflow_instance_steps.status',
-                    'REJECTED'
-                )
-                ->whereHas(
-                    'assignments',
-                    function ($a) use ($userId) {
-
-                        $a->where(
-                            'user_id',
-                            $userId
-                        )
-                        ->where(
-                            'decision',
+                        $q->where(
+                            'workflow_instance_steps.status',
                             'REJECTED'
+                        )
+                        ->whereHas(
+                            'assignments',
+                            function ($a) use ($userId) {
+
+                                $a->where(
+                                    'user_id',
+                                    $userId
+                                )
+                                ->where(
+                                    'decision',
+                                    'REJECTED'
+                                );
+                            }
                         );
-                    }
-                );
-            });
-        });
+                    });
+                });
+            }
+        );
     }
 }

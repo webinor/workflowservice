@@ -62,8 +62,80 @@ class WorkflowValidationController extends Controller
         );
     }
 
+private function resolveFilterContext(
+    string $validationContext,
+    array $filters
+): array {
+    $statut = $filters['statut'] ?? '';
 
-    private function resolveFilterContext(string $validationContext, array $filters): string
+    $mapping = [
+        'TO_VALIDATE' => [
+            '' => [
+                'context' => 'ALL_DOCUMENTS',
+                'applyRole' => false,
+                'applyStatus' => false,
+            ],
+
+            'ALL' => [
+                'context' => 'ALL_DOCUMENTS',
+                'applyRole' => false,
+                'applyStatus' => true,
+            ],
+
+            'PENDING' => [
+                'context' => 'PENDING',
+                'applyRole' => true,
+                'applyStatus' => true,
+            ],
+
+            'COMPLETE' => [
+                'context' => 'COMPLETE',
+                'applyRole' => false,
+                'applyStatus' => true,
+            ],
+
+            'PAID_WAITING_CLOSURE' => [
+                'context' => 'PAID_WAITING_CLOSURE',
+                'applyRole' => false,
+                'applyStatus' => true,
+            ],
+        ],
+
+        'MY_DOCUMENTS' => [
+            '' => [
+                'context' => 'ALL_DOCUMENTS',
+                'applyRole' => true,
+                'applyStatus' => false,
+            ],
+
+            'ALL' => [
+                'context' => 'ALL_DOCUMENTS',
+                'applyRole' => true,
+                'applyStatus' => false,
+            ],
+
+            'IN_PROGRESS' => [
+                'context' => 'IN_PROGRESS',
+                'applyRole' => true,
+                'applyStatus' => true,
+            ],
+
+            'COMPLETE' => [
+                'context' => 'COMPLETE',
+                'applyRole' => true,
+                'applyStatus' => true,
+            ],
+        ],
+    ];
+
+    return $mapping[$validationContext][$statut]
+        ?? [
+            'context' => 'ALL_DOCUMENTS',
+            'applyRole' => false,
+            'applyStatus' => false,
+        ];
+}
+    private function OldresolveFilterContext(string $validationContext, array $filters): string
 {
     $statut = $filters['statut'] ?? '';
 
@@ -73,6 +145,7 @@ class WorkflowValidationController extends Controller
             'ALL'          => 'ALL_DOCUMENTS',
             'PENDING'   => 'PENDING',
             'COMPLETE'  => 'COMPLETE',
+            'PAID_WAITING_CLOSURE'  => 'PAID_WAITING_CLOSURE',
         ],
 
         'MY_DOCUMENTS' => [

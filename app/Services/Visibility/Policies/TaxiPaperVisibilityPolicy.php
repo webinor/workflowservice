@@ -40,7 +40,9 @@ class TaxiPaperVisibilityPolicy
                 true
             )
         ) {
-    // throw new \Exception(json_encode($responsibilities), 1);
+
+            // throw new \Exception(json_encode($responsibilities), 1);
+
 
             return $query;
         }
@@ -51,7 +53,9 @@ class TaxiPaperVisibilityPolicy
         |--------------------------------------------------------------------------
         */
 
-        return $this->workflowVisibility->apply(
+        return 
+        // $query;
+         $this->workflowVisibility->apply(
             $query,
             $roleId,
             $userId
