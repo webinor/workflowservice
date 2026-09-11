@@ -900,7 +900,13 @@ $query = $policy->apply(
                     // throw new Exception($status_label, 1);
 
                     $query->where('workflow_instance_steps.workflow_status_label_id', $status_label->id);
-                    $query->where('workflow_instance.status', '!=', 'COMPLETE');
+                    // $query->where('workflow_instance.status', '!=', 'COMPLETE');
+                    $query->whereHas("workflowInstance", function ($q) use (
+                    $statut
+                ) {
+                    $q->where("status",  '!=', 'COMPLETE');
+                });
+
                 }
             }
 
