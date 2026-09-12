@@ -3,6 +3,7 @@
 namespace App\Services\Document;
 
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 class DocumentServiceClient
@@ -204,4 +205,37 @@ class DocumentServiceClient
 
         return $response->json("data") ?? [];
     }
+
+    public function exportExcel(
+    array $documentIds,
+    string $documentType,
+    array $columns,
+    array $workflowMetadata,
+    Request $request
+) {
+    $response = Http::withToken(
+        $request->bearerToken()
+    )
+        ->acceptJson()
+        ->post(
+            config('services.document_service.base_url')
+            . '/export/excel',
+            [
+                'document_ids' => $documentIds,
+                'document_type' => $documentType,
+                'columns' => $columns,
+                'workflow_metadata' => $workflowMetadata,
+            ]
+        );
+
+    if (!$response->successful()) {
+        throw new \Exception(
+            $response->body(),
+            $response->status()
+        );
+    }
+
+    return $response;
+}
+
 }

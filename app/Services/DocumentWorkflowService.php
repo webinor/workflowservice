@@ -78,18 +78,42 @@ class DocumentWorkflowService
     //     $start = $now;
     // };
 
+    // [
+    //     "employeeId" => $employeeId,
+    //     "userId" => $userId,
+    //     "roleId" => $roleId,
+    //     "document_type" => $document_type,
+    //     "validationContext" => $validationContext,
+    //     "filters" => $filters,
+    //     "filterContext" => $filterContext,
+    //     "currentPage" => $currentPage,
+    //     "per_page" => $per_page,
+    //     "isStat" => $isStat,
+    // ] = $params;
+
     [
-        "employeeId" => $employeeId,
-        "userId" => $userId,
-        "roleId" => $roleId,
-        "document_type" => $document_type,
-        "validationContext" => $validationContext,
-        "filters" => $filters,
-        "filterContext" => $filterContext,
-        "currentPage" => $currentPage,
-        "per_page" => $per_page,
-        "isStat" => $isStat,
-    ] = $params;
+    "employeeId" => $employeeId,
+    "userId" => $userId,
+    "roleId" => $roleId,
+    "document_type" => $document_type,
+    "validationContext" => $validationContext,
+    "filters" => $filters,
+    "filterContext" => $filterContext,
+    "currentPage" => $currentPage,
+    "per_page" => $per_page,
+    "isStat" => $isStat,
+] = $params;
+
+/*
+|--------------------------------------------------------------------------
+| Mode export
+|--------------------------------------------------------------------------
+|
+| L'export utilise exactement la même sélection que la liste.
+| La seule différence est qu'il ne doit pas appliquer la pagination.
+|
+*/
+$isExport = (bool) ($params["export"] ?? false);
 
 
     /*
@@ -312,20 +336,66 @@ $workflowSteps = WorkflowInstanceStep::query()
     |--------------------------------------------------------------------------
     */
 
-    $page = max((int) $currentPage, 1);
-    $perPage = max((int) $per_page, 1);
+    // $page = max((int) $currentPage, 1);
+    // $perPage = max((int) $per_page, 1);
 
-    $total = $filteredDocuments->count();
+    // $total = $filteredDocuments->count();
 
-    $pagedDocuments = $filteredDocuments
-        ->slice(($page - 1) * $perPage, $perPage)
+    // $pagedDocuments = $filteredDocuments
+    //     ->slice(($page - 1) * $perPage, $perPage)
+    //     ->values();
+
+    // // $mark("pagination");
+
+
+
+    // $filteredDocumentIds = $pagedDocuments->pluck("id");
+    /*
+|--------------------------------------------------------------------------
+| Pagination / Export
+|--------------------------------------------------------------------------
+|
+| En mode normal :
+|     on applique la pagination.
+|
+| En mode export :
+|     on conserve TOUS les documents autorisés et filtrés.
+|
+| Aucune autre logique métier n'est modifiée.
+|
+*/
+
+$page = max((int) $currentPage, 1);
+$perPage = max((int) $per_page, 1);
+
+$total = $filteredDocuments->count();
+
+if ($isExport) {
+
+/*
+     * Export :
+     * aucune pagination.
+     *
+     * On transmet tous les documents autorisés
+     * au document-service.
+     */ 
+
+    $documentsToFetch = $filteredDocuments
         ->values();
 
-    // $mark("pagination");
+} else {
 
+/*
+     * Liste normale :
+     * comportement actuel strictement conservé.
+     */
 
+    $documentsToFetch = $filteredDocuments
+        ->slice(($page - 1) * $perPage, $perPage)
+        ->values();
+}
 
-    $filteredDocumentIds = $pagedDocuments->pluck("id");
+$filteredDocumentIds = $documentsToFetch->pluck("id");
 
     // $mark("prepare_filtered_ids");
 
@@ -1209,6 +1279,9 @@ $query = $policy->apply(
         //     ]), 1);
 
         if ($response->ok()) {
+
+        // throw new Exception(json_encode($response->json()[0]), 1);
+
             return $response->json();
         } else {
             throw new Exception(json_encode($response->body()), 1);

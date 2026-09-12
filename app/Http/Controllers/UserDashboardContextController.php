@@ -9,6 +9,7 @@ use App\Models\WorkflowStep;
 use App\Services\HttpClientService;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class UserDashboardContextController extends Controller
 {
@@ -29,11 +30,13 @@ class UserDashboardContextController extends Controller
     ];
 
 
-    /**
-     * Retourne le contexte du dashboard utilisateur.
-     */
-    public function show(Request $request)
-    {
+  /**
+ * Retourne le contexte du dashboard utilisateur.
+ */
+public function show(Request $request)
+{
+    try {
+
         /*
         |--------------------------------------------------------------------------
         | CONTEXTE UTILISATEUR
@@ -200,6 +203,7 @@ class UserDashboardContextController extends Controller
                         function ($s) {
 
                             return [
+
                                 "code" =>
                                     optional(
                                         $s->signatureType
@@ -210,6 +214,7 @@ class UserDashboardContextController extends Controller
 
                                 "signed_at" =>
                                     $s->signed_at,
+
                             ];
 
                         }
@@ -302,6 +307,7 @@ class UserDashboardContextController extends Controller
                         $documentTypeIds
                 ]
             );
+
 
 
         $documentTypes =
@@ -441,7 +447,69 @@ class UserDashboardContextController extends Controller
                 $signatures,
 
         ]);
+
+    } catch (\Throwable $e) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | ERREUR
+        |--------------------------------------------------------------------------
+        |
+        | On capture toutes les exceptions afin d'éviter
+        | qu'une erreur technique ne remonte directement
+        | au frontend.
+        |
+        */
+
+        Log::error(
+            "Erreur lors de la récupération du dashboard utilisateur.",
+            [
+                "message" =>
+                    $e->getMessage(),
+
+                "file" =>
+                    $e->getFile(),
+
+                "line" =>
+                    $e->getLine(),
+
+                "user_id" =>
+                    $request->get("user")["id"] ?? null,
+
+                "actor_type" =>
+                    $request->get("actor_type"),
+
+                "actor_id" =>
+                    $request->get("actor_id"),
+
+                "trace" =>
+                    $e->getTraceAsString(),
+            ]
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE ERREUR
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json(
+
+            [
+                "message" =>
+                    "Impossible de récupérer le contexte du dashboard.",
+
+                "error" =>
+                    config("app.debug")
+                        ? $e->getMessage()
+                        : null,
+            ],
+
+            500
+        );
     }
+}
 
 
     /**

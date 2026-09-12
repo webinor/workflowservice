@@ -2,19 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WorkflowInstance;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Models\WorkflowInstanceStep;
-use App\Models\WorkflowStatusLabel;
+use App\Http\Requests\ExportWorkflowDocumentsRequest;
 use App\Services\DocumentWorkflowService;
+use App\Services\Workflow\WorkflowDocumentExportService;
 use App\Services\WorkflowPermissionService;
-use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Http;
 
 class WorkflowValidationController extends Controller
 {
-    private $documentWorkflowService;
-    private $workflowPermissionService;
+    private DocumentWorkflowService $documentWorkflowService;
+    private WorkflowPermissionService $workflowPermissionService;
 
     public function __construct(
         DocumentWorkflowService $documentWorkflowService,
@@ -23,6 +22,32 @@ class WorkflowValidationController extends Controller
         $this->documentWorkflowService = $documentWorkflowService;
         $this->workflowPermissionService = $workflowPermissionService;
     }
+
+    public function exportExcel(
+    ExportWorkflowDocumentsRequest $request,
+    WorkflowDocumentExportService $exportService
+) {
+    $context = $request->input('context');
+
+    $filters = $request->input(
+        'filters',
+        []
+    );
+
+    /*
+     * On utilise exactement la même résolution
+     * que pour la liste.
+     */
+    $filterContext = $this->resolveFilterContext(
+        $context,
+        $filters
+    );
+
+    return $exportService->export(
+        $request,
+        $filterContext
+    );
+}
 
 
     public function getDocuments(Request $request)

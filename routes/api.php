@@ -97,6 +97,14 @@ Route::middleware("jwt.check")
 Route::post(
         '/users/dashboard-context',[UserDashboardContextController::class, 'show']
     );
+
+    Route::post(
+    'documents/export/excel',
+    [
+        WorkflowValidationController::class,
+        'exportExcel',
+    ]
+);
             
             
             Route::apiResource("/", WorkflowController::class);
