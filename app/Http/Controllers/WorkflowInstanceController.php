@@ -625,7 +625,7 @@ class WorkflowInstanceController extends Controller
                 $documentData
             );
 
-            // throw new Exception(json_encode(collect($reachableSteps)->pluck('name')));
+            throw new Exception(json_encode(collect($reachableSteps)->pluck('name')));
 
             // foreach ($validated['steps'] as $index => $step) {
             foreach ($reachableSteps as $index => $step) {
