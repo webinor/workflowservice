@@ -558,175 +558,497 @@ class WorkflowInstanceController extends Controller
      */
 
     public function store(
-        StoreWorkflowInstanceRequest $request,
-        WorkflowDynamicResolverService $resolver,
-        WorkflowPathResolverService $pathResolver,
-        WorkflowEventEngine $WorkflowEventEngine
-    ) {
-        DB::beginTransaction();
+    StoreWorkflowInstanceRequest $request,
+    WorkflowDynamicResolverService $resolver,
+    WorkflowPathResolverService $pathResolver,
+    WorkflowEventEngine $WorkflowEventEngine
+) {
+    DB::beginTransaction();
 
-        try {
-            // return
-            $validated = $request->validated();
-            $userConnected = $validated["created_by"];
+    try {
+        // return
+        $validated = $request->validated();
+        $userConnected = $validated["created_by"];
 
-            $STATUS_NOT_STARTED = "NOT_STARTED";
-            $STATUS_PENDING = "PENDING";
-            $STATUS_COMPLETE = "COMPLETE";
+        $STATUS_NOT_STARTED = "NOT_STARTED";
+        $STATUS_PENDING = "PENDING";
+        $STATUS_COMPLETE = "COMPLETE";
 
-            $departmentId = $validated["department_id"];
+        $departmentId = $validated["department_id"];
 
-            // 1️⃣ Créer l'instance de workflow
-            $workflowInstance = WorkflowInstance::create([
-                "workflow_id" => $validated["workflow_id"],
-                "document_id" => $validated["document_id"],
-                "document_uuid" => $validated["document_uuid"],
+        // 1️⃣ Créer l'instance de workflow
+        $workflowInstance = WorkflowInstance::create([
+            "workflow_id" => $validated["workflow_id"],
+            "document_id" => $validated["document_id"],
+            "document_uuid" => $validated["document_uuid"],
 
-                "document_type_id" => $validated["document_type_id"],
+            "document_type_id" => $validated["document_type_id"],
+            "document_type_relation_name" =>
+                $validated["document_type_relation_name"],
+            "document_type_version" =>
+                $validated["document_type_version"] ?? 1,
+
+            //                                 'document_type_id' => $document->document_type_id,
+            // 'document_type_slug' => $document->document_type_slug,
+            // 'document_type_version' => $document->document_type_version,
+
+            "status" => $STATUS_PENDING,
+        ]);
+
+        // return
+        // 2️⃣ Créer toutes les étapes de l'instance
+        $instanceSteps = [];
+
+        // throw new Exception(json_encode($documentData));
+
+        $documentData = $this->getDocumentData($workflowInstance, $request);
+
+        $workflow = Workflow::with([
+            "steps.stepRoles",
+            "steps.workflowStatusLabel",
+            "steps.outgoingTransitions.conditions",
+            "steps.outgoingTransitions.toStep",
+        ])->findOrFail($validated["workflow_id"]);
+
+        $firstStep = $workflow->steps->sortBy("position")->first();
+
+        // return
+
+        // throw new Exception(json_encode($resolvedSteps));
+
+        $unreachableSteps = [];
+        $reachableSteps = [];
+
+        $reachableSteps = $this->getReachableSteps(
+            // $validated['steps'],
+            [$firstStep],
+            $documentData
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 🔎 AUDIT COMPLET DES ÉTAPES ACCESSIBLES
+        |--------------------------------------------------------------------------
+        |
+        | Aucun changement de logique ici.
+        |
+        | On journalise simplement toutes les informations disponibles
+        | sur les étapes retournées par getReachableSteps().
+        |
+        */
+
+        Log::info(
+            "WORKFLOW REACHABLE STEPS AUDIT - START",
+            [
+                "workflow_id" => $workflow->id,
+                "workflow_name" => $workflow->name ?? null,
+                "workflow_instance_id" => $workflowInstance->id,
+                "document_id" => $workflowInstance->document_id,
+                "document_uuid" => $workflowInstance->document_uuid,
+                "document_type_id" => $workflowInstance->document_type_id,
                 "document_type_relation_name" =>
-                    $validated["document_type_relation_name"],
+                    $workflowInstance->document_type_relation_name,
                 "document_type_version" =>
-                    $validated["document_type_version"] ?? 1,
+                    $workflowInstance->document_type_version,
+                "reachable_steps_count" => count($reachableSteps),
+            ]
+        );
 
-                //                                 'document_type_id' => $document->document_type_id,
-                // 'document_type_slug' => $document->document_type_slug,
-                // 'document_type_version' => $document->document_type_version,
+        foreach ($reachableSteps as $reachableIndex => $reachableStep) {
 
-                "status" => $STATUS_PENDING,
-            ]);
+            /*
+            |--------------------------------------------------------------------------
+            | Informations générales de l'étape
+            |--------------------------------------------------------------------------
+            */
 
-            // return
-            // 2️⃣ Créer toutes les étapes de l'instance
-            $instanceSteps = [];
+            Log::info(
+                "WORKFLOW REACHABLE STEP",
+                [
+                    "index" => $reachableIndex,
 
-            // throw new Exception(json_encode($documentData));
+                    "step_id" => $reachableStep->id ?? null,
+                    "step_name" => $reachableStep->name ?? null,
+                    "step_position" => $reachableStep->position ?? null,
 
-            $documentData = $this->getDocumentData($workflowInstance, $request);
+                    "step_status_label" =>
+                        $reachableStep->status_label ?? null,
 
-            $workflow = Workflow::with([
-                "steps.stepRoles",
-                "steps.workflowStatusLabel",
-                "steps.outgoingTransitions.conditions",
-                "steps.outgoingTransitions.toStep",
-            ])->findOrFail($validated["workflow_id"]);
-
-            $firstStep = $workflow->steps->sortBy("position")->first();
-
-            // return
-
-            // throw new Exception(json_encode($resolvedSteps));
-
-            $unreachableSteps = [];
-            $reachableSteps = [];
-
-            $reachableSteps = $this->getReachableSteps(
-                // $validated['steps'],
-                [$firstStep],
-                $documentData
-            );
-
-            throw new Exception(json_encode(collect($reachableSteps)->pluck('name')));
-
-            // foreach ($validated['steps'] as $index => $step) {
-            foreach ($reachableSteps as $index => $step) {
-                $stepRoles = $this->getStepRolesIds(
-                    $step,
-                    $userConnected,
-                    $resolver,
-                    $documentData
-                );
-
-                // throw new Exception(json_encode(collect($stepRoles)));
-
-                $initialStatus =
-                    $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
-
-                $this->activateStep(
-                    $step,
-                    $stepRoles,
-                    $initialStatus,
-                    $workflowInstance,
-                    $index, // $step['position'],
-                    $STATUS_COMPLETE,
-                    $userConnected
-                );
-            }
-
-            // throw new Exception(json_encode(collect($unreachableSteps)->count()));
-            // throw new Exception(json_encode(collect($unreachableSteps)->pluck("name")));
-            // throw new Exception(json_encode(collect($reachableSteps)->pluck("name")));
-            // throw new Exception(json_encode(collect($unreachableSteps)));
-
-            // $documentData = $this->getDocumentData($workflowInstance, $request);
-
-            //  throw new Exception(json_encode($strict), 1);
-
-            $firstStep = $this->getFirstStepInstance($workflowInstance);
-
-            $stepData = $this->getNextStep(
-                $workflowInstance,
-                $firstStep,
-                $documentData
-            );
-
-            $nextStep = $stepData["next_step"];
-            $transition = $stepData["transition"];
-
-            //  throw new Exception(json_encode($nextStep->assignments), 1);
-
-            if ($nextStep) {
-                // $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
-
-                //    throw new Exception(json_encode($roleIdsToNotify), 1);
-
-                $nextStep->update(["status" => "PENDING"]);
-                $workflowInstance->update([
                     "workflow_status_label_id" =>
-                        $stepInstance->workflowStep->workflowStatusLabel->id ??
-                        null,
-                ]);
+                        $reachableStep->workflow_status_label_id ?? null,
 
-                // return
-                $this->workflowInstanceService->notifyNextValidators(
-                    $nextStep,
-                    $request,
-                    $departmentId
-                    // $roleIdsToNotify
+                    "workflow_status_label_code" =>
+                        optional(
+                            $reachableStep->workflowStatusLabel
+                        )->code,
+
+                    "workflow_status_label_name" =>
+                        optional(
+                            $reachableStep->workflowStatusLabel
+                        )->name,
+
+                    "assignment_mode" =>
+                        $reachableStep->assignment_mode ?? null,
+
+                    "assignment_rule" =>
+                        $reachableStep->assignment_rule ?? null,
+
+                    "role_id" =>
+                        $reachableStep->role_id ?? null,
+
+                    "is_archived_step" =>
+                        $reachableStep->is_archived_step ?? null,
+
+                    "is_payment_step" =>
+                        $reachableStep->is_payment_step ?? null,
+
+                    "completion_rule" =>
+                        $reachableStep->completion_rule ?? null,
+
+                    "completion_rule_config" =>
+                        $reachableStep->completion_rule_config ?? null,
+
+                    "is_bypassable" =>
+                        $reachableStep->is_bypassable ?? null,
+                ]
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Rôles de l'étape
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                isset($reachableStep->stepRoles)
+                && $reachableStep->stepRoles->isNotEmpty()
+            ) {
+                foreach (
+                    $reachableStep->stepRoles
+                    as $stepRoleIndex => $stepRole
+                ) {
+                    Log::info(
+                        "WORKFLOW REACHABLE STEP ROLE",
+                        [
+                            "step_index" => $reachableIndex,
+                            "step_id" => $reachableStep->id ?? null,
+                            "step_name" => $reachableStep->name ?? null,
+
+                            "role_index" => $stepRoleIndex,
+
+                            "step_role_id" =>
+                                $stepRole->id ?? null,
+
+                            "role_id" =>
+                                $stepRole->role_id ?? null,
+
+                            "user_id" =>
+                                $stepRole->user_id ?? null,
+
+                            "assignment_type" =>
+                                $stepRole->assignment_type ?? null,
+
+                            "is_active" =>
+                                $stepRole->is_active ?? null,
+
+                            "role_data" =>
+                                $stepRole->toArray(),
+                        ]
+                    );
+                }
+            } else {
+                Log::info(
+                    "WORKFLOW REACHABLE STEP - NO STEP ROLES",
+                    [
+                        "step_index" => $reachableIndex,
+                        "step_id" => $reachableStep->id ?? null,
+                        "step_name" => $reachableStep->name ?? null,
+                    ]
                 );
-
-                // return $roleIdsToNotify;
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Transitions sortantes de l'étape
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                isset($reachableStep->outgoingTransitions)
+                && $reachableStep->outgoingTransitions->isNotEmpty()
+            ) {
+                foreach (
+                    $reachableStep->outgoingTransitions
+                    as $transitionIndex => $transition
+                ) {
+
+                    Log::info(
+                        "WORKFLOW REACHABLE STEP TRANSITION",
+                        [
+                            "step_index" => $reachableIndex,
+
+                            "step_id" =>
+                                $reachableStep->id ?? null,
+
+                            "step_name" =>
+                                $reachableStep->name ?? null,
+
+                            "transition_index" =>
+                                $transitionIndex,
+
+                            "transition_id" =>
+                                $transition->id ?? null,
+
+                            "from_step_id" =>
+                                $transition->from_step_id ?? null,
+
+                            "to_step_id" =>
+                                $transition->to_step_id ?? null,
+
+                            "transition_name" =>
+                                $transition->name ?? null,
+
+                            "condition_type" =>
+                                $transition->condition_type ?? null,
+
+                            "is_active" =>
+                                $transition->is_active ?? null,
+
+                            "to_step_id_from_relation" =>
+                                optional(
+                                    $transition->toStep
+                                )->id,
+
+                            "to_step_name" =>
+                                optional(
+                                    $transition->toStep
+                                )->name,
+
+                            "to_step_position" =>
+                                optional(
+                                    $transition->toStep
+                                )->position,
+
+                            "transition_data" =>
+                                $transition->toArray(),
+                        ]
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Conditions de la transition
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        isset($transition->conditions)
+                        && $transition->conditions->isNotEmpty()
+                    ) {
+                        foreach (
+                            $transition->conditions
+                            as $conditionIndex => $condition
+                        ) {
+                            Log::info(
+                                "WORKFLOW REACHABLE TRANSITION CONDITION",
+                                [
+                                    "step_index" =>
+                                        $reachableIndex,
+
+                                    "step_id" =>
+                                        $reachableStep->id ?? null,
+
+                                    "transition_id" =>
+                                        $transition->id ?? null,
+
+                                    "condition_index" =>
+                                        $conditionIndex,
+
+                                    "condition_id" =>
+                                        $condition->id ?? null,
+
+                                    "condition_data" =>
+                                        $condition->toArray(),
+                                ]
+                            );
+                        }
+                    } else {
+                        Log::info(
+                            "WORKFLOW REACHABLE TRANSITION - NO CONDITIONS",
+                            [
+                                "step_index" =>
+                                    $reachableIndex,
+
+                                "step_id" =>
+                                    $reachableStep->id ?? null,
+
+                                "transition_id" =>
+                                    $transition->id ?? null,
+                            ]
+                        );
+                    }
+                }
+            } else {
+                Log::info(
+                    "WORKFLOW REACHABLE STEP - NO OUTGOING TRANSITIONS",
+                    [
+                        "step_index" => $reachableIndex,
+                        "step_id" => $reachableStep->id ?? null,
+                        "step_name" => $reachableStep->name ?? null,
+                    ]
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Dump complet de l'étape
+            |--------------------------------------------------------------------------
+            |
+            | Permet d'auditer également d'éventuels attributs ajoutés
+            | ou relations chargées par getReachableSteps().
+            |
+            */
+
+            Log::debug(
+                "WORKFLOW REACHABLE STEP RAW DATA",
+                [
+                    "step_index" => $reachableIndex,
+                    "step_id" => $reachableStep->id ?? null,
+                    "step_data" => $reachableStep->toArray(),
+                ]
+            );
+        }
+
+        Log::info(
+            "WORKFLOW REACHABLE STEPS AUDIT - END",
+            [
+                "workflow_instance_id" => $workflowInstance->id,
+                "reachable_steps_count" => count($reachableSteps),
+
+                "reachable_step_ids" => collect($reachableSteps)
+                    ->map(function ($step) {
+                        return $step->id ?? null;
+                    })
+                    ->values()
+                    ->toArray(),
+
+                "reachable_step_names" => collect($reachableSteps)
+                    ->map(function ($step) {
+                        return $step->name ?? null;
+                    })
+                    ->values()
+                    ->toArray(),
+
+                "reachable_step_positions" => collect($reachableSteps)
+                    ->map(function ($step) {
+                        return $step->position ?? null;
+                    })
+                    ->values()
+                    ->toArray(),
+            ]
+        );
+
+        // throw new Exception(json_encode(collect($reachableSteps)->pluck('name')));
+
+        // foreach ($validated['steps'] as $index => $step) {
+        foreach ($reachableSteps as $index => $step) {
+            $stepRoles = $this->getStepRolesIds(
+                $step,
+                $userConnected,
+                $resolver,
+                $documentData
+            );
+
+            // throw new Exception(json_encode(collect($stepRoles)));
+
+            $initialStatus =
+                $index === 0 ? $STATUS_PENDING : $STATUS_NOT_STARTED;
+
+            $this->activateStep(
+                $step,
+                $stepRoles,
+                $initialStatus,
+                $workflowInstance,
+                $index, // $step['position'],
+                $STATUS_COMPLETE,
+                $userConnected
+            );
+        }
+
+        // throw new Exception(json_encode(collect($unreachableSteps)->count()));
+        // throw new Exception(json_encode(collect($unreachableSteps)->pluck("name")));
+        // throw new Exception(json_encode(collect($reachableSteps)->pluck("name")));
+        // throw new Exception(json_encode(collect($unreachableSteps)));
+
+        // $documentData = $this->getDocumentData($workflowInstance, $request);
+
+        //  throw new Exception(json_encode($strict), 1);
+
+        $firstStep = $this->getFirstStepInstance($workflowInstance);
+
+        $stepData = $this->getNextStep(
+            $workflowInstance,
+            $firstStep,
+            $documentData
+        );
+
+        $nextStep = $stepData["next_step"];
+        $transition = $stepData["transition"];
+
+        //  throw new Exception(json_encode($nextStep->assignments), 1);
+
+        if ($nextStep) {
+            // $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
 
             //    throw new Exception(json_encode($roleIdsToNotify), 1);
 
-            DB::commit();
+            $nextStep->update(["status" => "PENDING"]);
+            $workflowInstance->update([
+                "workflow_status_label_id" =>
+                    $stepInstance->workflowStep->workflowStatusLabel->id ??
+                    null,
+            ]);
 
-             $userConnected = $request->get("user");
+            // return
+            $this->workflowInstanceService->notifyNextValidators(
+                $nextStep,
+                $request,
+                $departmentId
+                // $roleIdsToNotify
+            );
 
-              $WorkflowEventEngine->handleActionStep(
+            // return $roleIdsToNotify;
+        }
+
+        //    throw new Exception(json_encode($roleIdsToNotify), 1);
+
+        DB::commit();
+
+        $userConnected = $request->get("user");
+
+        $WorkflowEventEngine->handleActionStep(
             $documentData['uuid'],
             $firstStep,
             0,
-             [
-        "validatorId" => $userConnected["id"],
-        "actorId" => $documentData['actor_id'],
-        "transitionId" => $transition->id,
-    ]
+            [
+                "validatorId" => $userConnected["id"],
+                "actorId" => $documentData['actor_id'],
+                "transitionId" => $transition->id,
+            ]
         );
 
-            return response()->json(
-                $workflowInstance->load(["instance_steps"]),
-                // $workflowInstance->load(["instance_steps" ,"activeInstanceStep.workflowStep.workflowStatusLabel"]),
-                201
-            );
+        return response()->json(
+            $workflowInstance->load(["instance_steps"]),
+            // $workflowInstance->load(["instance_steps" ,"activeInstanceStep.workflowStep.workflowStatusLabel"]),
+            201
+        );
 
-            /* return response()->json(["success"=>false,"data"=>["workfowInstance"=>
-             $workflowInstance->load('instance_steps')]], 201);*/
-        } catch (\Throwable $th) {
-            DB::rollBack();
-            throw $th;
-        }
+        /* return response()->json(["success"=>false,"data"=>["workfowInstance"=>
+         $workflowInstance->load('instance_steps')]], 201);*/
+    } catch (\Throwable $th) {
+        DB::rollBack();
+        throw $th;
     }
+}
 
     public function getStepRolesIds(
         $step,
