@@ -2914,6 +2914,9 @@ class WorkflowInstanceController extends Controller
         // PAYMENT
         // =====================================
 
+    throw new Exception(json_encode($transition), 1);
+
+
         $this->registerPayment($instance, $currentStep, $request, $user,$documentData,$transition);
 
         // =====================================
