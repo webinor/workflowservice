@@ -66,7 +66,7 @@ class WorkflowEventEngine
 
 
     // throw new Exception(json_encode($context), 1);
-    // throw new Exception(json_encode($events), 1);
+    throw new Exception(json_encode($events), 1);
     
             
         
