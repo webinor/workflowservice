@@ -193,6 +193,9 @@ $isExport = (bool) ($params["export"] ?? false);
 
     // $mark("pluck_document_ids");
 
+    // throw new Exception(json_encode($documentIds), 1);
+
+
 
     /*
     |--------------------------------------------------------------------------
@@ -244,6 +247,7 @@ $currentDepartmentId = data_get(
 
 
 
+
 $sameDepartmentMap = $this->getSameDepartmentMap(
     $actorIds,
     $currentDepartmentId
@@ -277,6 +281,9 @@ $workflowSteps = WorkflowInstanceStep::query()
     ->get()
     ->groupBy("workflow_instance_id");
 
+
+    // throw new Exception(json_encode($flatDocuments), 1);
+
     $filteredDocuments = collect($flatDocuments)
         ->filter(
             fn($doc) => $this->canView(
@@ -293,6 +300,8 @@ $workflowSteps = WorkflowInstanceStep::query()
             )
         )
         ->values();
+
+    // throw new Exception(json_encode($filteredDocuments), 1);
 
     // $mark("can_view_filter");
 
