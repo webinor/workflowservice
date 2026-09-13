@@ -41,35 +41,71 @@ class WorkflowEventEngine
 
         $events = [];
 
-        $events =
-            WorkflowActionStepEvent::query()
-                ->where(
-                    "workflow_action_step_id",
-                    $actionStepId
-                )
-                ->with([
-                    "event.handlers"
-                ])
-                ->where("is_active", true)
-                ->orderBy("execution_order")
-                ->get();
+    //     $events =
+    //         WorkflowActionStepEvent::query()
+    //             ->where(
+    //                 "workflow_action_step_id",
+    //                 $actionStepId
+    //             )
+    //             ->with([
+    //                 "event.handlers"
+    //             ])
+    //             ->where("is_active", true)
+    //             ->orderBy("execution_order")
+    //             ->get();
 
-        if ($events->isEmpty()) {
-
-
-        $events = WorkflowTransitionEvent::query()
-    ->where('transition_id', $context["transitionId"])
-    ->with(['event.handlers'])
-    ->where('is_active', true)
-    // ->orderBy('execution_order')
-    ->get();
+    //     if ($events->isEmpty()) {
 
 
-    // throw new Exception(json_encode($context), 1);
+    //     $events = WorkflowTransitionEvent::query()
+    // ->where('transition_id', $context["transitionId"])
+    // ->with(['event.handlers'])
+    // ->where('is_active', true)
+    // // ->orderBy('execution_order')
+    // ->get();
+
+
+    // // throw new Exception(json_encode($context), 1);
     
             
         
-        }
+    //     }
+
+    // --------------------------------------------------------------------------
+// 1. Vérifier en priorité les événements liés à la transition
+// --------------------------------------------------------------------------
+
+$events = WorkflowTransitionEvent::query()
+    ->where(
+        'transition_id',
+        $context['transitionId']
+    )
+    ->with([
+        'event.handlers'
+    ])
+    ->where('is_active', true)
+    ->get();
+
+
+// --------------------------------------------------------------------------
+// 2. Si aucun événement de transition n'est configuré,
+//    vérifier les événements liés à l'ActionStep
+// --------------------------------------------------------------------------
+
+if ($events->isEmpty()) {
+
+    $events = WorkflowActionStepEvent::query()
+        ->where(
+            'workflow_action_step_id',
+            $actionStepId
+        )
+        ->with([
+            'event.handlers'
+        ])
+        ->where('is_active', true)
+        ->orderBy('execution_order')
+        ->get();
+}
 
     throw new Exception(json_encode($events), 1);
 
