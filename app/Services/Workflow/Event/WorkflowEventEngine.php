@@ -107,7 +107,7 @@ if ($events->isEmpty()) {
         ->get();
 }
 
-    throw new Exception(json_encode($events), 1);
+    // throw new Exception(json_encode($events), 1);
 
 
         foreach ($events as $actionStepEvent) {
