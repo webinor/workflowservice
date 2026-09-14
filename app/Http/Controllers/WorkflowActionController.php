@@ -28,7 +28,7 @@ class WorkflowActionController extends Controller
             'workflowActionStepEvents',
         ])
          ->whereHas('workflowStep.workflow', function ($q) {
-            // $q->where('active', true);
+            $q->where('active', true);
         })
 
         ->when($request->filled('workflow_step_id'), function ($query) use ($request) {
