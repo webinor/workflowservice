@@ -1544,6 +1544,10 @@ if (!$perm) {
 
 
 
+    $isDocAssistance = $doc['child_type'] == "ASSISTANCE";
+
+        // throw new Exception(json_encode($doc['child_type']), 1);
+
 
 
 
@@ -1635,6 +1639,11 @@ foreach ($steps as $instanceStep) {
         $responsibilities
     );
 
+    $canViewAllAssistance = in_array(
+        "VIEW_ALL_ASSISTANCE_REGULARIZATION",
+        $responsibilities
+    );
+
 
     /*
     |--------------------------------------------------------------------------
@@ -1649,6 +1658,14 @@ foreach ($steps as $instanceStep) {
         !$isSignatory
     ) {
         return false;
+    }
+
+
+    if ($canViewAllAssistance && $isDocAssistance) {
+
+    return true;
+    
+        
     }
 
 

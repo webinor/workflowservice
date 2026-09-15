@@ -40,6 +40,18 @@ class RegularizationSheetPolicy implements VisibilityPolicyInterface
             return $query;
         }
 
+        if (
+            in_array(
+                'VIEW_ALL_ASSISTANCE_REGULARIZATION',
+                $responsibilities,
+                true
+            )
+        ) {
+            return $query;
+        }
+
+       
+
         /*
         |--------------------------------------------------------------------------
         | Visibilité workflow standard
