@@ -1544,7 +1544,7 @@ if (!$perm) {
 
 
 
-    $isDocAssistance = $doc['child_type'] == "ASSISTANCE";
+    $isDocAssistance = isset($doc['child_type']) && $doc['child_type'] == "ASSISTANCE";
 
         // throw new Exception(json_encode($doc['child_type']), 1);
 
