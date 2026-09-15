@@ -1663,7 +1663,7 @@ foreach ($steps as $instanceStep) {
 
     if ($canViewAllAssistance && $isDocAssistance) {
 
-    return true;
+    // return true;
     
         
     }
