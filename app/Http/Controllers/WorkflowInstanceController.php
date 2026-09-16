@@ -3060,7 +3060,8 @@ class WorkflowInstanceController extends Controller
         if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
 
 
-               throw new Exception(json_encode($pathtransitions));
+            //    throw new Exception(json_encode($pathtransitions));
+               throw new Exception(json_encode($documentData));
             
         
         }
