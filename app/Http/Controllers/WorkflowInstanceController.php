@@ -2078,12 +2078,21 @@ class WorkflowInstanceController extends Controller
             );
 
 
+             if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($stepData));
             
+        
+        }
+           
 
             // throw new Exception(json_encode($stepData), 1);
 
             $nextStep = $stepData["next_step"];
             $isDynamic = $stepData["isDynamic"];
+
+             
 
             return response()->json([
                 "success" => true,
@@ -3079,14 +3088,13 @@ class WorkflowInstanceController extends Controller
                 )
             ) {
 
-              if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+        //       if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
 
 
-               throw new Exception(json_encode($pathtransition));
-            //    throw new Exception(json_encode($condition->operator));
+        //        throw new Exception(json_encode($pathtransition));
             
         
-        }
+        // }
 
                 return $this->get_step($instance, $pathtransition, $isDynamic);
             }
