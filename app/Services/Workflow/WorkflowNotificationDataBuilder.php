@@ -232,6 +232,30 @@ public function buildDocumentUrl(
         ];
     }
 
+       /**
+     * Résout l'acteur d'une action workflow.
+     */
+    public function buildValidator(
+        ?int $validatorId
+    ): array {
+
+        $user = $this->resolveUser(
+            $validatorId
+        );
+
+        return [
+            'id' => $validatorId,
+
+            'user' => $user,
+
+            'name' =>
+                $this->getUserName($user),
+
+            'email' =>
+                $this->getUserEmail($user),
+        ];
+    }
+
     /**
      * Construit les informations communes du document.
      */

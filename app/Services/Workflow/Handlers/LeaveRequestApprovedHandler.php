@@ -6,6 +6,8 @@ use App\Contracts\WorkflowEventHandlerInterface;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Services\Workflow\WorkflowNotificationDataBuilder;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 class LeaveRequestApprovedHandler
@@ -37,6 +39,9 @@ class LeaveRequestApprovedHandler
 
                 'actorId' =>
                     $config['actorId'] ?? null,
+
+                'validatorId' =>
+                    $config['validatorId'] ?? null,
             ]
         );
 
@@ -96,6 +101,18 @@ class LeaveRequestApprovedHandler
                 ? (int) $config['actorId']
                 : null;
 
+
+         /*
+        |--------------------------------------------------------------------------
+        | Acteur
+        |--------------------------------------------------------------------------
+        */
+
+        $validatorId =
+            isset($config['validatorId'])
+                ? (int) $config['validatorId']
+                : null;
+
         /*
         |--------------------------------------------------------------------------
         | Propriétaire de la demande
@@ -116,6 +133,11 @@ class LeaveRequestApprovedHandler
         $actor =
             $this->builder->buildActor(
                 $actorId
+            );
+
+        $validator =
+            $this->builder->buildValidator(
+                $validatorId
             );
 
         /*
@@ -149,38 +171,61 @@ class LeaveRequestApprovedHandler
         |--------------------------------------------------------------------------
         */
 
+        $data = $data = [
+    'subject' =>
+        $subject,
+
+    'owner_name' =>
+        $owner['name']
+        ?? null,
+
+    'owner_email' =>
+        $owner['email']
+        ?? null,
+
+    'approved_by' =>
+        $validator['name']
+        ?? null,
+
+    'approved_by_email' =>
+        $actor['email']
+        ?? null,
+
+    'approved_at' =>
+        Carbon::parse($instance->executed_at)->format('d/m/Y')  ??  now()->toDateTimeString(),
+
+    'status' =>
+        'APPROVED',
+
+    'message' =>
+        'Votre demande de congé a été approuvée.',
+
+    'leave_type' =>
+        data_get(
+            $documentData,
+            'absence_request.leave_type.name'
+        ),
+
+    'start_date' =>
+        data_get(
+            $documentData,
+            'absence_request.departure_date'
+        ),
+
+    'end_date' =>
+        data_get(
+            $documentData,
+            'absence_request.return_date'
+        ),
+];
+
+
+            // throw new Exception(json_encode( Carbon::parse($instance->executed_at)->format('d/m/Y') ), 1);
+            
+
         $notificationData = array_merge(
             $document,
-            [
-
-                'subject' =>
-                    $subject,
-
-                'owner_name' =>
-                    $owner['name']
-                    ?? null,
-
-                'owner_email' =>
-                    $owner['email']
-                    ?? null,
-
-                'approved_by' =>
-                    $actor['name']
-                    ?? null,
-
-                'approved_by_email' =>
-                    $actor['email']
-                    ?? null,
-
-                'approved_at' =>
-                    now()->toDateTimeString(),
-
-                'status' =>
-                    'APPROVED',
-
-                'message' =>
-                    'Votre demande de congé a été approuvée.',
-            ]
+            $data
         );
 
         /*
