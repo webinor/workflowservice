@@ -3564,14 +3564,7 @@ class WorkflowInstanceController extends Controller
         // throw new Exception(json_encode($condition->field), 1);
         // throw new Exception(json_encode($fieldValue), 1);
 
-         if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
-
-
-               throw new Exception(json_encode($fieldValue));
-            //    throw new Exception(json_encode($documentData));
-            
         
-        }
         // throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
 
@@ -3710,6 +3703,15 @@ class WorkflowInstanceController extends Controller
             return in_array("HEAD_OF_DEPARTMENT", $data["user"]["roles"] ?? []);
         }
 
+
+        //  if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+        //        throw new Exception(json_encode($fieldValue));
+        //     //    throw new Exception(json_encode($documentData));
+            
+        
+        // }
         // Si le type de condition est 'comparison' ou autre basé sur un opérateur
         if (
             in_array($condition->operator, [
@@ -3726,6 +3728,15 @@ class WorkflowInstanceController extends Controller
             // throw new Exception(json_encode($condition->operator), 1);
 
             $value = $condition->value;
+
+             if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($value));
+            //    throw new Exception(json_encode($documentData));
+            
+        
+        }
 
             // Si la valeur vient d'une colonne JSON et contient une string JSON
             if (is_string($value)) {
