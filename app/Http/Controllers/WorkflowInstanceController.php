@@ -3012,14 +3012,7 @@ class WorkflowInstanceController extends Controller
                 if (!$this->evaluateCondition($condition, $documentData)) {
 
 
-                 if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
-
-
-               throw new Exception(json_encode($condition));
-            //    throw new Exception(json_encode($condition->operator));
-            
-        
-        }
+               
 
 
                     $validGroup = false;
@@ -3085,6 +3078,16 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 )
             ) {
+
+              if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($pathtransition));
+            //    throw new Exception(json_encode($condition->operator));
+            
+        
+        }
+
                 return $this->get_step($instance, $pathtransition, $isDynamic);
             }
         }
