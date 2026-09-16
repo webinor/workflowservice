@@ -202,6 +202,8 @@ class WorkflowInstanceStepController extends Controller
                 ? $users->get($history["changed_by"])
                 : null;
 
+            
+
             return [
                 "workflow_step_id" =>
                     $history["workflow_step_id"],
@@ -213,7 +215,7 @@ class WorkflowInstanceStepController extends Controller
                     $history["changed_by"],
 
                 "user_name" =>
-                    $userData["name"] ?? "Utilisateur inconnu",
+                    ($userData['employee']["civilite"] ?? "")." ".($userData['employee']["nom"] ?? "Utilisateur inconnu")." ".($userData['employee']["prenom"] ?? ""),
 
                 "old_status" =>
                     $history["old_status"],
