@@ -2077,6 +2077,9 @@ class WorkflowInstanceController extends Controller
                 // $action
             );
 
+
+            
+
             // throw new Exception(json_encode($stepData), 1);
 
             $nextStep = $stepData["next_step"];
@@ -3053,6 +3056,14 @@ class WorkflowInstanceController extends Controller
             ])
             ->where("from_step_id", $currentStep->workflow_step_id)
             ->get();
+
+        if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($pathtransitions));
+            
+        
+        }
 
         foreach ($pathtransitions as $pathtransition) {
             if (
