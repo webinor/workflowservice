@@ -3010,6 +3010,18 @@ class WorkflowInstanceController extends Controller
 
             foreach ($groupConditions as $condition) {
                 if (!$this->evaluateCondition($condition, $documentData)) {
+
+
+                 if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($condition));
+            //    throw new Exception(json_encode($condition->operator));
+            
+        
+        }
+
+
                     $validGroup = false;
                     break;
                 }
@@ -3744,7 +3756,7 @@ class WorkflowInstanceController extends Controller
 
 
             //    throw new Exception(json_encode($fieldValue == $value));
-               throw new Exception(json_encode($condition->operator));
+            //    throw new Exception(json_encode($condition->operator));
             
         
         }
