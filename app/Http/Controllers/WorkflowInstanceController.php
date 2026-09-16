@@ -3564,6 +3564,14 @@ class WorkflowInstanceController extends Controller
         // throw new Exception(json_encode($condition->field), 1);
         // throw new Exception(json_encode($fieldValue), 1);
 
+         if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($fieldValue));
+            //    throw new Exception(json_encode($documentData));
+            
+        
+        }
         // throw new Exception(json_encode($fieldValue), 1);
         //throw new Exception(json_encode(array_map("intval", $condition->required_id)), 1);
 
