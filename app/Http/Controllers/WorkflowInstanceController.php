@@ -3729,14 +3729,7 @@ class WorkflowInstanceController extends Controller
 
             $value = $condition->value;
 
-             if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
-
-
-               throw new Exception(json_encode($fieldValue == $value));
-            //    throw new Exception(json_encode($documentData));
             
-        
-        }
 
             // Si la valeur vient d'une colonne JSON et contient une string JSON
             if (is_string($value)) {
@@ -3746,6 +3739,15 @@ class WorkflowInstanceController extends Controller
                     $value = $decoded;
                 }
             }
+
+             if ($data['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+
+
+               throw new Exception(json_encode($fieldValue == $value));
+            //    throw new Exception(json_encode($documentData));
+            
+        
+        }
 
             // throw new Exception(json_encode($value == "ASSISTANCE"), 1);
 
