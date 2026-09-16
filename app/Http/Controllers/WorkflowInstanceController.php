@@ -3061,7 +3061,7 @@ class WorkflowInstanceController extends Controller
 
 
             //    throw new Exception(json_encode($pathtransitions));
-               throw new Exception(json_encode($documentData));
+            //    throw new Exception(json_encode($documentData));
             
         
         }
