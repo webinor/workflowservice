@@ -138,6 +138,10 @@ $isExport = (bool) ($params["export"] ?? false);
         ->getContext($employeeId);
 
     
+        $currentUserContext = 
+         $this->effectiveResponsibilityService
+        ->getUserContext($employeeId);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -296,7 +300,8 @@ $workflowSteps = WorkflowInstanceStep::query()
             $responsibilities,
             $workflowInstances,
             $workflowSteps,
-            $sameDepartmentMap
+            $sameDepartmentMap,
+            $currentUserContext
             )
         )
         ->values();
@@ -1482,6 +1487,41 @@ $query = $policy->apply(
     }
 
 
+    protected function canViewFinancialDocumentForAssignmentPlace(
+    array $doc,
+    array $currentUserContext
+): bool {
+    $assignmentPlace = strtoupper(
+        trim((string) data_get($doc, 'actor_details.assignment_place', ''))
+    );
+
+    switch ($assignmentPlace) {
+        case 'YAOUNDE':
+            return (bool) data_get(
+                $currentUserContext,
+                'assignmentContext.canViewFinancialDocYaounde',
+                false
+            );
+
+        // case 'DOUALA':
+        //     return (bool) data_get(
+        //         $currentUserContext,
+        //         'assignmentContext.canViewFinancialDocDouala',
+        //         false
+        //     );
+
+        case 'KRIBI':
+            return (bool) data_get(
+                $currentUserContext,
+                'assignmentContext.canViewFinancialDocKribi',
+                false
+            );
+
+        default:
+            return false;
+    }
+}
+
     protected function canView(
     array $doc,
     object $permissionsByDocType,
@@ -1492,7 +1532,8 @@ $query = $policy->apply(
     array $responsibilities,
      $workflowInstances,
      $workflowSteps,
-     $sameDepartmentMap
+     $sameDepartmentMap,
+     $currentUserContext
 ): bool {
 
 
@@ -1546,7 +1587,11 @@ if (!$perm) {
 
     $isDocAssistance = isset($doc['child_type']) && $doc['child_type'] == "ASSISTANCE";
 
-        // throw new Exception(json_encode($doc['child_type']), 1);
+ 
+
+        // throw new Exception(json_encode($canViewFinancialDocYaounde), 1);
+        // throw new Exception(json_encode($currentUserContext['assignmentContext']), 1);
+        
 
 
 
@@ -1667,6 +1712,27 @@ foreach ($steps as $instanceStep) {
     
         
     }
+
+
+//        $beneficiaryIsFromYaounde = $doc['actor_details']['assignment_place'] == "YAOUNDE";
+//     $beneficiaryIsFromDouala = $doc['actor_details']['assignment_place'] == "DOUALA";
+//     $beneficiaryIsFromKribi = $doc['actor_details']['assignment_place'] == "KRIBI";
+
+//     // $currentUserCanViewFinancialDocYaounde = 
+//     $canViewFinancialDocYaounde = (bool) data_get(
+//     $currentUserContext,
+//     'assignmentContext.canViewFinancialDocYaounde',
+//     false
+// );
+
+
+
+      if ($this->canViewFinancialDocumentForAssignmentPlace(
+    $doc,
+    $currentUserContext
+)) {
+    return true;
+}
 
 
     /*

@@ -66,6 +66,32 @@ class EffectiveResponsibilityService
         return $response->json('data', []);
     }
 
+        public function getUserContext(
+        int $employeeId
+    ): array {
+
+        $response = Http::withToken(
+            request()->bearerToken()
+        )
+            ->acceptJson()
+            ->get(
+                config('services.user_service.base_url') .
+                '/employees/user/userContext',
+                [
+                    'employeeId' => $employeeId,
+                ]
+            );
+
+        if (!$response->successful()) {
+            throw new Exception(
+                $response->body(),
+                $response->status()
+            );
+        }
+
+        return $response->json() ?? [];
+    }
+
     /**
      * Récupère le contexte d'un employé depuis le Department Service.
      */
