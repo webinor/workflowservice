@@ -1486,6 +1486,20 @@ $query = $policy->apply(
             ->toArray();
     }
 
+    protected function hasFinancialDocumentCityResponsibility(
+    array $currentUserContext
+): bool {
+    $cityResponsibilities = [
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
+        // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA',
+    ];
+
+    return $this->responsibilityService->hasAnyCode(
+        $currentUserContext['employeeContext']['responsibilities'] ?? [],
+        $cityResponsibilities
+    );
+}
 
     protected function canViewFinancialDocumentForAssignmentPlace(
     array $doc,
@@ -1706,12 +1720,6 @@ foreach ($steps as $instanceStep) {
     }
 
 
-    if ($canViewAllAssistance && $isDocAssistance) {
-
-    return true;
-    
-        
-    }
 
 
 //        $beneficiaryIsFromYaounde = $doc['actor_details']['assignment_place'] == "YAOUNDE";
@@ -1728,12 +1736,44 @@ foreach ($steps as $instanceStep) {
 
         // throw new Exception(json_encode($currentUserContext), 1);
 
-//       if ($this->canViewFinancialDocumentForAssignmentPlace(
-//     $doc,
-//     $currentUserContext
-// )) {
-//     return true;
-// }
+     
+        
+        if ($this->hasFinancialDocumentCityResponsibility($currentUserContext)) {
+    // Le user possède une responsabilité financière liée à une ville
+
+      if ($this->canViewFinancialDocumentForAssignmentPlace(
+    $doc,
+    $currentUserContext
+)) {
+    return true;
+}
+else{
+    false;
+}
+
+
+}
+
+
+
+    if ($canViewAllAssistance && $isDocAssistance) {
+
+    
+    // if (condition) {
+        return true;
+    // } else {
+    //     return false;
+    // }
+    
+    
+    
+        
+    }
+
+
+    
+
+
 
 
     /*

@@ -30,25 +30,41 @@ class RegularizationSheetPolicy implements VisibilityPolicyInterface
         |--------------------------------------------------------------------------
         */
 
-        if (
-            in_array(
-                'VIEW_ALL_REGULARIZATION_SHEETS',
-                $responsibilities,
-                true
-            )
-        ) {
-            return $query;
-        }
+        // if (
+        //     in_array(
+        //         'VIEW_ALL_REGULARIZATION_SHEETS',
+        //         $responsibilities,
+        //         true
+        //     )
+        // ) {
+        //     return $query;
+        // }
 
-        if (
-            in_array(
-                'VIEW_ALL_ASSISTANCE_REGULARIZATION',
-                $responsibilities,
-                true
-            )
-        ) {
-            return $query;
-        }
+        // if (
+        //     in_array(
+        //         'VIEW_ALL_ASSISTANCE_REGULARIZATION',
+        //         $responsibilities,
+        //         true
+        //     )
+        // ) {
+        //     return $query;
+        // }
+
+        if (array_intersect(
+    [
+        'VIEW_ALL_REGULARIZATION_SHEETS',
+        'VIEW_ALL_ASSISTANCE_REGULARIZATION',
+
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
+        // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA'
+
+
+    ],
+    $responsibilities
+)) {
+    return $query;
+}
 
        
 
