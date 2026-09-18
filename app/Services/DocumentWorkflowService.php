@@ -1726,13 +1726,14 @@ foreach ($steps as $instanceStep) {
 // );
 
 
+        // throw new Exception(json_encode($currentUserContext), 1);
 
-      if ($this->canViewFinancialDocumentForAssignmentPlace(
-    $doc,
-    $currentUserContext
-)) {
-    return true;
-}
+//       if ($this->canViewFinancialDocumentForAssignmentPlace(
+//     $doc,
+//     $currentUserContext
+// )) {
+//     return true;
+// }
 
 
     /*
