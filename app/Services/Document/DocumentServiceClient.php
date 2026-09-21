@@ -238,4 +238,41 @@ class DocumentServiceClient
     return $response;
 }
 
+
+
+    public function fetchDocuments(
+        $documentIds,
+        array $documentTypes,
+        ?array $filters,
+        Request $request,
+        bool $isStat=false,
+        bool $shouldEnrich = true
+    ): array {
+        
+        $response = Http::withToken($request->bearerToken())
+            ->acceptJson()
+            ->get(config("services.document_service.base_url") . "/by-ids", [
+                "ids" => $documentIds->toArray(),
+                "documentTypes" => $documentTypes,
+                "filters" => $filters,
+                "shouldEnrich" => $shouldEnrich,
+                "isStat"=>$isStat
+            ]);
+
+       
+        // throw new Exception(json_encode($response->json()), 1);
+
+
+        if ($response->ok()) {
+
+        // throw new Exception(json_encode($response->json()[0]), 1);
+
+            return $response->json();
+        } else {
+            throw new Exception(json_encode($response->body()), 1);
+        }
+
+        // return $response->ok() ? $response->json() : [];
+    }
+
 }

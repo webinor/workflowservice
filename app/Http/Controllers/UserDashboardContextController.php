@@ -6,6 +6,7 @@ use App\Models\DocumentTypeWorkflow;
 use App\Models\Signature;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStep;
+use App\Services\Document\DocumentServiceClient;
 use App\Services\HttpClientService;
 use Exception;
 use Illuminate\Http\Request;
@@ -13,6 +14,48 @@ use Illuminate\Support\Facades\Log;
 
 class UserDashboardContextController extends Controller
 {
+
+
+    //      protected WorkflowInstanceResolverService $resolver;
+    // protected DocumentEnricherRegistry $registry;
+    protected DocumentServiceClient $documentClient;
+    // protected WorkflowInstanceService $workflowInstanceService;
+    // protected EffectiveResponsibilityService $effectiveResponsibilityService;
+    // protected VisibilityPolicyResolver $visibilityPolicyResolver;
+    // protected DepartmentContextService $departmentContextService;
+    // protected ResponsibilityService $responsibilityService;
+    
+
+    // const CONTEXT_VALIDATION = "TO_VALIDATE";
+    // const CONTEXT_MY_DOCUMENTS = "MY_DOCUMENTS";
+
+    // const FILTER_PENDING = "PENDING";
+    // const FILTER_IN_PROGRESS = "IN_PROGRESS";
+    // const FILTER_WAITING_CLOSURE = "PAID_WAITING_CLOSURE";
+    // const FILTER_COMPLETE = "COMPLETE";
+    // const FILTER_REJECTED = "REJECTED";
+    // const FILTER_ALL_DOCUMENTS = "ALL_DOCUMENTS";
+
+    public function __construct(
+        // WorkflowInstanceResolverService $workflowInstanceResolverService,
+        // DocumentEnricherRegistry $documentEnricherRegistry,
+        DocumentServiceClient $documentClient
+        // WorkflowInstanceService $workflowInstanceService,
+        // EffectiveResponsibilityService $effectiveResponsibilityService,
+        // VisibilityPolicyResolver $visibilityPolicyResolver,
+        // DepartmentContextService $departmentContextService,
+        // ResponsibilityService $responsibilityService
+        
+    ) {
+        // $this->resolver = $workflowInstanceResolverService;
+        // $this->registry = $documentEnricherRegistry;
+        $this->documentClient = $documentClient;
+    //     $this->workflowInstanceService = $workflowInstanceService;
+    //     $this->effectiveResponsibilityService = $effectiveResponsibilityService;
+    //     $this->visibilityPolicyResolver = $visibilityPolicyResolver;
+    //     $this->departmentContextService = $departmentContextService;
+    //     $this->responsibilityService = $responsibilityService;
+    }
 
 
     /**
@@ -58,6 +101,11 @@ public function show(Request $request)
         $departmentId =
             $request->input("department_id");
 
+        $currentCity =
+            $request->input("current_user_city");
+
+        
+         
 
         /*
         |--------------------------------------------------------------------------
@@ -104,10 +152,43 @@ public function show(Request $request)
 
                 ->with([
                     "workflowStep.workflow",
-                    "workflowStep",
+                    // "workflowStep",
+                    "workflowInstance"
                 ])
 
                 ->get();
+
+              $documentIds =  $tasks->pluck('workflowInstance.document_id');
+
+            //   throw new Exception(json_encode($currentCity), 1);
+              
+
+                 $filteredDocuments = $this->documentClient->fetchDocuments(
+            $documentIds,
+            [],
+            ["city" => $currentCity],
+            $request,
+            false,
+            false
+        );
+
+
+              $filteredDocumentIds = collect($filteredDocuments)
+    ->pluck('id')
+    ->filter()
+    ->unique()
+    ->values();
+
+            //   throw new Exception(json_encode($filteredDocumentIds), 1);
+
+
+
+              $tasks = $tasks->filter(function ($task) use ($filteredDocumentIds) {
+    return $filteredDocumentIds->contains(
+        $task->workflowInstance->document_id
+    );
+})->values();
+
 
 
         /*

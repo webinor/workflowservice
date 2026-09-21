@@ -321,7 +321,7 @@ $workflowSteps = WorkflowInstanceStep::query()
 
         $filteredDocumentIds = $filteredDocuments->pluck("id");
 
-        $documentsCount = $this->fetchDocuments(
+        $documentsCount = $this->documentClient->fetchDocuments(
             $filteredDocumentIds,
             $document_type,
             $filters,
@@ -420,7 +420,7 @@ $filteredDocumentIds = $documentsToFetch->pluck("id");
     |--------------------------------------------------------------------------
     */
 
-    $documents = $this->fetchDocuments(
+    $documents = $this->documentClient->fetchDocuments(
         $filteredDocumentIds,
         $document_type,
         $filters,
@@ -1264,45 +1264,38 @@ $query = $policy->apply(
         ];
     }
 
-    protected function fetchDocuments(
-        $documentIds,
-        array $documentTypes,
-        ?array $filters,
-        Request $request,
-        bool $isStat=false,
-        bool $shouldEnrich = true
-    ): array {
+    // protected function fetchDocuments(
+    //     $documentIds,
+    //     array $documentTypes,
+    //     ?array $filters,
+    //     Request $request,
+    //     bool $isStat=false,
+    //     bool $shouldEnrich = true
+    // ): array {
         
-        $response = Http::withToken($request->bearerToken())
-            ->acceptJson()
-            ->get(config("services.document_service.base_url") . "/by-ids", [
-                "ids" => $documentIds->toArray(),
-                "documentTypes" => $documentTypes,
-                "filters" => $filters,
-                "shouldEnrich" => $shouldEnrich,
-                "isStat"=>$isStat
-            ]);
+    //     $response = Http::withToken($request->bearerToken())
+    //         ->acceptJson()
+    //         ->get(config("services.document_service.base_url") . "/by-ids", [
+    //             "ids" => $documentIds->toArray(),
+    //             "documentTypes" => $documentTypes,
+    //             "filters" => $filters,
+    //             "shouldEnrich" => $shouldEnrich,
+    //             "isStat"=>$isStat
+    //         ]);
 
-        // throw new Exception(json_encode($response->body()), 1);
-        // throw new Exception(json_encode([
-        //         "ids" => $documentIds->toArray(),
-        //         "documentTypes" => $documentTypes,
-        //         "filters" => $filters,
-        //         "shouldEnrich" => $shouldEnrich,
-        //         "isStat"=>$isStat
-        //     ]), 1);
+       
 
-        if ($response->ok()) {
+    //     if ($response->ok()) {
 
-        // throw new Exception(json_encode($response->json()[0]), 1);
+    //     // throw new Exception(json_encode($response->json()[0]), 1);
 
-            return $response->json();
-        } else {
-            throw new Exception(json_encode($response->body()), 1);
-        }
+    //         return $response->json();
+    //     } else {
+    //         throw new Exception(json_encode($response->body()), 1);
+    //     }
 
-        // return $response->ok() ? $response->json() : [];
-    }
+    //     // return $response->ok() ? $response->json() : [];
+    // }
 
     protected function getPermissions(
         array $documents,
