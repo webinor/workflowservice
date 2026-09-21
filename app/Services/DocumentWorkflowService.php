@@ -1741,13 +1741,16 @@ foreach ($steps as $instanceStep) {
         if ($this->hasFinancialDocumentCityResponsibility($currentUserContext)) {
     // Le user possède une responsabilité financière liée à une ville
 
-    throw new Exception("Error Processing Request", 1);
+    
     
 
       if ($this->canViewFinancialDocumentForAssignmentPlace(
     $doc,
     $currentUserContext
 )) {
+
+throw new Exception("yes", 1);
+
     return true;
 }
 else{
