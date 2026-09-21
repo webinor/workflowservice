@@ -1750,11 +1750,20 @@ foreach ($steps as $instanceStep) {
                 'assignmentContext.canViewFinancialDocYaounde',
                 false
             );
+
+    if ($assignmentPlace == "YAOUNDE") {
+
+    
     
     throw new Exception(json_encode($assignmentPlace), 1);
     throw new Exception(json_encode($canViewFinancialDocYaounde), 1);
     throw new Exception(json_encode($currentUserContext), 1);
     
+    
+        
+    
+    }
+
     
 
       if ($this->canViewFinancialDocumentForAssignmentPlace(
