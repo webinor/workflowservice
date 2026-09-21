@@ -1741,9 +1741,9 @@ foreach ($steps as $instanceStep) {
         if ($this->hasFinancialDocumentCityResponsibility($currentUserContext)) {
     // Le user possède une responsabilité financière liée à une ville
 
-    //    $assignmentPlace = strtoupper(
-    //     trim((string) data_get($doc, 'actor_details.assignment_place', ''))
-    // );
+       $assignmentPlace = strtoupper(
+        trim((string) data_get($doc, 'actor_details.assignment_place', ''))
+    );
 
       $actor_details = 
         ( data_get($doc, 'actor_details', ''))
@@ -1756,7 +1756,7 @@ foreach ($steps as $instanceStep) {
             );
 
         
-    throw new Exception(json_encode($actor_details), 1);
+    // throw new Exception(json_encode($actor_details), 1);
 
 
     if ($assignmentPlace == "YAOUNDE") {
