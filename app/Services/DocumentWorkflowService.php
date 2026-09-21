@@ -1741,6 +1741,19 @@ foreach ($steps as $instanceStep) {
         if ($this->hasFinancialDocumentCityResponsibility($currentUserContext)) {
     // Le user possède une responsabilité financière liée à une ville
 
+       $assignmentPlace = strtoupper(
+        trim((string) data_get($doc, 'actor_details.assignment_place', ''))
+    );
+
+      $canViewFinancialDocYaounde =  (bool) data_get(
+                $currentUserContext,
+                'assignmentContext.canViewFinancialDocYaounde',
+                false
+            );
+    
+    throw new Exception(json_encode($assignmentPlace), 1);
+    throw new Exception(json_encode($canViewFinancialDocYaounde), 1);
+    throw new Exception(json_encode($currentUserContext), 1);
     
     
 
