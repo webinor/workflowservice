@@ -1490,8 +1490,8 @@ $query = $policy->apply(
     array $currentUserContext
 ): bool {
     $cityResponsibilities = [
-        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDEO',
-        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBIO',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
         // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA',
     ];
 
@@ -1746,8 +1746,7 @@ foreach ($steps as $instanceStep) {
     );
 
       $actor_details = 
-        ( data_get($doc, 'actor_details', ''))
-    ;//assignment_place
+        ( data_get($doc, 'actor_details', ''));
 
       $canViewFinancialDocYaounde =  (bool) data_get(
                 $currentUserContext,
