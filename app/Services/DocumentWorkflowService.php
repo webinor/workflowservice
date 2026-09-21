@@ -1490,8 +1490,8 @@ $query = $policy->apply(
     array $currentUserContext
 ): bool {
     $cityResponsibilities = [
-        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
-        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDEO',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBIO',
         // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA',
     ];
 
