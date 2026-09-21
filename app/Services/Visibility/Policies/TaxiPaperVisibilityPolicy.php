@@ -33,19 +33,36 @@ class TaxiPaperVisibilityPolicy
         |--------------------------------------------------------------------------
         */
 
-        if (
-            in_array(
-                'VIEW_ALL_TAXI_PAPERS',
-                $responsibilities,
-                true
-            )
-        ) {
+        // if (
+        //     in_array(
+        //         'VIEW_ALL_TAXI_PAPERS',
+        //         $responsibilities,
+        //         true
+        //     )
+        // ) {
 
-            // throw new \Exception(json_encode($responsibilities), 1);
+        //     // throw new \Exception(json_encode($responsibilities), 1);
 
 
-            return $query;
-        }
+        //     return $query;
+        // }
+
+
+              if (array_intersect(
+    [
+        'VIEW_ALL_TAXI_PAPERS',
+
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
+        // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA'
+
+
+    ],
+    $responsibilities
+)) {
+    return $query;
+}
+
 
         /*
         |--------------------------------------------------------------------------
