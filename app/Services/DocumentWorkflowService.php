@@ -1776,7 +1776,7 @@ foreach ($steps as $instanceStep) {
     $currentUserContext
 )) {
 
-throw new Exception("yes", 1);
+// throw new Exception("yes", 1);
 
     return true;
 }
