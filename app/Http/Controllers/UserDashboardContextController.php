@@ -158,6 +158,11 @@ public function show(Request $request)
 
                 ->get();
 
+
+                if ($currentCity == "YAOUNDE") {
+                    # code...
+              
+
               $documentIds =  $tasks->pluck('workflowInstance.document_id');
 
             //   throw new Exception(json_encode($currentCity), 1);
@@ -189,7 +194,7 @@ public function show(Request $request)
     );
 })->values();
 
-
+  }
 
         /*
         |--------------------------------------------------------------------------
