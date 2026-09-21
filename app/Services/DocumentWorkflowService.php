@@ -1754,7 +1754,7 @@ foreach ($steps as $instanceStep) {
             );
 
         
-    throw new Exception(json_encode($doc), 1);
+    // throw new Exception(json_encode($doc), 1);
 
 
     if ($assignmentPlace == "YAOUNDE") {
