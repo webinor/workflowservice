@@ -1745,8 +1745,7 @@ foreach ($steps as $instanceStep) {
         trim((string) data_get($doc, 'actor_details.assignment_place', ''))
     );
 
-      $actor_details = 
-        ( data_get($doc, 'actor_details', ''));
+      $actor_details =  data_get($doc, 'actor_details', []);
 
       $canViewFinancialDocYaounde =  (bool) data_get(
                 $currentUserContext,
@@ -1755,7 +1754,7 @@ foreach ($steps as $instanceStep) {
             );
 
         
-    throw new Exception(json_encode($actor_details), 1);
+    throw new Exception(json_encode($doc), 1);
 
 
     if ($assignmentPlace == "YAOUNDE") {
