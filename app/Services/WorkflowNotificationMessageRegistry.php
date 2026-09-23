@@ -47,16 +47,22 @@ class WorkflowNotificationMessageRegistry
             return new InvoiceProviderMessageBuilder();
         }
 
+        if ($type === 'achat') {
+
+            return null;
+             new InvoiceProviderMessageBuilder();
+        }
+
 
 
         
 
-        // throw new Exception(
-        //     sprintf(
-        //         'Aucun WorkflowNotificationMessageRegistry enregistré pour le type "%s".',
-        //         $type
-        //     )
-        // );
+        throw new Exception(
+            sprintf(
+                'Aucun WorkflowNotificationMessageRegistry enregistré pour le type "%s".',
+                $type
+            )
+        );
 
         // if ($type === 'MISSION') {
         //     return new MissionEnricher();

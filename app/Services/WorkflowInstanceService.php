@@ -451,8 +451,13 @@ public function notifyNextValidators(
         $documentData["document_type"]["slug"]
     );
 
-    $payload = $messageBuilder->build($documentData);
-
+    if (!$messageBuilder) {
+       
+    return;
+        
+    }
+        $payload = $messageBuilder->build($documentData);
+        
     /*
     |--------------------------------------------------------------------------
     | Notification
