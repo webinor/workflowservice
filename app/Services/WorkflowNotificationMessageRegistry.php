@@ -51,12 +51,12 @@ class WorkflowNotificationMessageRegistry
 
         
 
-        throw new Exception(
-            sprintf(
-                'Aucun WorkflowNotificationMessageRegistry enregistré pour le type "%s".',
-                $type
-            )
-        );
+        // throw new Exception(
+        //     sprintf(
+        //         'Aucun WorkflowNotificationMessageRegistry enregistré pour le type "%s".',
+        //         $type
+        //     )
+        // );
 
         // if ($type === 'MISSION') {
         //     return new MissionEnricher();
