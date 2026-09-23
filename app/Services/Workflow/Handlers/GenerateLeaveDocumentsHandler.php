@@ -99,7 +99,7 @@ class GenerateLeaveDocumentsHandler
                 'instance_id' => $instance->id ?? null,
                 'contexts' => [
                     'leave_request_validated',
-                    'leave_order',
+                    // 'leave_order',
                 ],
                 'executed_at' => $instance->executed_at ?? null,
             ]
@@ -115,7 +115,7 @@ class GenerateLeaveDocumentsHandler
 
                 'contexts' => [
                     'leave_request_validated',
-                    'leave_order',
+                    // 'leave_order',
                 ],
             ]
         );
