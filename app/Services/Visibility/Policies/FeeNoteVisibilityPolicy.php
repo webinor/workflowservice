@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 class FeeNoteVisibilityPolicy
     implements VisibilityPolicyInterface
 {
-    protected $workflowVisibility;
+    protected WorkflowVisibilityService $workflowVisibility;
 
     public function __construct(
         WorkflowVisibilityService $workflowVisibility
@@ -33,17 +33,20 @@ class FeeNoteVisibilityPolicy
         |--------------------------------------------------------------------------
         */
 
-        if (
-            in_array(
-                'VIEW_ALL_FEE_NOTES',
-                $responsibilities,
-                true
-            )
-        ) {
-    // throw new \Exception(json_encode($responsibilities), 1);
+            if (array_intersect(
+    [
+        'VIEW_ALL_FEE_NOTES',
 
-            return $query;
-        }
+        'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
+        'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
+        // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA'
+
+
+    ],
+    $responsibilities
+)) {
+    return $query;
+}
 
         /*
         |--------------------------------------------------------------------------

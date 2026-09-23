@@ -46,6 +46,10 @@ class DocumentEnricherRegistry
             return new RegularizationEnricher();
         }
 
+        if ($type === "achat") {
+            return new PurchaseEnricher();
+        }
+
         throw new Exception(
             sprintf(
                 'Aucun DocumentEnricher enregistré pour le type "%s".',

@@ -14,4 +14,7 @@ class DocumentTypeCode
 
     const FACTURE_FOURNISSEUR = 'FACTURE_FOURNISSEUR';
 
+    const DEMANDE_ACHAT = 'purchase_request';
+
+
 }

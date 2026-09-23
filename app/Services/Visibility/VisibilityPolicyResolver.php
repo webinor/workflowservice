@@ -5,6 +5,7 @@ namespace App\Services\Visibility;
 use App\Enums\DocumentTypeCode;
 use App\Services\Visibility\Policies\AbsenceVisibilityPolicy;
 use App\Services\Visibility\Policies\FeeNoteVisibilityPolicy;
+use App\Services\Visibility\Policies\PurchaseRequestVisibilityPolicy;
 use App\Services\Visibility\Policies\RegularizationSheetPolicy;
 use App\Services\Visibility\Policies\SupplierInvoiceVisibilityPolicy;
 use App\Services\Visibility\Policies\TaxiPaperVisibilityPolicy;
@@ -40,6 +41,11 @@ class VisibilityPolicyResolver
             case DocumentTypeCode::FICHE_A_REGULARISER:
                 return app(
                     RegularizationSheetPolicy::class
+                );
+
+            case DocumentTypeCode::DEMANDE_ACHAT :
+                return app(
+                    PurchaseRequestVisibilityPolicy::class
                 );
 
             default:

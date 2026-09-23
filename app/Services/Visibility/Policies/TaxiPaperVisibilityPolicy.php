@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 class TaxiPaperVisibilityPolicy
     implements VisibilityPolicyInterface
 {
-    protected $workflowVisibility;
+    protected WorkflowVisibilityService $workflowVisibility;
 
     public function __construct(
         WorkflowVisibilityService $workflowVisibility
