@@ -17,7 +17,6 @@ class UserDashboardContextController extends Controller
 
 
     //      protected WorkflowInstanceResolverService $resolver;
-    // protected DocumentEnricherRegistry $registry;
     protected DocumentServiceClient $documentClient;
     // protected WorkflowInstanceService $workflowInstanceService;
     // protected EffectiveResponsibilityService $effectiveResponsibilityService;
@@ -38,7 +37,6 @@ class UserDashboardContextController extends Controller
 
     public function __construct(
         // WorkflowInstanceResolverService $workflowInstanceResolverService,
-        // DocumentEnricherRegistry $documentEnricherRegistry,
         DocumentServiceClient $documentClient
         // WorkflowInstanceService $workflowInstanceService,
         // EffectiveResponsibilityService $effectiveResponsibilityService,
@@ -48,7 +46,6 @@ class UserDashboardContextController extends Controller
         
     ) {
         // $this->resolver = $workflowInstanceResolverService;
-        // $this->registry = $documentEnricherRegistry;
         $this->documentClient = $documentClient;
     //     $this->workflowInstanceService = $workflowInstanceService;
     //     $this->effectiveResponsibilityService = $effectiveResponsibilityService;

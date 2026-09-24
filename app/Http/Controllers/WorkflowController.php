@@ -423,6 +423,18 @@ class WorkflowController extends Controller
     )
 );
 
+$completedAt = null;
+
+if ($instance->status === 'COMPLETE') {
+    $completedAt = $instance->instance_steps()
+        ->whereNotNull('executed_at')
+        ->orderByDesc('executed_at')
+        ->value('executed_at');
+}
+
+// throw new Exception(json_encode('$completedAt'), 1);
+
+
         $response = [
             "status" => $instance->status,
             "is_active" => in_array($instance->status , ["PENDING", "IN_PROGRESS"]),
@@ -432,6 +444,9 @@ class WorkflowController extends Controller
             "cancelable"=>$this->workflowInstanceService->cancelable(
                 $instance
             ),
+
+            "completed_at" => $completedAt,
+
             "currentInstanceStep" => $currentInstanceStep,
             "is_signable" => $is_signable,
             "is_bypassable" => $currentInstanceStep->workflowStep->is_bypassable,
