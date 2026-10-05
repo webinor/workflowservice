@@ -173,7 +173,7 @@ class DocumentServiceClient
     ): array {
         $url = config("services.document_service.base_url");
 
-        $http = Http::timeout(20)
+        $http = Http::timeout(120)
             ->acceptJson();
 
         if ($token) {
