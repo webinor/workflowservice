@@ -10,6 +10,7 @@ use App\Models\WorkflowStatusHistory;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepRole;
 use App\Services\Workflow\WorkflowInstanceResolverService;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Http;
 
@@ -79,6 +80,8 @@ public function getWorkflowClosedAt(
     |--------------------------------------------------------------------------
     */
 
+     // executed_at peut être une chaîne ou une instance Carbon.
+    return Carbon::parse($archiveStep->executed_at)->toDateTimeString();
     return $archiveStep->executed_at->toDateTimeString();
 }
 
