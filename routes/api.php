@@ -153,6 +153,9 @@ Route::post(
                 );
 
                 Route::post('/workflow-instances/{documentUuid}/cancel','cancel');
+                Route::post('/workflow-instances/{documentUuid}/cancel-operation','cancel');
+
+                
 
                 Route::post(
                     "/workflow-instances/{documentUuid}/return",
@@ -166,7 +169,8 @@ Route::post(
                 
                 Route::post(
     '/workflow-instances/{documentuuid}/bypass',
-    [WorkflowInstanceController::class, 'bypassStep']
+    // [WorkflowInstanceController::class, 'bypassStep']
+     'bypassStep'
 );
                 Route::post(
                     "/workflow-instances/{documentId}/check-for-blocker",

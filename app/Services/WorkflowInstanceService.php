@@ -83,7 +83,9 @@ private function resetAssignSteps(
     WorkflowInstanceStep $instanceStep
 ): void
 {
-    $data = $instanceStep->workflowStep->assignment_mode == "OWNER" ? ['decision' => "PENDING" , 'decided_at'=>null] : 
+    $data = $instanceStep->workflowStep->assignment_mode == "OWNER" && 
+    !$instanceStep->workflowStep->is_regularization_start
+    ? ['decision' => "PENDING" , 'decided_at'=>null] : 
     [
         'user_id'=> null,
         'decision' => "PENDING",
@@ -95,6 +97,225 @@ private function resetAssignSteps(
         $instanceStep->id
     )
     ->update($data);
+}
+
+/**
+ * Détermine les destinations de retour autorisées.
+ *
+ * Règles :
+ *
+ * 1. Si la phase de régularisation n'a pas encore été atteinte :
+ *    retour uniquement à la première étape du workflow.
+ *
+ * 2. Si la phase de régularisation a été atteinte :
+ *    retour vers les étapes COMPLETE de cette phase,
+ *    antérieures à l'étape courante.
+ *
+ * Le début de la phase est déterminé par :
+ * workflow_steps.is_regularization_start = true
+ *
+ * @param WorkflowInstance $instance
+ * @param WorkflowInstanceStep $currentStep
+ *
+ * @return \Illuminate\Support\Collection
+ */
+public function OldgetAllowedReturnSteps(
+    $instance,
+    $currentStep
+) {
+    /*
+     * Récupérer les étapes exécutées de cette instance
+     * et charger leurs définitions.
+     */
+    $instanceSteps = $instance->instance_steps()
+        ->with('workflowStep')
+        ->orderBy('position', 'asc')
+        ->get();
+
+    /*
+     * Identifier le début de la régularisation
+     * à partir du flag de la définition de l'étape.
+     */
+    $regularizationStart = $instanceSteps->first(
+        function ($instanceStep) {
+            return $instanceStep->workflowStep
+                && $instanceStep->workflowStep->is_regularization_start;
+        }
+    );
+
+    /*
+     * Identifier la première étape du workflow.
+     */
+    $firstInstanceStep = $instanceSteps->first(
+        function ($instanceStep) {
+            return (int) $instanceStep->position === 0;
+        }
+    );
+
+    /*
+     * Si aucune étape de début n'est disponible,
+     * retourner une collection vide.
+     */
+    if (!$firstInstanceStep) {
+        return collect();
+    }
+
+    /*
+     * Si le début de la régularisation n'a pas encore
+     * été atteint, le retour est limité à la soumission.
+     */
+    if (!$regularizationStart) {
+        return collect([$firstInstanceStep]);
+    }
+
+    /*
+     * Si l'étape courante précède le début de la
+     * régularisation, seul le retour à la soumission
+     * est autorisé.
+     */
+    if (
+        (int) $currentStep->position
+        < (int) $regularizationStart->position
+    ) {
+        return collect([$firstInstanceStep]);
+    }
+
+    /*
+     * Dans la phase de régularisation :
+     *
+     * - conserver uniquement les étapes COMPLETE ;
+     * - inclure l'étape de début de régularisation ;
+     * - exclure l'étape courante ;
+     * - conserver l'ordre du parcours.
+     */
+    return $instanceSteps
+        ->filter(function ($step) use (
+            $regularizationStart,
+            $currentStep
+        ) {
+            return $step->status === 'COMPLETE'
+                && (int) $step->position
+                    >= (int) $regularizationStart->position
+                && (int) $step->position
+                    < (int) $currentStep->position;
+        })
+        ->sortBy('position')
+        ->values();
+}
+
+/**
+ * Détermine les destinations de retour autorisées.
+ *
+ * Règles :
+ *
+ * 1. Si aucune étape de régularisation n'existe :
+ *    aucune destination personnalisée n'est proposée.
+ *    Le retour sera effectué au début du workflow.
+ *
+ * 2. Si la régularisation n'a pas encore été atteinte :
+ *    aucune destination personnalisée n'est proposée.
+ *    Le retour sera effectué au début du workflow.
+ *
+ * 3. Si la régularisation a commencé :
+ *    proposer les étapes COMPLETE de cette phase,
+ *    antérieures à l'étape courante.
+ *
+ * Le début de la phase est déterminé par :
+ * workflow_steps.is_regularization_start = true
+ *
+ * @param WorkflowInstance $instance
+ * @param WorkflowInstanceStep $currentStep
+ *
+ * @return \Illuminate\Support\Collection
+ */
+public function getAllowedReturnSteps(
+    $instance,
+    $currentStep
+) {
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Récupérer les étapes de l'instance
+    |--------------------------------------------------------------------------
+    */
+
+    $instanceSteps = $instance->instance_steps()
+        ->with('workflowStep')
+        ->orderBy('position', 'asc')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Identifier le début de la régularisation
+    |--------------------------------------------------------------------------
+    */
+
+    $regularizationStart = $instanceSteps->first(
+        function ($instanceStep) {
+            return $instanceStep->workflowStep
+                && $instanceStep->workflowStep->is_regularization_start;
+        }
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Aucun début de régularisation défini
+    |--------------------------------------------------------------------------
+    |
+    | Exemples :
+    | - Papier taxi
+    | - Notes de frais
+    |
+    | Le retour se fera au début du workflow.
+    | Le frontend ne doit proposer aucune étape.
+    |
+    */
+
+    if (!$regularizationStart) {
+        return collect();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Vérifier si la régularisation a été atteinte
+    |--------------------------------------------------------------------------
+    |
+    | Tant que l'étape courante précède le début de la régularisation,
+    | le retour se fait automatiquement au début du workflow.
+    |
+    */
+
+    if (
+        (int) $currentStep->position
+        < (int) $regularizationStart->position
+    ) {
+        return collect();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Proposer les destinations autorisées
+    |--------------------------------------------------------------------------
+    |
+    | Conditions :
+    | - étape terminée (COMPLETE) ;
+    | - position égale ou supérieure au début de la régularisation ;
+    | - position strictement inférieure à celle de l'étape courante.
+    |
+    */
+
+    return $instanceSteps
+        ->filter(function ($step) use (
+            $regularizationStart,
+            $currentStep
+        ) {
+            return $step->status === 'COMPLETE'
+                && (int) $step->position
+                    >= (int) $regularizationStart->position
+                && (int) $step->position
+                    < (int) $currentStep->position;
+        })
+        ->sortBy('position')
+        ->values();
 }
 
 

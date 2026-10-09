@@ -15,7 +15,7 @@ class CancelWorkflowInstanceRequest extends FormRequest
     public function rules()
     {
         return [
-            "reason" => [
+            "comment" => [
                 "required",
                 "string",
                 "max:500",
@@ -27,10 +27,10 @@ class CancelWorkflowInstanceRequest extends FormRequest
     public function messages()
     {
         return [
-            "reason.required" =>
+            "comment.required" =>
                 "Le motif d'annulation est obligatoire.",
 
-            "reason.max" =>
+            "comment.max" =>
                 "Le motif d'annulation ne doit pas dépasser 500 caractères.",
         ];
     }

@@ -6,10 +6,21 @@ use App\Models\WorkflowActionStep;
 use App\Models\WorkflowInstance;
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStatusLabel;
+use App\Services\WorkflowInstanceService;
 use Illuminate\Support\Facades\Http;
 
 class WorkflowInstanceResolverService
 {
+
+//  protected WorkflowInstanceService $workflowInstanceService;
+
+//     public function __construct(
+//         WorkflowInstanceService $workflowInstanceService
+//     ) {
+//         $this->workflowInstanceService = $workflowInstanceService;
+//     }
+
+
     public function getCurrentStep(
         WorkflowInstance $instance
     ): ?WorkflowInstanceStep {
@@ -146,7 +157,7 @@ class WorkflowInstanceResolverService
         return null;
     }
 
-    public function resolveReturnTarget(
+    public function OldresolveReturnTarget(
     WorkflowInstance $instance,
     WorkflowInstanceStep $currentStep,
     WorkflowActionStep $actionStep
@@ -178,6 +189,139 @@ class WorkflowInstanceResolverService
             );
     }
 }
+
+/**
+ * Détermine l'étape cible d'un retour pour modification.
+ *
+ * Règles :
+ * - Avant le début de la régularisation : retour à la soumission.
+ * - Pendant la régularisation : retour à une étape COMPLETE autorisée,
+ *   sélectionnée par l'utilisateur.
+ *
+ * @param WorkflowInstance $instance
+ * @param WorkflowInstanceStep $currentStep
+ * @param WorkflowInstanceService $workflowInstanceService
+ * @param int|null $returnTo
+ *
+ * @return WorkflowInstanceStep|null
+ */
+public function resolveReturnTarget(
+    WorkflowInstance $instance,
+    WorkflowInstanceStep $currentStep,
+    WorkflowInstanceService $workflowInstanceService,
+    ?int $returnTo = null
+): ?WorkflowInstanceStep {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Récupérer les étapes de l'instance dans leur ordre d'exécution
+    |--------------------------------------------------------------------------
+    */
+
+    $steps = $instance
+        ->instance_steps()
+        ->with('workflowStep')
+        ->orderBy('position', 'asc')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Trouver le début de la régularisation
+    |--------------------------------------------------------------------------
+    */
+
+    $regularizationStartStep = $steps->first(function ($step) {
+        return $step->workflowStep
+            && $step->workflowStep->is_regularization_start;
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Trouver l'étape de soumission
+    |--------------------------------------------------------------------------
+    */
+
+    $submitterStep = $steps->first(function ($step) {
+        return (int) $step->position === 0;
+    });
+
+    if (!$submitterStep) {
+        throw new \RuntimeException(
+            "Impossible de retrouver l'étape de soumission."
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Avant la régularisation : retour obligatoire à la soumission
+    |--------------------------------------------------------------------------
+    |
+    | Si le marqueur de régularisation n'existe pas, ou si l'étape courante
+    | se situe avant ou au début de cette phase, on conserve le comportement
+    | historique : retour à l'étape de soumission.
+    |
+    */
+
+    if (
+        !$regularizationStartStep
+        || (int) $currentStep->position
+            <= (int) $regularizationStartStep->position
+    ) {
+        return $submitterStep;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Pendant la régularisation : destinations autorisées
+    |--------------------------------------------------------------------------
+    */
+
+    $allowedSteps =
+    $workflowInstanceService->getAllowedReturnSteps(
+        $instance,
+        $currentStep
+    );
+
+    if ($allowedSteps->isEmpty()) {
+        throw new \RuntimeException(
+            "Aucune étape de retour n'est autorisée."
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Vérifier la destination choisie
+    |--------------------------------------------------------------------------
+    |
+    | On recherche exclusivement parmi les étapes autorisées de cette
+    | instance. Un identifiant fourni par le frontend ne suffit pas.
+    |
+    */
+
+    if (!$returnTo) {
+        throw new \RuntimeException(
+            "Veuillez sélectionner une étape de retour."
+        );
+    }
+
+    //    throw new \Exception(
+    //                 json_encode($allowedSteps)
+    //             );
+
+    $targetStep = $allowedSteps->first(function ($step) use ($returnTo) {
+        return (int) $step->id === (int) $returnTo;
+    });
+
+    if (!$targetStep) {
+        throw new \RuntimeException(
+            "L'étape de retour sélectionnée n'est pas autorisée."
+        );
+    }
+
+    return $targetStep;
+}
+
+
 
 private function resolveSubmitterStep(
     WorkflowInstance $instance

@@ -33,7 +33,7 @@ class WorkflowStep extends Model
         "is_payment_step" => "boolean",
     'is_bypassable' => 'boolean',
         'completion_rule_config' => 'array',
-
+'is_regularization_start' => 'boolean',
     'check_before' => 'boolean',
         
     ];

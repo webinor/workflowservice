@@ -26,6 +26,7 @@ use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
 use App\Services\Workflow\Event\WorkflowEventEngine;
+use App\Services\Workflow\WorkflowCancellationService;
 use App\Services\Workflow\WorkflowCompletionEvaluator;
 use App\Services\Workflow\WorkflowDynamicResolverService;
 use App\Services\Workflow\WorkflowInstanceResolverService;
@@ -44,13 +45,17 @@ class WorkflowInstanceController extends Controller
 
     protected WorkflowInstanceService $workflowInstanceService;
     protected WorkflowInstanceResolverService $resolver;
+    protected WorkflowCancellationService $workflowCancellationService;
+
 
     public function __construct(
         WorkflowInstanceService $workflowInstanceService,
-        WorkflowInstanceResolverService $workflowInstanceResolverService
+        WorkflowInstanceResolverService $workflowInstanceResolverService,
+        WorkflowCancellationService $workflowCancellationService
     ) {
         $this->workflowInstanceService = $workflowInstanceService;
         $this->resolver = $workflowInstanceResolverService;
+        $this->workflowCancellationService = $workflowCancellationService;
     }
 
     /**
@@ -522,17 +527,27 @@ class WorkflowInstanceController extends Controller
                 );
             }
 
-            $this->workflowInstanceService->cancel(
+            // $this->workflowInstanceService->cancel(
+            //     $instance,
+            //     $userId,
+            //     $request->input("reason")
+            // );
+
+            $response = $this->workflowCancellationService->cancel(
                 $instance,
                 $userId,
-                $request->input("reason")
+                $request->input("comment"),
+                $instance->document_uuid
             );
 
             DB::commit();
 
-            return response()->json([
-                "message" => "Document annulé avec succès",
-            ]);
+            // return response()->json([
+            //     "message" => "Document annulé avec succès",
+            // ]);
+
+             return response()->json($response);
+
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -543,7 +558,9 @@ class WorkflowInstanceController extends Controller
 
             return response()->json(
                 [
-                    "message" => "Erreur lors de l'annulation du document",
+                    // "message" => "Erreur lors de l'annulation du document",
+                "message" => $e->getMessage(),
+
                 ],
                 500
             );
@@ -2001,6 +2018,7 @@ class WorkflowInstanceController extends Controller
         DB::beginTransaction();
 
         try {
+            // return
             $user = $request->get("user");
             $action = Str::lower($request->get("condition"));//actionStepId
 
@@ -2011,6 +2029,20 @@ class WorkflowInstanceController extends Controller
 
             // 2️⃣ Récupérer l'étape en cours
             $currentStep = $this->resolver->getCurrentStep($instance);
+
+            // 3️⃣ Récupérer les étapes précédentes déjà terminées
+// $previousCompletedSteps = $instance
+//     ->instance_steps()
+//     ->with('workflowStep')
+//     ->where('status', 'COMPLETE')
+//     ->where('id', '<', $currentStep->id)
+//     ->orderBy('id', 'asc')
+//     ->get();
+// return
+    $allowedReturnSteps = $this->workflowInstanceService->getAllowedReturnSteps(
+    $instance,
+    $currentStep,
+);
 
             if (!$currentStep) {
                 return response()->json(
@@ -2098,6 +2130,8 @@ class WorkflowInstanceController extends Controller
                 "success" => true,
                 "message" => "Aucun blocker à cette etape",
                 "currentStep" => $currentStep,
+                // "previousCompletedSteps" => $previousCompletedSteps,
+                "allowedReturnSteps" => $allowedReturnSteps,
                 "nextStep" => $nextStep,
                 "actionStep"=>$actionStep,
                 "isDynamicStep" => $isDynamic,
@@ -2692,6 +2726,10 @@ class WorkflowInstanceController extends Controller
                 $documentUuid
             )->firstOrFail();
 
+                $returnTo = $request->filled('return_to')
+            ? (int) $request->input('return_to')
+            : null;
+
             $currentStep = $this->resolver->getCurrentStep($instance);
 
             if (!$currentStep) {
@@ -2709,8 +2747,13 @@ class WorkflowInstanceController extends Controller
             $targetStep = $this->resolver->resolveReturnTarget(
                 $instance,
                 $currentStep,
-                $actionStep
+                $this->workflowInstanceService,
+                $returnTo
             );
+
+            // throw new \Exception(
+            //         json_encode($targetStep)
+            //     );
 
             if (!$targetStep) {
                 throw new \Exception(
@@ -3071,7 +3114,7 @@ class WorkflowInstanceController extends Controller
             ->where("from_step_id", $currentStep->workflow_step_id)
             ->get();
 
-        if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
+        if ($documentData['uuid'] == "2e62a3c5-3bf3-40ae-924a-3cb5a29cfa1a") {
 
 
             //    throw new Exception(json_encode($pathtransitions));
@@ -3533,7 +3576,7 @@ class WorkflowInstanceController extends Controller
         return ["isDynamic" => $isDynamic, "next_step" => null];
     }
 
-    function get_step($instance, $transition, $isDynamic)
+    function get_step(WorkflowInstance $instance, WorkflowTransition $transition, bool $isDynamic)
     {
         $tempWorkflowInstanceStep = WorkflowInstanceStep::with("assignments")
             ->where("workflow_instance_id", $instance->id)

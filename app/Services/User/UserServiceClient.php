@@ -89,4 +89,37 @@ class UserServiceClient
 
         return $response->json()['data'] ?? [];
     }
+
+    /**
+ * =========================================
+ * Annuler les transactions financière d'un document
+ * =========================================
+ *
+ * @param string    $documentUuid Identifiant de la 
+ * @param int    $userId        Utilisateur qui effectue l'annulation
+ * @param string $reason        Motif de l'annulation
+ *
+ * @return array|null
+ */
+public function cancelTransactions(
+    string $documentUuid,
+    int $userId,
+    string $reason
+): ?array {
+    $response = Http::withHeaders(
+        $this->headers()
+    )->timeout(30)->post(
+        "{$this->baseUrl}/transactions/by-document/{$documentUuid}/cancel",
+        [
+            'user_id' => $userId,
+            'reason' => $reason,
+        ]
+    );
+
+    if (!$response->successful()) {
+        return null;
+    }
+
+    return $response->json();
+}
 }
