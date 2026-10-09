@@ -30,6 +30,58 @@ class WorkflowInstanceService
 
     }
 
+    /**
+ * Récupère la date et l'heure de clôture du workflow.
+ *
+ * La clôture est déterminée par l'étape dont la définition
+ * possède is_archived_step = true.
+ *
+ * @param WorkflowInstance $instance
+ *
+ * @return string|null Date de clôture ou null si le workflow
+ *                     n'a pas encore été clôturé.
+ */
+public function getWorkflowClosedAt(
+    WorkflowInstance $instance
+): ?string {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Récupérer l'étape de clôture de l'instance
+    |--------------------------------------------------------------------------
+    |
+    | workflowStep correspond à la définition de l'étape.
+    | is_archived_step indique qu'il s'agit de l'étape d'archivage.
+    |
+    */
+
+    $archiveStep = $instance->instance_steps()
+        ->whereHas('workflowStep', function ($query) {
+            $query->where('is_archived_step', true);
+        })
+        ->where('status', 'COMPLETE')
+        ->orderByDesc('position')
+        ->first();
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Vérifier que l'étape a été exécutée
+    |--------------------------------------------------------------------------
+    */
+
+    if (!$archiveStep || !$archiveStep->executed_at) {
+        return null;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Retourner la date et l'heure de clôture
+    |--------------------------------------------------------------------------
+    */
+
+    return $archiveStep->executed_at->toDateTimeString();
+}
+
 
     public function resetStep(
     WorkflowInstanceStep $step

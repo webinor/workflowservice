@@ -678,12 +678,14 @@ protected function getSameDepartmentMap(
         $resolved["availability"]["can_cancel"] = $isSuperAdmin ||  ( $cancelable && $currentUserId == $doc["created_by"]);
         // $resolved["availability"]["can_cancel"] =true;
 
+       $workflowClosedAt = $this->workflowInstanceService->getWorkflowClosedAt($instance) ;
 
       
 
     $canDelete = $isSuperAdmin;
 
 $resolved["availability"]['can_delete'] = $canDelete;
+$resolved["availability"]['workflow_closed_at'] = $workflowClosedAt;
 
 
 
