@@ -241,38 +241,55 @@ class DocumentServiceClient
 
 
     public function fetchDocuments(
-        $documentIds,
-        array $documentTypes,
-        ?array $filters,
-        Request $request,
-        bool $isStat=false,
-        bool $shouldEnrich = true
-    ): array {
-        
-        $response = Http::withToken($request->bearerToken())
-            ->acceptJson()
-            ->get(config("services.document_service.base_url") . "/by-ids", [
-                "ids" => $documentIds->toArray(),
-                "documentTypes" => $documentTypes,
-                "filters" => $filters,
-                "shouldEnrich" => $shouldEnrich,
-                "isStat"=>$isStat
-            ]);
+    $documentIds,
+    array $documentTypes,
+    ?array $filters,
+    Request $request,
+    bool $isStat = false,
+    bool $shouldEnrich = true
+): array {
 
-       
-        // throw new Exception(json_encode($response->json()), 1);
+    $ids = $documentIds->toArray();
 
+    $url = config("services.document_service.base_url") . "/by-ids";
 
-        if ($response->ok()) {
+    $queryParams = [
+        "ids" => $ids,
+        "documentTypes" => $documentTypes,
+        "filters" => $filters,
+        "shouldEnrich" => $shouldEnrich,
+        "isStat" => $isStat,
+    ];
 
-        // throw new Exception(json_encode($response->json()[0]), 1);
+    logger()->info("DOCUMENT CLIENT - REQUETE BY IDS", [
+        "url" => $url,
+        "ids_count" => count($ids),
+        "ids" => $ids,
+        "document_types" => $documentTypes,
+        "filters" => $filters,
+        "is_stat" => $isStat,
+        "should_enrich" => $shouldEnrich,
+    ]);
 
-            return $response->json();
-        } else {
-            throw new Exception(json_encode($response->body()), 1);
-        }
+    $response = Http::withToken($request->bearerToken())
+        ->acceptJson()
+        ->get($url, $queryParams);
 
-        // return $response->ok() ? $response->json() : [];
+    logger()->info("DOCUMENT CLIENT - REPONSE BY IDS", [
+        "http_status" => $response->status(),
+        "response_is_json" => $response->header("Content-Type"),
+        "response_count" => count($response->json() ?? []),
+        "response_body" => $response->body(),
+    ]);
+
+    if ($response->ok()) {
+        return $response->json();
     }
+
+    throw new Exception(
+        json_encode($response->body()),
+        1
+    );
+}
 
 }
