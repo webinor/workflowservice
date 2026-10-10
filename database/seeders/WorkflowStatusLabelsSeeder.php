@@ -76,7 +76,7 @@ class WorkflowStatusLabelsSeeder extends Seeder
     'code' => 'RECEIPTS_RECEIVED_WAITING_CLOSURE',
     'label' => 'Justificatifs reçus, en attente de clôture',
     'emoji' => '📄',
-    'color' => 'warning',
+    'color' => 'info',
     'is_configurable' => true,
     'status_type' => 'COMMON',
 ],
