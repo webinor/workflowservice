@@ -62,6 +62,16 @@ class WorkflowStatusLabelsSeeder extends Seeder
         'is_configurable' => true,
         'status_type' => 'COMMON',
     ],
+
+    [
+    'code' => 'WAITING_PHYSICAL_SUPPORTING_DOCUMENTS',
+    'label' => 'En attente des justificatifs physiques',
+    'emoji' => '📄',
+    'color' => 'warning',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
     [
         'code' => 'WAITING_PAYMENT',
         'label' => 'En attente de paiement',
