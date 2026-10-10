@@ -59,7 +59,734 @@ class DocumentWorkflowService
         $this->responsibilityService = $responsibilityService;
     }
 
-  public function getDocuments(
+    public function getDocuments(
+    array $params,
+    Request $request,
+    WorkflowPermissionService $permissionService
+): array {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Initialisation
+    |--------------------------------------------------------------------------
+    |
+    | On récupère les paramètres préparés par le contrôleur appelant.
+    |
+    | Important :
+    | - $filters contient les filtres transmis par le frontend.
+    | - $filterContext détermine les règles de sélection du workflow.
+    | - $currentPage et $per_page définissent la pagination.
+    | - $isStat indique si l'appel concerne les statistiques.
+    |
+    */
+
+    [
+        "employeeId" => $employeeId,
+        "userId" => $userId,
+        "roleId" => $roleId,
+        "document_type" => $document_type,
+        "validationContext" => $validationContext,
+        "filters" => $filters,
+        "filterContext" => $filterContext,
+        "currentPage" => $currentPage,
+        "per_page" => $per_page,
+        "isStat" => $isStat,
+    ] = $params;
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Détection du mode export
+    |--------------------------------------------------------------------------
+    |
+    | En mode export :
+    | - on conserve tous les documents autorisés correspondant aux filtres ;
+    | - on ne découpe pas les résultats en pages.
+    |
+    */
+
+    $isExport = (bool) ($params["export"] ?? false);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Construction de la requête Workflow
+    |--------------------------------------------------------------------------
+    |
+    | Cette requête détermine les instances de workflow correspondant
+    | au contexte demandé.
+    |
+    | On conserve ici les règles de sélection existantes.
+    |
+    */
+
+    $baseQuery = $this->buildWorkflowQuery(
+        $validationContext
+    );
+
+    if (!empty($document_type)) {
+        $baseQuery->where(
+            "workflow_instances.document_type_relation_name",
+            $document_type
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Contexte de l'employé et de l'utilisateur
+    |--------------------------------------------------------------------------
+    |
+    | Ces contextes sont utilisés par les règles de responsabilité
+    | et les contrôles de visibilité.
+    |
+    */
+
+    $currentEmployeeContext = $this
+        ->effectiveResponsibilityService
+        ->getContext($employeeId);
+
+    $currentUserContext = $this
+        ->effectiveResponsibilityService
+        ->getUserContext($employeeId);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Responsabilités effectives
+    |--------------------------------------------------------------------------
+    |
+    | On conserve la résolution actuelle des responsabilités de l'employé.
+    |
+    */
+
+    $responsibilities = $this
+        ->effectiveResponsibilityService
+        ->getForEmployee(
+            $employeeId,
+            $currentEmployeeContext
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Sélection des identifiants de workflow
+    |--------------------------------------------------------------------------
+    |
+    | getDocumentIds() applique les règles de sélection existantes :
+    | contexte, rôle, utilisateur, responsabilités et filtres de workflow.
+    |
+    | À ce stade, les filtres propres aux documents, comme la référence,
+    | peuvent ne pas encore avoir été appliqués par le Document Service.
+    |
+    | C'est pourquoi nous ne devons pas encore appliquer la pagination.
+    |
+    */
+
+    $documentIdsNotPaginated = $this->getDocumentIds(
+        $filterContext,
+        clone $baseQuery,
+        $roleId,
+        $userId,
+        $validationContext,
+        $document_type[0],
+        $employeeId,
+        $responsibilities,
+        $filters,
+        $filterContext['applyStatus'],
+        $filterContext['applyRole']
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 7. Extraction des identifiants des documents
+    |--------------------------------------------------------------------------
+    |
+    | On conserve tous les identifiants retournés par getDocumentIds().
+    |
+    | Aucun découpage en pages n'est effectué à ce stade.
+    |
+    */
+
+    $documentIds = collect($documentIdsNotPaginated)
+        ->pluck("document_id")
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 8. Récupération des documents auprès du Document Service
+    |--------------------------------------------------------------------------
+    |
+    | On récupère les documents correspondant aux identifiants sélectionnés.
+    |
+    | Cette première récupération sert à :
+    | - obtenir les données nécessaires aux contrôles de visibilité ;
+    | - préparer les permissions par type de document ;
+    | - récupérer les informations nécessaires à canView().
+    |
+    | On ne passe pas encore les filtres dynamiques à cette méthode :
+    | ils seront appliqués lors de la récupération finale.
+    |
+    | Cela évite d'exclure prématurément un document avant le contrôle
+    | des permissions.
+    |
+    */
+
+    $flatDocuments = collect(
+        $this->documentClient->getDocumentTypesByIds(
+            $documentIds->toArray()
+        )
+    )
+        ->sortByDesc("id")
+        ->values()
+        ->all();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 9. Récupération des permissions par type de document
+    |--------------------------------------------------------------------------
+    |
+    | Les permissions sont calculées sur les documents récupérés.
+    |
+    | Elles seront utilisées par canView() pour déterminer les documents
+    | que l'employé est autorisé à consulter.
+    |
+    */
+
+    $permissionsByDocType = $this->getPermissions(
+        $flatDocuments,
+        $userId,
+        $roleId,
+        $request,
+        $permissionService
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 10. Préparation des départements des acteurs
+    |--------------------------------------------------------------------------
+    |
+    | Ces données sont utilisées par getSameDepartmentMap() et les règles
+    | de visibilité existantes.
+    |
+    */
+
+    $actorIds = collect($flatDocuments)
+        ->pluck('actor_id')
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+    $currentDepartmentId = data_get(
+        $currentEmployeeContext,
+        'active_position.department_id'
+    );
+
+    $sameDepartmentMap = $this->getSameDepartmentMap(
+        $actorIds,
+        $currentDepartmentId
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 11. Chargement des instances de workflow
+    |--------------------------------------------------------------------------
+    |
+    | On charge les instances associées aux documents candidats.
+    |
+    | Ces instances sont nécessaires à canView().
+    |
+    */
+
+    $workflowInstances = WorkflowInstance::query()
+        ->whereIn("document_id", $documentIds)
+        ->get()
+        ->keyBy("document_id");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 12. Chargement des étapes de workflow
+    |--------------------------------------------------------------------------
+    |
+    | On charge les étapes et les actions associées afin que canView()
+    | puisse appliquer les règles de visibilité existantes.
+    |
+    */
+
+    $workflowInstanceIds = $workflowInstances
+        ->pluck("id")
+        ->filter()
+        ->values()
+        ->toArray();
+
+    $workflowSteps = WorkflowInstanceStep::query()
+        ->whereIn(
+            "workflow_instance_id",
+            $workflowInstanceIds
+        )
+        ->with([
+            "workflowStep.workflowActionSteps.workflowAction"
+        ])
+        ->get()
+        ->groupBy("workflow_instance_id");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 13. Contrôle des permissions de visibilité
+    |--------------------------------------------------------------------------
+    |
+    | Cette étape est essentielle.
+    |
+    | On conserve canView() afin que les filtres du frontend ne puissent
+    | jamais contourner les permissions du workflow.
+    |
+    | Seuls les documents autorisés seront transmis à la récupération
+    | finale.
+    |
+    */
+
+    $filteredDocuments = collect($flatDocuments)
+        ->filter(
+            fn($doc) => $this->canView(
+                $doc,
+                $permissionsByDocType,
+                $employeeId,
+                $userId,
+                $validationContext,
+                $document_type,
+                $responsibilities,
+                $workflowInstances,
+                $workflowSteps,
+                $sameDepartmentMap,
+                $currentUserContext
+            )
+        )
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 14. Mode statistiques
+    |--------------------------------------------------------------------------
+    |
+    | Le mode statistiques conserve son fonctionnement distinct.
+    |
+    | On transmet tous les identifiants autorisés au Document Service,
+    | qui applique les filtres et calcule le nombre de résultats.
+    |
+    | Aucune pagination n'est appliquée ici.
+    |
+    */
+
+    if ($isStat) {
+
+        $authorizedDocumentIds = $filteredDocuments
+            ->pluck("id")
+            ->values();
+
+        $documentsCount = $this->documentClient->fetchDocuments(
+            $authorizedDocumentIds,
+            $document_type,
+            $filters,
+            $request,
+            true,
+            false
+        );
+
+        return [
+            "count" => $documentsCount,
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 15. Identifiants de tous les documents autorisés
+    |--------------------------------------------------------------------------
+    |
+    | CORRECTION PRINCIPALE :
+    |
+    | On récupère tous les identifiants des documents ayant passé canView().
+    |
+    | On ne doit surtout pas appliquer la pagination ici.
+    |
+    | Exemple :
+    |
+    | Documents autorisés :
+    | [1574, 1572, 1570, ..., 1488, ...]
+    |
+    | Filtre :
+    | reference = A5PB4U
+    |
+    | Si le document 1488 correspond à cette référence, il doit pouvoir
+    | être récupéré même s'il se trouve après les dix premiers documents.
+    |
+    */
+
+    $authorizedDocumentIds = $filteredDocuments
+        ->pluck("id")
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 16. Application des filtres avant la pagination
+    |--------------------------------------------------------------------------
+    |
+    | On transmet TOUS les identifiants autorisés au Document Service.
+    |
+    | Le Document Service applique notamment :
+    | - reference ;
+    | - accounting_entry_number ;
+    | - date_start et date_end ;
+    | - status_paid et status ;
+    | - employee_id ;
+    | - document_type_id ;
+    | - les autres filtres pris en charge par documentFilterService.
+    |
+    | Le résultat contient uniquement les documents correspondant aux
+    | identifiants autorisés ET aux filtres demandés.
+    |
+    | IMPORTANT :
+    | On ne transmet pas encore une liste d'identifiants paginée.
+    |
+    */
+
+    $documentsAfterFilters = $this->documentClient->fetchDocuments(
+        $authorizedDocumentIds,
+        $document_type,
+        $filters,
+        $request,
+        false,
+        true
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 17. Conversion du résultat en Collection
+    |--------------------------------------------------------------------------
+    |
+    | Cette collection permet d'appliquer la pagination après les filtres.
+    |
+    | Le Document Service trie déjà ses résultats par identifiant décroissant.
+    | On conserve donc l'ordre retourné par ce service.
+    |
+    */
+
+    $documentsAfterFilters = collect($documentsAfterFilters)
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 18. Calcul du total après filtrage
+    |--------------------------------------------------------------------------
+    |
+    | Le total doit représenter le nombre de documents correspondant
+    | aux filtres, et non le nombre de documents avant leur application.
+    |
+    | C'est ce total qui doit alimenter la pagination du frontend.
+    |
+    */
+
+    $total = $documentsAfterFilters->count();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 19. Préparation de la pagination
+    |--------------------------------------------------------------------------
+    |
+    | On sécurise les valeurs reçues.
+    |
+    | page :
+    |   minimum 1
+    |
+    | per_page :
+    |   minimum 1
+    |
+    | last_page :
+    |   minimum 1, même si aucun résultat n'est disponible.
+    |
+    */
+
+    $page = max((int) $currentPage, 1);
+
+    $perPage = max((int) $per_page, 1);
+
+    $lastPage = max(
+        1,
+        (int) ceil($total / $perPage)
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 20. Pagination / Export
+    |--------------------------------------------------------------------------
+    |
+    | Mode normal :
+    |   On découpe les résultats APRÈS l'application des filtres.
+    |
+    | Mode export :
+    |   On conserve tous les résultats filtrés, sans pagination.
+    |
+    */
+
+    if ($isExport) {
+
+        /*
+         * Export :
+         * tous les documents correspondant aux filtres sont conservés.
+         */
+
+        $documentsToReturn = $documentsAfterFilters
+            ->values();
+
+    } else {
+
+        /*
+         * Liste normale :
+         * on évite de conserver une page supérieure à la dernière page.
+         *
+         * Exemple :
+         * total = 2
+         * per_page = 10
+         * page demandée = 3
+         *
+         * La page est ramenée à 1.
+         */
+
+        $page = min($page, $lastPage);
+
+        $documentsToReturn = $documentsAfterFilters
+            ->slice(($page - 1) * $perPage, $perPage)
+            ->values();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 21. Préparation des documents de la page courante
+    |--------------------------------------------------------------------------
+    |
+    | À partir de maintenant, on travaille uniquement sur les documents
+    | qui doivent réellement être retournés au frontend.
+    |
+    | Les identifiants sont également utilisés pour récupérer les contextes
+    | de disponibilité et les instances nécessaires aux enrichissements.
+    |
+    */
+
+    $documents = $documentsToReturn
+        ->values()
+        ->all();
+
+    $filteredDocumentIds = collect($documents)
+        ->pluck("id")
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 22. Métadonnées de pagination
+    |--------------------------------------------------------------------------
+    |
+    | Le total correspond aux résultats filtrés avant pagination.
+    |
+    | En mode export, le tableau retourné n'est pas découpé en pages.
+    | Les métadonnées restent calculées à partir du total et de per_page.
+    |
+    */
+
+    $pagination = [
+        "current_page" => $page,
+        "per_page" => $perPage,
+        "total" => $total,
+        "last_page" => $lastPage,
+    ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 23. Retour anticipé si aucun document ne correspond
+    |--------------------------------------------------------------------------
+    |
+    | Si les filtres ne correspondent à aucun document autorisé,
+    | on retourne une liste vide avec des métadonnées cohérentes.
+    |
+    | On évite ainsi d'exécuter inutilement les requêtes d'enrichissement.
+    |
+    */
+
+    if (empty($documents)) {
+
+        return [
+            "data" => [],
+            "pagination" => $pagination,
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 24. Chargement des instances des documents retournés
+    |--------------------------------------------------------------------------
+    |
+    | Contrairement au premier chargement, utilisé pour canView(),
+    | on ne charge ici que les instances des documents de la page courante.
+    |
+    | Cela réduit le volume de données manipulé pendant l'enrichissement.
+    |
+    */
+
+    $workflowInstances = WorkflowInstance::query()
+        ->whereIn("document_id", $filteredDocumentIds)
+        ->get()
+        ->keyBy("document_id");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 25. Récupération des contextes de disponibilité
+    |--------------------------------------------------------------------------
+    |
+    | Les contextes sont chargés uniquement pour les documents de la page
+    | courante.
+    |
+    */
+
+    $availabilityContexts = $this->availabilityContexts(
+        $filteredDocumentIds->toArray()
+    );
+
+    $contextsByDocId = collect($availabilityContexts)
+        ->keyBy("document_id");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 26. Enrichissement individuel des documents
+    |--------------------------------------------------------------------------
+    |
+    | On conserve enrichDocument() et ses paramètres existants.
+    |
+    | Chaque document reçoit :
+    | - son instance de workflow ;
+    | - son contexte de disponibilité ;
+    | - les informations liées à l'utilisateur courant.
+    |
+    */
+
+    $documents = collect($documents)
+        ->map(function ($doc) use (
+            $contextsByDocId,
+            $workflowInstances,
+            $userId
+        ) {
+
+            $context = $contextsByDocId->get($doc["id"]);
+
+            /*
+             * On conserve l'accès à l'instance correspondant au document.
+             * La valeur peut être absente si aucune instance n'existe.
+             */
+
+            $workflowInstance = $workflowInstances->get(
+                $doc["id"]
+            );
+
+            return $this->enrichDocument(
+                $doc,
+                $workflowInstance,
+                $userId,
+                $context
+            );
+
+        })
+        ->values()
+        ->toArray();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 27. Chargement des étapes actionnables
+    |--------------------------------------------------------------------------
+    |
+    | On conserve la logique existante :
+    | une étape est actionnable si elle est en attente et qu'une affectation
+    | du rôle courant possède une décision PENDING.
+    |
+    */
+
+    $actionableSteps = WorkflowInstanceStep::query()
+        ->whereHas("assignments", function ($q) use ($roleId) {
+
+            $q->where("role_id", $roleId)
+                ->where("decision", "PENDING");
+
+        })
+        ->where("status", "PENDING")
+        ->with("assignments")
+        ->get()
+        ->keyBy("workflow_instance_id");
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 28. Enrichissement final
+    |--------------------------------------------------------------------------
+    |
+    | On conserve enrichDocuments() pour compléter les données nécessaires
+    | à l'affichage frontend.
+    |
+    | Les permissions calculées plus haut sont réutilisées.
+    |
+    */
+
+    $documents = $this->enrichDocuments(
+        $documents,
+        $permissionsByDocType,
+        $workflowInstances,
+        $actionableSteps,
+        $employeeId,
+        $userId,
+        $validationContext
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 29. Réponse finale
+    |--------------------------------------------------------------------------
+    |
+    | On retourne :
+    | - les documents correspondant aux filtres et à la page courante ;
+    | - les métadonnées de pagination.
+    |
+    */
+
+    return [
+        "data" => $documents,
+        "pagination" => $pagination,
+    ];
+}
+
+  public function OldgetDocuments(
     array $params,
     Request $request,
     WorkflowPermissionService $permissionService
@@ -286,7 +1013,7 @@ $workflowSteps = WorkflowInstanceStep::query()
     ->groupBy("workflow_instance_id");
 
 
-    // throw new Exception(json_encode($flatDocuments), 1);
+    // throw new Exception(json_encode(sizeof($flatDocuments)), 1);
 
     $filteredDocuments = collect($flatDocuments)
         ->filter(
