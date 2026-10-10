@@ -379,38 +379,91 @@ $workflowSteps = WorkflowInstanceStep::query()
 |
 */
 
+// $page = max((int) $currentPage, 1);
+// $perPage = max((int) $per_page, 1);
+
+// $total = $filteredDocuments->count();
+
+// if ($isExport) {
+
+// /*
+//      * Export :
+//      * aucune pagination.
+//      *
+//      * On transmet tous les documents autorisés
+//      * au document-service.
+//      */ 
+
+//     $documentsToFetch = $filteredDocuments
+//         ->values();
+
+// } else {
+
+// /*
+//      * Liste normale :
+//      * comportement actuel strictement conservé.
+//      */
+
+//     $documentsToFetch = $filteredDocuments
+//         ->slice(($page - 1) * $perPage, $perPage)
+//         ->values();
+// }
+
+// $filteredDocumentIds = $documentsToFetch->pluck("id");
+
+/*
+|--------------------------------------------------------------------------
+| Pagination / Export
+|--------------------------------------------------------------------------
+*/
+
 $page = max((int) $currentPage, 1);
 $perPage = max((int) $per_page, 1);
 
 $total = $filteredDocuments->count();
 
-if ($isExport) {
+$lastPage = max(
+    1,
+    (int) ceil($total / $perPage)
+);
 
 /*
-     * Export :
-     * aucune pagination.
-     *
-     * On transmet tous les documents autorisés
-     * au document-service.
-     */ 
-
-    $documentsToFetch = $filteredDocuments
-        ->values();
-
-} else {
-
-/*
-     * Liste normale :
-     * comportement actuel strictement conservé.
-     */
+ * En mode liste, on empêche une page courante
+ * de dépasser la dernière page disponible.
+ *
+ * Exemple :
+ * - 2 documents ;
+ * - 10 documents par page ;
+ * - page demandée : 3 ;
+ * - page corrigée : 1.
+ *
+ * En mode export, aucune pagination n'est appliquée.
+ */
+if (!$isExport) {
+    $page = min($page, $lastPage);
 
     $documentsToFetch = $filteredDocuments
         ->slice(($page - 1) * $perPage, $perPage)
         ->values();
+} else {
+    $documentsToFetch = $filteredDocuments->values();
 }
 
-$filteredDocumentIds = $documentsToFetch->pluck("id");
+$filteredDocumentIds = $documentsToFetch->pluck('id');
 
+/*
+ * Diagnostic temporaire.
+ */
+logger()->info('GET DOCUMENTS - DIAGNOSTIC PAGINATION', [
+    'current_page_received' => $currentPage,
+    'current_page_used' => $page,
+    'per_page' => $perPage,
+    'total_filtered_documents' => $total,
+    'last_page' => $lastPage,
+    'is_export' => $isExport,
+    'filtered_document_ids' => $filteredDocuments->pluck('id')->values()->all(),
+    'document_ids_after_pagination' => $filteredDocumentIds->values()->all(),
+]);
     // $mark("prepare_filtered_ids");
 
 
