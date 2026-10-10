@@ -5,6 +5,7 @@ namespace App\Services\Workflow;
 use App\Services\Document\DocumentServiceClient;
 use App\Services\DocumentWorkflowService;
 use App\Services\WorkflowPermissionService;
+use Exception;
 use Illuminate\Http\Request;
 
 class WorkflowDocumentExportService
@@ -117,12 +118,23 @@ class WorkflowDocumentExportService
                 continue;
             }
 
+        // throw new Exception(json_encode($document), 1);
+
+
             $workflowMetadata[$document['id']] = [
                 'workflow_status' => isset(
                     $document['workflow_status']
                 )
                     ? $document['workflow_status']
                     : null,
+
+                'workflow_availability' => isset(
+                    $document['availability']
+                )
+                    ? $document['availability']
+                    : null,
+
+                    
             ];
         }
 

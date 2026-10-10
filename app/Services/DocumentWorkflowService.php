@@ -728,6 +728,7 @@ $resolved["availability"]['workflow_closed_at'] = $workflowClosedAt;
                         "workflow_status" => null,
                         "signatures" => [],
                         "completed_steps" => [],
+                        "workflowClosedAt" => null,
                     ];
                 }
 
@@ -754,6 +755,8 @@ $resolved["availability"]['workflow_closed_at'] = $workflowClosedAt;
                     "signatures" => $docSignatures,
 
                     "completed_steps" => $docSteps,
+
+                    "workflowClosedAt" => $this->workflowInstanceService->getWorkflowClosedAt($workflow) 
                 ];
             })
             ->values()
