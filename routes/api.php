@@ -67,6 +67,13 @@ Route::middleware("jwt.check")
 );
 
 
+Route::post(
+    '/workflow-instances/{documentUuid}/receipts-received-waiting-closure',
+    [
+        WorkflowInstanceController::class,
+        'markReceiptsReceivedWaitingClosure',
+    ]
+)->whereUuid('documentUuid');
     
     Route::get(
     '/workflow-delay-documents',

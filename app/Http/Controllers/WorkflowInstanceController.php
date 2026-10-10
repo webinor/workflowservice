@@ -35,6 +35,7 @@ use App\Services\Workflow\WorkflowQuorumEvaluator;
 use App\Services\WorkflowInstanceService;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -89,6 +90,9 @@ class WorkflowInstanceController extends Controller
             "data" => $currentInstanceStep,
         ]);
     }
+
+
+
 
     public function getCurrentStepValidators($documentId)
     {
@@ -2982,6 +2986,175 @@ class WorkflowInstanceController extends Controller
             );
         }
     }
+
+    /**
+ * Marque les justificatifs physiques comme reçus et place
+ * l'étape de règlement de la régularisation en attente de clôture.
+ *
+ * Seules les instances de workflow ayant le statut PENDING
+ * peuvent être modifiées.
+ *
+ * POST /api/workflows/workflow-instances/{documentUuid}/receipts-received-waiting-closure
+ *
+ * @param string $documentUuid
+ * @return JsonResponse
+ */
+public function markReceiptsReceivedWaitingClosure(
+    Request $request,
+    string $documentUuid
+)//: JsonResponse
+ {
+    try {
+        $result = DB::transaction(function () use ($documentUuid , $request) {
+
+        $statusCode = $request->get('statusCode');
+
+            /*
+             * 1. Rechercher l'instance à partir du UUID du document.
+             */
+            $instance = DB::table('workflow_instances')
+                ->where('document_uuid', $documentUuid)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$instance) {
+                return [
+                    'success' => false,
+                    'http_status' => 404,
+                    'message' => 'Aucune instance de workflow ne correspond à ce document.',
+                ];
+            }
+
+            /*
+             * 2. Refuser toute instance dont le statut n'est pas PENDING.
+             */
+            if ($instance->status !== 'PENDING') {
+                return [
+                    'success' => false,
+                    'http_status' => 409,
+                    'message' => sprintf(
+                        'Transition impossible : le workflow possède le statut %s.',
+                        $instance->status
+                    ),
+                    'workflow_status' => $instance->status,
+                ];
+            }
+
+            /*
+             * 3. Rechercher le libellé du statut cible.
+             */
+            $targetStatus = DB::table('workflow_status_labels')
+                ->where(
+                    'code',
+                    $statusCode
+                )
+                ->first();
+
+            if (!$targetStatus) {
+                return [
+                    'success' => false,
+                    'http_status' => 500,
+                    'message' => "Le statut $statusCode n’est pas configuré.",
+                ];
+            }
+
+            /*
+             * 4. Rechercher l'étape de workflow correspondant
+             *    au règlement de la régularisation.
+             */
+            $workflowStep = DB::table('workflow_steps')
+                ->where('workflow_id', $instance->workflow_id)
+                ->where('payment_type', 'REGULARIZATION_SETTLEMENT')
+                ->first();
+
+            if (!$workflowStep) {
+                return [
+                    'success' => false,
+                    'http_status' => 422,
+                    'message' => 'Aucune étape REGULARIZATION_SETTLEMENT n’est configurée pour ce workflow.',
+                ];
+            }
+
+            /*
+             * 5. Retrouver l'étape correspondante de l'instance.
+             *
+             * Hypothèse : workflow_instance_steps utilise
+             * workflow_instance_id et workflow_step_id.
+             */
+            $instanceStep = DB::table('workflow_instance_steps')
+                ->where('workflow_instance_id', $instance->id)
+                ->where('workflow_step_id', $workflowStep->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$instanceStep) {
+                return [
+                    'success' => false,
+                    'http_status' => 404,
+                    'message' => 'L’étape de règlement est introuvable dans cette instance de workflow.',
+                ];
+            }
+
+            /*
+             * 6. Mettre à jour le statut de l'étape d'instance.
+             *
+             * Nous ne modifions pas workflow_instances.status :
+             * l'instance demeure PENDING.
+             */
+            DB::table('workflow_instance_steps')
+                ->where('id', $instanceStep->id)
+                ->update([
+                    'workflow_status_label_id' => $targetStatus->id,
+                    'updated_at' => now(),
+                ]);
+
+            return [
+                'success' => true,
+                'http_status' => 200,
+                'message' => 'Les justificatifs ont été reçus. Le règlement est en attente de clôture.',
+                'data' => [
+                    'document_uuid' => $documentUuid,
+                    'workflow_instance_id' => $instance->id,
+                    'workflow_step_id' => $workflowStep->id,
+                    'workflow_instance_step_id' => $instanceStep->id,
+                    'workflow_status' => $instance->status,
+                    'workflow_status_label_id' => $targetStatus->id,
+                    'workflow_status_label_code' => $targetStatus->code,
+                    'workflow_status_label' => $targetStatus->label,
+                ],
+            ];
+        });
+
+        if (!$result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'workflow_status' => $result['workflow_status'] ?? null,
+            ], $result['http_status']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $result['message'],
+            'data' => $result['data'],
+        ], 200);
+
+    } catch (\Throwable $e) {
+        Log::error(
+            'Erreur lors du changement de statut de réception des justificatifs.',
+            [
+                'document_uuid' => $documentUuid,
+                'exception' => $e->getMessage(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Une erreur est survenue lors de la mise à jour du workflow.',
+            'exception' => $e->getMessage(),
+        ], 500);
+    }
+}
 
     protected function checkBlockingRules(
         WorkflowInstance $instance,
