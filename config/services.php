@@ -43,6 +43,10 @@ return [
         ),
     ],
 
+      'internal' =>[
+                'token' => env('INTERNAL_SERVICE_TOKEN')
+    ],
+
     "document_service" => [
         "base_url" => env(
             "DOCUMENT_SERVICE_BASE_URL",

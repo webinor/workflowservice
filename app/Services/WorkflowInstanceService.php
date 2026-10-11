@@ -211,6 +211,44 @@ public function getWorkflowClosedAt(
             ->values();
     }
 
+  
+
+/**
+ * Récupère les instances de workflow correspondant à plusieurs documents.
+ *
+ * Cette méthode est adaptée aux traitements batch entre microservices.
+ *
+ * @param array $documentIds
+ * @return Collection
+ */
+public function getInstancesByDocumentIds(array $documentIds): Collection
+{
+    $documentIds = array_values(array_unique(array_filter(
+        array_map('intval', $documentIds),
+        function ($id) {
+            return $id > 0;
+        }
+    )));
+
+    if (empty($documentIds)) {
+        return collect();
+    }
+
+    return DB::table('workflow_instances')
+        ->whereIn('document_id', $documentIds)
+        ->select([
+            'id',
+            'document_id',
+            'document_uuid',
+            'document_type_id',
+            'document_type_relation_name',
+            'status',
+        ])
+        ->orderBy('document_id')
+        ->orderBy('id')
+        ->get();
+}
+
 
     public function resetStep(
     WorkflowInstanceStep $step

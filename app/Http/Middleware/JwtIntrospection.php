@@ -13,9 +13,15 @@ class JwtIntrospection
     {
         $token = $request->bearerToken();
 
-        //dd($token);
 
         if (!$token) {
+
+        if ($request->header('X-Service-Token')
+            === config('services.internal.token')) {
+
+            return $next($request);
+        }
+
             return response()->json(['error' => 'Token manquant'], 401);
         }
 

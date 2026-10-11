@@ -82,6 +82,15 @@ Route::post(
                 'getClosedDocuments'
             ]
         );
+
+
+        Route::post(
+    '/workflow-instances/by-document-ids',
+    [
+        WorkflowInstanceController::class,
+        'getInstancesByDocumentIds',
+    ]
+);
     
     Route::get(
     '/workflow-delay-documents',

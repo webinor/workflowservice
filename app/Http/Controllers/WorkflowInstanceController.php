@@ -4292,4 +4292,37 @@ private function confirmPhysicalDocuments(
         //  return is_array($value) ? $value : [$value];
         return $value;
     }
+
+
+    
+
+public function getInstancesByDocumentIds(
+    Request $request,
+    WorkflowInstanceService $workflowInstanceService
+): JsonResponse {
+    $validated = $request->validate([
+        'document_ids' => [
+            'required',
+            'array',
+            'min:1',
+            'max:100',
+        ],
+        'document_ids.*' => [
+            'required',
+            'integer',
+            'min:1',
+            'distinct',
+        ],
+    ]);
+
+    $instances = $workflowInstanceService->getInstancesByDocumentIds(
+        $validated['document_ids']
+    );
+
+    return response()->json([
+        'success' => true,
+        'data' => $instances,
+        'count' => $instances->count(),
+    ]);
+}
 }
