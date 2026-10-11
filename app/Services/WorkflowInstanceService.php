@@ -9,9 +9,14 @@ use App\Models\WorkflowInstanceStepAssignment;
 use App\Models\WorkflowStatusHistory;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStepRole;
+use App\Services\ResolveDepartmentValidator;
+use App\Services\ResponsibilityService;
 use App\Services\Workflow\WorkflowInstanceResolverService;
+use App\Services\WorkflowNotificationMessageRegistry;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class WorkflowInstanceService
@@ -84,6 +89,127 @@ public function getWorkflowClosedAt(
     return Carbon::parse($archiveStep->executed_at)->toDateTimeString();
     return $archiveStep->executed_at->toDateTimeString();
 }
+
+ /**
+     * Récupère les identifiants des documents clôturés pendant une période.
+     *
+     * La clôture est déterminée par la dernière étape terminée dont
+     * la définition possède is_archived_step = true.
+     *
+     * Optimisations :
+     * - filtrage effectué directement en base de données ;
+     * - aucune boucle sur les instances pour calculer leur date ;
+     * - seuls les identifiants des documents sont retournés ;
+     * - les bornes de dates permettent de conserver l'utilisation
+     *   possible d'un index sur executed_at.
+     *
+     * @param string|null $dateStart Date de début au format YYYY-MM-DD.
+     * @param string|null $dateEnd   Date de fin au format YYYY-MM-DD.
+     *
+     * @return Collection
+     */
+    public function getClosedDocumentIds(
+        ?string $dateStart = null,
+        ?string $dateEnd = null
+    ): Collection {
+        /*
+         * 1. Trouver la dernière étape d'archivage terminée
+         *    pour chaque instance de workflow.
+         */
+        $latestClosedSteps = DB::table(
+            'workflow_instance_steps as wis2'
+        )
+            ->join(
+                'workflow_steps as ws2',
+                'ws2.id',
+                '=',
+                'wis2.workflow_step_id'
+            )
+            ->where('wis2.status', 'COMPLETE')
+            ->whereNotNull('wis2.executed_at')
+            ->where('ws2.is_archived_step', true)
+            ->select('wis2.workflow_instance_id')
+            ->selectRaw('MAX(wis2.position) AS closed_position')
+            ->groupBy('wis2.workflow_instance_id');
+
+        /*
+         * 2. Récupérer uniquement les documents correspondant
+         *    à cette dernière étape d'archivage.
+         */
+        $query = DB::table('workflow_instances as wi')
+            ->joinSub(
+                $latestClosedSteps,
+                'latest_closed',
+                function ($join) {
+                    $join->on(
+                        'latest_closed.workflow_instance_id',
+                        '=',
+                        'wi.id'
+                    );
+                }
+            )
+            ->join(
+                'workflow_instance_steps as wis',
+                function ($join) {
+                    $join->on(
+                        'wis.workflow_instance_id',
+                        '=',
+                        'wi.id'
+                    )->on(
+                        'wis.position',
+                        '=',
+                        'latest_closed.closed_position'
+                    );
+                }
+            )
+            ->join(
+                'workflow_steps as ws',
+                'ws.id',
+                '=',
+                'wis.workflow_step_id'
+            )
+            ->where('wis.status', 'COMPLETE')
+            ->whereNotNull('wis.executed_at')
+            ->where('ws.is_archived_step', true);
+
+        /*
+         * 3. Filtrer sur la date réelle de clôture.
+         *
+         * On utilise une borne de fin exclusive pour inclure
+         * toute la journée de dateEnd, y compris ses dernières
+         * fractions de seconde.
+         */
+        if ($dateStart !== null) {
+            $startAt = Carbon::parse($dateStart)
+                ->startOfDay()
+                ->toDateTimeString();
+
+            $query->where('wis.executed_at', '>=', $startAt);
+        }
+
+        if ($dateEnd !== null) {
+            $endExclusive = Carbon::parse($dateEnd)
+                ->addDay()
+                ->startOfDay()
+                ->toDateTimeString();
+
+            $query->where('wis.executed_at', '<', $endExclusive);
+        }
+
+        /*
+         * 4. Retourner une liste distincte d'identifiants.
+         *
+         * Le filtre porte sur la date de clôture de l'instance,
+         * et non sur created_at ou updated_at du document.
+         */
+        return $query
+            ->whereNotNull('wi.document_id')
+            ->select('wi.document_id')
+            ->distinct()
+            ->orderBy('wi.document_id')
+            ->pluck('wi.document_id')
+            ->values();
+    }
 
 
     public function resetStep(

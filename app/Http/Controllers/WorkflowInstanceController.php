@@ -3470,6 +3470,45 @@ public function markReceiptsReceivedWaitingClosure(
     }
 
 
+    
+    /**
+     * Retourne les identifiants des documents clôturés sur une période.
+     *
+     * GET /api/workflows/workflow-closed-documents
+     *
+     * Paramètres :
+     * - date_closed_start : date de début facultative.
+     * - date_closed_end   : date de fin facultative.
+     */
+    public function getClosedDocuments(
+        Request $request,
+        WorkflowInstanceService $workflowInstanceService
+    ): JsonResponse {
+        $validated = $request->validate([
+            'date_closed_start' => [
+                'nullable',
+                'date',
+            ],
+            'date_closed_end' => [
+                'nullable',
+                'date',
+                'after_or_equal:date_closed_start',
+            ],
+        ]);
+
+        $documentIds = $workflowInstanceService->getClosedDocumentIds(
+            $validated['date_closed_start'] ?? null,
+            $validated['date_closed_end'] ?? null
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $documentIds,
+            'count' => $documentIds->count(),
+        ]);
+    }
+
+
         protected function executeBeforeCommit(
         WorkflowInstance $instance,
         WorkflowInstanceStep $currentStep,

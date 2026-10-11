@@ -74,6 +74,14 @@ Route::post(
         'markReceiptsReceivedWaitingClosure',
     ]
 )->whereUuid('documentUuid');
+
+        Route::get(
+            '/workflow-closed-documents',
+            [
+                WorkflowInstanceController::class,
+                'getClosedDocuments'
+            ]
+        );
     
     Route::get(
     '/workflow-delay-documents',
