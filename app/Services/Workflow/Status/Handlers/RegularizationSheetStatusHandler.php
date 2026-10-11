@@ -4,8 +4,10 @@ namespace App\Services\Workflow\Status\Handlers;
 
 use App\Models\WorkflowInstanceStep;
 use App\Models\WorkflowStatusLabel;
+use App\Services\PhysicalSupportingDocumentsService;
 use App\Services\Workflow\Status\Contracts\WorkflowStatusHandlerInterface;
 use App\Services\Workflow\WorkflowTransactionTypeService;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class RegularizationSheetStatusHandler
@@ -19,13 +21,195 @@ class RegularizationSheetStatusHandler
     protected WorkflowTransactionTypeService $workflowTransactionTypeService;
 
     /**
-     * Injection du service de récupération du type de transaction.
+     * Service responsable de la confirmation de transmission
+     * des justificatifs physiques dans le Document Service.
+     */
+    protected PhysicalSupportingDocumentsService $physicalSupportingDocumentsService;
+
+    /**
+     * Injection des services métier.
      */
     public function __construct(
-        WorkflowTransactionTypeService $workflowTransactionTypeService
+        WorkflowTransactionTypeService $workflowTransactionTypeService,
+        PhysicalSupportingDocumentsService $physicalSupportingDocumentsService
     ) {
         $this->workflowTransactionTypeService =
             $workflowTransactionTypeService;
+
+        $this->physicalSupportingDocumentsService =
+            $physicalSupportingDocumentsService;
+    }
+
+    /**
+     * Confirme la transmission des justificatifs physiques
+     * avant l'enregistrement de la signature du bénéficiaire.
+     *
+     * Règle métier :
+     *
+     * REGULARIZATION_ADVANCE
+     *     → Aucune confirmation automatique.
+     *
+     * REGULARIZATION_SETTLEMENT
+     *     → Les justificatifs physiques sont considérés
+     *       comme transmis lors de la signature.
+     *
+     * IMPORTANT :
+     * Cette méthode doit être appelée AVANT Signature::create().
+     *
+     * Le Document Service reste l'unique source de vérité
+     * concernant la transmission des justificatifs.
+     *
+     * @param WorkflowInstanceStep $instanceStep
+     * @param int                  $documentId
+     * @param string               $documentUuid
+     * @param array                $actor
+     *
+     * @return array|null
+     */
+    public function confirmPhysicalDocumentsBeforeBeneficiarySignature(
+        WorkflowInstanceStep $instanceStep,
+        int $documentId,
+        string $documentUuid,
+        array $actor,
+        string $source 
+    ): ?array {
+        /*
+        |--------------------------------------------------------------------------
+        | 1. Récupération du type de transaction
+        |--------------------------------------------------------------------------
+        |
+        | On utilise le type de transaction configuré sur le workflow.
+        | On ne se fie pas uniquement au code transmis par le frontend.
+        |
+        */
+
+        $transactionTypeCode =
+            $this->workflowTransactionTypeService
+                ->getTransactionTypeCode($instanceStep);
+
+        if (!$transactionTypeCode) {
+            throw new Exception(
+                'Impossible de déterminer le type de transaction '
+                . 'avant la signature du bénéficiaire.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. Normalisation du code
+        |--------------------------------------------------------------------------
+        */
+
+        $transactionTypeCode = strtoupper(
+            trim($transactionTypeCode)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. Vérification de la transaction
+        |--------------------------------------------------------------------------
+        |
+        | Une avance ne signifie pas que les justificatifs physiques
+        | ont été transmis.
+        |
+        */
+
+        if ($transactionTypeCode !== 'REGULARIZATION_SETTLEMENT') {
+            Log::info(
+                '[RegularizationSheetStatusHandler] '
+                . 'Aucune confirmation des justificatifs requise '
+                . 'pour cette transaction.',
+                [
+                    'document_id' => $documentId,
+                    'document_uuid' => $documentUuid,
+                    'workflow_instance_step_id' => $instanceStep->id,
+                    'transaction_type_code' => $transactionTypeCode,
+                ]
+            );
+
+            return null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. Confirmation dans le Document Service
+        |--------------------------------------------------------------------------
+        |
+        | L'appel est effectué avant l'enregistrement de la signature.
+        |
+        */
+
+        Log::info(
+            '[RegularizationSheetStatusHandler] '
+            . 'Confirmation de transmission des justificatifs physiques.',
+            [
+                'document_id' => $documentId,
+                'document_uuid' => $documentUuid,
+                'workflow_instance_step_id' => $instanceStep->id,
+                'transaction_type_code' => $transactionTypeCode,
+                'actor_id' => $actor['id'] ?? null,
+            ]
+        );
+
+        $result = $this->physicalSupportingDocumentsService
+            ->markAsReceived(
+                $documentId,
+                $documentUuid,
+                $actor,
+                $source, //'BENEFICIARY_SIGNATURE',
+                $transactionTypeCode
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. Vérification du résultat
+        |--------------------------------------------------------------------------
+        |
+        | Le contrôleur décidera de poursuivre ou non l'enregistrement
+        | de la signature selon le résultat obtenu.
+        |
+        */
+
+        if (empty($result['success'])) {
+            Log::error(
+                '[RegularizationSheetStatusHandler] '
+                . 'Échec de la confirmation des justificatifs.',
+                [
+                    'document_id' => $documentId,
+                    'document_uuid' => $documentUuid,
+                    'workflow_instance_step_id' => $instanceStep->id,
+                    'transaction_type_code' => $transactionTypeCode,
+                    'actor_id' => $actor['id'] ?? null,
+                    'document_service_status' => $result['status'] ?? null,
+                    'document_service_message' => $result['message'] ?? null,
+                ]
+            );
+
+            return [
+                'success' => false,
+                'message' => $result['message']
+                    ?? 'Impossible de confirmer la transmission des justificatifs.',
+                'status' => $result['status'] ?? null,
+            ];
+        }
+
+        Log::info(
+            '[RegularizationSheetStatusHandler] '
+            . 'Transmission des justificatifs confirmée.',
+            [
+                'document_id' => $documentId,
+                'document_uuid' => $documentUuid,
+                'workflow_instance_step_id' => $instanceStep->id,
+                'transaction_type_code' => $transactionTypeCode,
+                'document_service_status' => $result['status'] ?? null,
+            ]
+        );
+
+        return [
+            'success' => true,
+            'message' => 'Transmission des justificatifs confirmée.',
+            'status' => $result['status'] ?? null,
+        ];
     }
 
     /**
@@ -39,7 +223,7 @@ class RegularizationSheetStatusHandler
      *     → PAID_WAITING_REGULARIZATION
      *
      * REGULARIZATION_SETTLEMENT
-     *     → WAITING_CLOSURE
+     *     → RECEIPTS_RECEIVED_WAITING_CLOSURE
      *
      * Le transaction_type_code n'est pas recherché dans Payment.
      *
@@ -76,10 +260,6 @@ class RegularizationSheetStatusHandler
         |--------------------------------------------------------------------------
         | 2. Vérification du type de transaction
         |--------------------------------------------------------------------------
-        |
-        | Une fiche à régulariser doit avoir un type de transaction
-        | permettant de déterminer son prochain statut métier.
-        |
         */
 
         if (!$transactionTypeCode) {
@@ -93,15 +273,6 @@ class RegularizationSheetStatusHandler
         |--------------------------------------------------------------------------
         | 3. Normalisation du code
         |--------------------------------------------------------------------------
-        |
-        | Permet d'éviter les problèmes liés à une éventuelle différence
-        | de casse ou aux espaces présents dans la configuration.
-        |
-        | Exemple :
-        |
-        | "regularization_advance"  → "REGULARIZATION_ADVANCE"
-        | " REGULARIZATION_ADVANCE " → "REGULARIZATION_ADVANCE"
-        |
         */
 
         $transactionTypeCode = strtoupper(
@@ -112,9 +283,6 @@ class RegularizationSheetStatusHandler
         |--------------------------------------------------------------------------
         | 4. Détermination du WorkflowStatusLabel
         |--------------------------------------------------------------------------
-        |
-        | Le statut métier dépend du type de transaction.
-        |
         */
 
         $status = null;
@@ -125,11 +293,6 @@ class RegularizationSheetStatusHandler
             |--------------------------------------------------------------------------
             | REGULARIZATION_ADVANCE
             |--------------------------------------------------------------------------
-            |
-            | Une avance a été payée.
-            |
-            | La fiche reste ensuite en attente de régularisation.
-            |
             */
 
             case 'REGULARIZATION_ADVANCE':
@@ -144,18 +307,12 @@ class RegularizationSheetStatusHandler
             |--------------------------------------------------------------------------
             | REGULARIZATION_SETTLEMENT
             |--------------------------------------------------------------------------
-            |
-            | Le règlement correspondant à la régularisation
-            | a été effectué.
-            |
-            | La fiche passe donc en attente de clôture.
-            |
             */
 
             case 'REGULARIZATION_SETTLEMENT':
 
                 $status = WorkflowStatusLabel::whereCode(
-                    'WAITING_CLOSURE'
+                    'RECEIPTS_RECEIVED_WAITING_CLOSURE'
                 )->first();
 
                 break;
@@ -181,10 +338,6 @@ class RegularizationSheetStatusHandler
         |--------------------------------------------------------------------------
         | 5. Vérification du statut configuré
         |--------------------------------------------------------------------------
-        |
-        | On évite d'accéder à $status->id si le label n'existe pas
-        | en base.
-        |
         */
 
         if (!$status) {
@@ -201,10 +354,6 @@ class RegularizationSheetStatusHandler
         |--------------------------------------------------------------------------
         | 6. Mise à jour du statut de l'instance step
         |--------------------------------------------------------------------------
-        |
-        | Le WorkflowInstanceStep conserve l'identifiant du label
-        | correspondant au nouvel état métier.
-        |
         */
 
         $instanceStep->update([

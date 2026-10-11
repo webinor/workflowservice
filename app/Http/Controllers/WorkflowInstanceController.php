@@ -26,6 +26,7 @@ use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
 use App\Services\Workflow\Event\WorkflowEventEngine;
+use App\Services\Workflow\Status\WorkflowStatusManager;
 use App\Services\Workflow\WorkflowCancellationService;
 use App\Services\Workflow\WorkflowCompletionEvaluator;
 use App\Services\Workflow\WorkflowDynamicResolverService;
@@ -47,16 +48,21 @@ class WorkflowInstanceController extends Controller
     protected WorkflowInstanceService $workflowInstanceService;
     protected WorkflowInstanceResolverService $resolver;
     protected WorkflowCancellationService $workflowCancellationService;
+    protected WorkflowStatusManager $workflowStatusManager;
+
 
 
     public function __construct(
         WorkflowInstanceService $workflowInstanceService,
         WorkflowInstanceResolverService $workflowInstanceResolverService,
+    WorkflowStatusManager $workflowStatusManager,
         WorkflowCancellationService $workflowCancellationService
+        
     ) {
         $this->workflowInstanceService = $workflowInstanceService;
         $this->resolver = $workflowInstanceResolverService;
         $this->workflowCancellationService = $workflowCancellationService;
+         $this->workflowStatusManager = $workflowStatusManager;
     }
 
     /**
@@ -3532,18 +3538,51 @@ public function markReceiptsReceivedWaitingClosure(
         // NOTIFICATION
         // =====================================
 
-        // if (
-        //     $nextStep &&
-        //     $nextStep->status === "PENDING" &&
-        //     !$nextStep->workflowStep->is_archived_step
-        // ) {
-        //     $this->workflowInstanceService->notifyNextValidators(
-        //         $nextStep,
-        //         $request,
-        //         $instance->department_id ?? null
-        //         // $roleIdsToNotify
-        //     );
-        // }
+        // throw new Exception($nextStep->workflowStep->is_archived_step, 1);
+        if (
+            $nextStep &&
+            // $nextStep->status === "PENDING" &&
+            $nextStep->workflowStep->is_archived_step
+        ) {
+
+            // $this->workflowInstanceService->notifyNextValidators(
+            //     $nextStep,
+            //     $request,
+            //     $instance->department_id ?? null
+            //     // $roleIdsToNotify
+            // );
+
+            // throw new Exception(json_encode($documentData), 1);
+            
+
+    //            $confirmationResult =
+    // $this->workflowStatusManager
+    //     ->confirmPhysicalDocumentsBeforeBeneficiarySignature(
+    //         $currentStep,
+    //         $instance->document_type_relation_name,
+    //         (int) $documentData['id'],
+    //         $documentData['uuid'],
+    //         [
+    //             'id' => (int)  $documentData['actor_id'],
+    //             'name' => $documentData['actor_details']['nom'].' '.$documentData['actor_details']['prenom'],
+    //             'type' => $request->actor_type,
+    //             'role' => $request->actor_role,
+    //         ],
+    //         "WORKFLOW_CLOSURE"
+    //     );
+
+    $confirmationResult = $this->confirmPhysicalDocuments(
+    $currentStep,
+    $instance,
+    $documentData,
+    $request
+);
+
+//   throw new Exception(json_encode($confirmationResult), 1);
+
+        }
+
+     
 
         // =====================================
         // EVENTS
@@ -3562,6 +3601,131 @@ public function markReceiptsReceivedWaitingClosure(
 
         
     }
+
+    /**
+ * Confirme la transmission physique des justificatifs avant
+ * la signature du bénéficiaire.
+ *
+ * Valide les identifiants du document et de l'acteur,
+ * prépare les informations de l'acteur, puis délègue
+ * la confirmation au gestionnaire de workflow.
+ *
+ * @param mixed $currentStep
+ * @param mixed $instance
+ * @param array $documentData
+ * @param \Illuminate\Http\Request $request
+ *
+ * @return mixed
+ *
+ * @throws \InvalidArgumentException
+ */
+private function confirmPhysicalDocuments(
+    $currentStep,
+    $instance,
+    array $documentData,
+    \Illuminate\Http\Request $request
+) {
+    // 1. Valider l'identifiant du document.
+    $documentId = filter_var(
+        $documentData['id'] ?? null,
+        FILTER_VALIDATE_INT
+    );
+
+    if ($documentId === false || $documentId === null || $documentId <= 0) {
+        throw new \InvalidArgumentException(
+            'Impossible de confirmer la transmission : identifiant du document invalide.'
+        );
+    }
+
+    // 2. Valider l'identifiant de l'acteur.
+    $actorId = filter_var(
+        $documentData['actor_id'] ?? null,
+        FILTER_VALIDATE_INT
+    );
+
+    if ($actorId === false || $actorId === null || $actorId <= 0) {
+        throw new \InvalidArgumentException(
+            'Impossible de confirmer la transmission : identifiant de l’acteur invalide.'
+        );
+    }
+
+    // 3. Valider l'UUID du document.
+    $documentUuid = $documentData['uuid'] ?? null;
+
+    if (
+        !is_string($documentUuid)
+        || trim($documentUuid) === ''
+        || !\Illuminate\Support\Str::isUuid($documentUuid)
+    ) {
+        throw new \InvalidArgumentException(
+            'Impossible de confirmer la transmission : UUID du document invalide.'
+        );
+    }
+
+    // 4. Récupérer les informations de l'acteur.
+    $actorDetails = is_array($documentData['actor_details'] ?? null)
+        ? $documentData['actor_details']
+        : [];
+
+    // 5. Déterminer le rôle de l'acteur.
+    // Priorité à job_title, sinon au titre du poste organisationnel.
+    $jobTitle = $actorDetails['job_title'] ?? null;
+
+    $positionName = $actorDetails['organization']['position']['position']['name']
+        ?? null;
+
+    $actorRole = is_string($jobTitle) && trim($jobTitle) !== ''
+        ? trim($jobTitle)
+        : (
+            is_string($positionName) && trim($positionName) !== ''
+                ? trim($positionName)
+                : null
+        );
+
+    // 6. Construire le nom complet de l'acteur.
+    $actorName = trim(
+        ($actorDetails['nom'] ?? '') . ' ' .
+        ($actorDetails['prenom'] ?? '')
+    );
+
+    if ($actorName === '') {
+        $actorName = 'Acteur #' . $actorId;
+    }
+
+    // 7. Déterminer et valider le type de l'acteur.
+    $actorType = $request->actor_type
+        ?? $documentData['actor_type']
+        ?? null;
+
+    if (!is_string($actorType) || trim($actorType) === '') {
+        throw new \InvalidArgumentException(
+            'Impossible de confirmer la transmission : type de l’acteur manquant.'
+        );
+    }
+
+            // throw new Exception(json_encode([
+            //     'id'   => $actorId,
+            //     'name' => $actorName,
+            //     'type' => trim($actorType),
+            //     'role' => $actorRole,
+            // ]), 1);
+
+    // 8. Confirmer la transmission physique auprès du workflow.
+    return $this->workflowStatusManager
+        ->confirmPhysicalDocumentsBeforeBeneficiarySignature(
+            $currentStep,
+            $instance->document_type_relation_name,
+            $documentId,
+            $documentUuid,
+            [
+                'id'   => $actorId,
+                'name' => $actorName,
+                'type' => trim($actorType),
+                'role' => $actorRole,
+            ],
+            'WORKFLOW_CLOSURE'
+        );
+}
 
     protected function findNextStep(
         $currentStep,

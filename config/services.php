@@ -50,6 +50,12 @@ return [
         ),
 
         'token' => env('DOCUMENT_SERVICE_TOKEN'),
+
+
+    'mark_physical_supporting_documents_received_path' => env(
+        'DOCUMENT_SERVICE_MARK_PHYSICAL_DOCUMENTS_PATH',
+        '/api/documents/physical-supporting-documents/received'
+    ),
     ],
 
       'frontend_service' => [

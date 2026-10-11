@@ -50,4 +50,52 @@ class WorkflowStatusManager
         return $this->handlers[$documentTypeRelationName]
             ->handle($instanceStep);
     }
+
+    /**
+ * Confirme la transmission des justificatifs physiques
+ * avant la signature du bénéficiaire.
+ *
+ * Cette opération concerne uniquement les fiches
+ * à régulariser.
+ *
+ * @return array|null
+ */
+public function confirmPhysicalDocumentsBeforeBeneficiarySignature(
+    WorkflowInstanceStep $instanceStep,
+    string $documentTypeRelationName,
+    int $documentId,
+    string $documentUuid,
+    array $actor,
+    string $source = "BENEFICIARY_SIGNATURE"
+
+): ?array {
+    if (!isset($this->handlers[$documentTypeRelationName])) {
+        throw new RuntimeException(
+            sprintf(
+                'Aucun gestionnaire de statut pour le type de document "%s".',
+                $documentTypeRelationName
+            )
+        );
+    }
+
+    $handler = $this->handlers[$documentTypeRelationName];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cette opération est spécifique aux fiches à régulariser.
+    |--------------------------------------------------------------------------
+    */
+
+    if (!$handler instanceof RegularizationSheetStatusHandler) {
+        return null;
+    }
+
+    return $handler->confirmPhysicalDocumentsBeforeBeneficiarySignature(
+        $instanceStep,
+        $documentId,
+        $documentUuid,
+        $actor,
+        $source
+    );
+}
 }
