@@ -250,6 +250,73 @@ public function getInstancesByDocumentIds(array $documentIds): Collection
 }
 
 
+
+
+/**
+ * Récupère les instances de workflow correspondant à plusieurs documents,
+ * en conservant uniquement :
+ *
+ * - les instances dont le statut est COMPLETE ;
+ * - les instances possédant une signature de régularisation
+ *   (REGULARIZATION_ADVANCE ou REGULARIZATION_SETTLEMENT).
+ *
+ * Cette méthode est adaptée aux traitements batch entre microservices.
+ *
+ * @param array $documentIds
+ * @return Collection
+ */
+public function getRelevantInstancesByDocumentIds(array $documentIds): Collection
+{
+    $documentIds = array_values(array_unique(array_filter(
+        array_map('intval', $documentIds),
+        function ($id) {
+            return $id > 0;
+        }
+    )));
+
+    if (empty($documentIds)) {
+        return collect();
+    }
+
+    return DB::table('workflow_instances')
+        ->whereIn('workflow_instances.document_id', $documentIds)
+        ->where(function ($query) {
+            // Cas 1 : le workflow est terminé.
+            $query->where('workflow_instances.status', 'COMPLETE')
+
+                // Cas 2 : le workflow possède une signature de régularisation.
+                ->orWhereExists(function ($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('signatures')
+                        ->join(
+                            'signature_types',
+                            'signature_types.id',
+                            '=',
+                            'signatures.signature_type_id'
+                        )
+                        ->whereColumn(
+                            'signatures.document_id',
+                            'workflow_instances.document_id'
+                        )
+                        ->whereIn('signature_types.code', [
+                            'REGULARIZATION_ADVANCE',
+                            'REGULARIZATION_SETTLEMENT',
+                        ]);
+                });
+        })
+        ->select([
+            'workflow_instances.id',
+            'workflow_instances.document_id',
+            'workflow_instances.document_uuid',
+            'workflow_instances.document_type_id',
+            'workflow_instances.document_type_relation_name',
+            'workflow_instances.status',
+        ])
+        ->orderBy('workflow_instances.document_id')
+        ->orderBy('workflow_instances.id')
+        ->get();
+}
+
     public function resetStep(
     WorkflowInstanceStep $step
 ): void

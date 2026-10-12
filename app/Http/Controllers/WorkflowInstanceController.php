@@ -4315,7 +4315,7 @@ public function getInstancesByDocumentIds(
         ],
     ]);
 
-    $instances = $workflowInstanceService->getInstancesByDocumentIds(
+    $instances = $workflowInstanceService->getRelevantInstancesByDocumentIds(
         $validated['document_ids']
     );
 
