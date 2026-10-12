@@ -4307,17 +4307,37 @@ public function getInstancesByDocumentIds(
             'min:1',
             'max:100',
         ],
+
+        
         'document_ids.*' => [
             'required',
             'integer',
             'min:1',
             'distinct',
         ],
+
+         'relevant' => [
+            'required',
+            'boolean',
+        ],
     ]);
 
-    $instances = $workflowInstanceService->getRelevantInstancesByDocumentIds(
-        $validated['document_ids']
-    );
+  
+
+      $relevant = $request->boolean('relevant');
+
+    if ($relevant) {
+        $instances = $workflowInstanceService
+            ->getRelevantInstancesByDocumentIds(
+                $validated['document_ids']
+            );
+    } else {
+        $instances = $workflowInstanceService
+            ->getInstancesByDocumentIds(
+                $validated['document_ids']
+            );
+    }
+    
 
     return response()->json([
         'success' => true,
