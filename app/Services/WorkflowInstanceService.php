@@ -299,7 +299,7 @@ public function getRelevantInstancesByDocumentIds(array $documentIds): Collectio
                             'workflow_instances.document_id'
                         )
                         ->whereIn('signature_types.code', [
-                            'REGULARIZATION_ADVANCE',
+                            // 'REGULARIZATION_ADVANCE',
                             'REGULARIZATION_SETTLEMENT',
                         ]);
                 });
