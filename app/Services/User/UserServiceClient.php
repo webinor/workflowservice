@@ -2,7 +2,7 @@
 
 namespace App\Services\User;
 
-
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class UserServiceClient
@@ -117,6 +117,9 @@ public function cancelTransactions(
     );
 
     if (!$response->successful()) {
+
+    throw new Exception(json_encode($response->body()), 1);
+    
         return null;
     }
 
