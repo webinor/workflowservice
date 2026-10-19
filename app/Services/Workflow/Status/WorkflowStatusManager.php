@@ -46,7 +46,7 @@ class WorkflowStatusManager
         if (!isset($this->handlers[$documentTypeRelationName])) {
             throw new RuntimeException(
                 sprintf(
-                    'Aucun gestionnaire de statut pour le type de document "%s".',
+                    'Aucun gestionnaire de statut pour le type de document "%s"...',
                     $documentTypeRelationName
                 )
             );
