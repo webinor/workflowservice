@@ -74,6 +74,10 @@ public function confirmPhysicalDocumentsBeforeBeneficiarySignature(
     string $source = "BENEFICIARY_SIGNATURE"
 
 ): ?array {
+
+    if ($documentTypeRelationName === 'absence_request') {
+        return [];
+    }
     if (!isset($this->handlers[$documentTypeRelationName])) {
         throw new RuntimeException(
             sprintf(
