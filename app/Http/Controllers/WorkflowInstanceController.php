@@ -2417,7 +2417,7 @@ class WorkflowInstanceController extends Controller
 
 
     
-            // DB::commit();
+            DB::commit();
 
 
             
