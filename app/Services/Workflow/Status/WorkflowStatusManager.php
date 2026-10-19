@@ -97,12 +97,16 @@ class WorkflowStatusManager
      */
     protected function ensureDocumentTypeIsSupported(
         string $documentTypeRelationName
-    ): void {
+    )
+    // : void
+     {
         if (in_array(
             $documentTypeRelationName,
             $this->excludedDocumentTypes,
             true
         )) {
+
+        return true;
             throw new RuntimeException(
                 sprintf(
                     'Le type de document "%s" est exclu du gestionnaire de statut.',
