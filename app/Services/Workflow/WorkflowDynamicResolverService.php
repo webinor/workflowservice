@@ -13,7 +13,62 @@ class WorkflowDynamicResolverService
     public function __construct(EffectiveResponsibilityService $effectiveResponsibilityService) {
         $this->effectiveResponsibilityService = $effectiveResponsibilityService;
     }
-    public function resolveActor($document)
+
+    /**
+ * Résout l'acteur associé à un document.
+ *
+ * L'acteur peut être :
+ * - un EMPLOYEE ;
+ * - un DEPARTMENT.
+ *
+ * @param array $document
+ * @return array|null
+ */
+public function resolveActor($document)
+{
+    $mapper = [
+        "mission" => "actor_details",
+        "purchase_request" => "actor_details",
+        "taxi_paper" => "actor_details",
+        "fee_note" => "actor_details",
+        "absence_request" => "actor_details",
+        "regularization_sheet" => "actor_details",
+        "invoice_provider" => "actor_details",
+    ];
+
+    $slug = data_get($document, 'document_type.relation_name');
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Conserver les informations détaillées existantes.
+    |--------------------------------------------------------------------------
+    */
+    if (
+        isset($mapper[$slug])
+        && !empty($document[$mapper[$slug]])
+    ) {
+        return $document[$mapper[$slug]];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Repli sur actor_type et actor_id.
+    |--------------------------------------------------------------------------
+    */
+    $actorType = data_get($document, 'actor_type');
+    $actorId = data_get($document, 'actor_id');
+
+    if (!$actorType || !$actorId) {
+        return null;
+    }
+
+    return [
+        'id' => $actorId,
+        'actor_type' => $actorType,
+    ];
+}
+
+    public function OldresolveActor($document)
     {
         $mapper = [
             "mission" => "actor_details",
@@ -32,6 +87,8 @@ class WorkflowDynamicResolverService
 
         return $document[$mapper[$slug]] ?? null;
     }
+
+    
     public function resolveHeadStepRole($step, $document)
     {
         // $rule = $step->assignment_rule;
@@ -39,12 +96,11 @@ class WorkflowDynamicResolverService
 
         $actor = $this->resolveActor($document);
 
-        // throw new Exception(    json_encode($actor, JSON_PRETTY_PRINT), 1);
 
-        if ($actor) {
-            $employeeId = $actor["id"] ?? null; // employee_id
-            $actorId = $actor["id"];
-        }
+        // if ($actor) {
+        //     $employeeId = $actor["id"] ?? null; // employee_id
+        //     $actorId = $actor["id"];
+        // }
 
         // throw new Exception(json_encode($actorId, JSON_PRETTY_PRINT), 1);
 
@@ -55,40 +111,55 @@ class WorkflowDynamicResolverService
              * =====================================
              */
             case "HEAD_OF_DEPARTMENT":
-                if (!$employeeId) {
-                    return null;
-                }
 
-                $response = Http::acceptJson()->get(
-                    config("services.department_service.base_url") .
-                        "/employee/{$employeeId}/head-of-department"
-                );
+    $actorType = $document["actor_type"] ?? null;
+    $actorId = $document["actor_id"] ?? null;
 
-                if ($response->ok()) {
-                    // throw new Exception(json_encode($response->body(), JSON_PRETTY_PRINT),1);
+   
 
-                    return $response->json();
-                }
+    if (!$actorId) {
+        return null;
+    }
 
-                // return $response->json();
+    $baseUrl = config("services.department_service.base_url");
 
-        //          return response()->json([
-        //     'message' => 'Chef de service introuvable'
-        // ], 404);
+    /*
+    |--------------------------------------------------------------------------
+    | Résolution selon le type d'acteur
+    |--------------------------------------------------------------------------
+    */
+    if ($actorType === "DEPARTMENT") {
+        $url = $baseUrl . "/{$actorId}/head";
+    } else {
+        $url = $baseUrl . "/employee/{$actorId}/head-of-department";
+    }
 
-                throw new Exception(
-                    json_encode($response->body(), JSON_PRETTY_PRINT),
-                    1
-                );
+    $response = Http::acceptJson()->get($url);
 
-                return null;
+    // 
 
+    if ($response->ok()) {
+        return $response->json();
+    }
+
+     throw new Exception(
+        json_encode($response->body(), JSON_PRETTY_PRINT),
+        1
+    );
+
+   
             /**
              * =====================================
              * SUPÉRIEUR HIÉRARCHIQUE
              * =====================================
              */
             case "DIRECT_MANAGER":
+
+                  if ($actor) {
+            $employeeId = $actor["id"] ?? null; // employee_id
+            $actorId = $actor["id"];
+        }
+        
                 if (!$employeeId) {
                     return null;
                 }
@@ -149,20 +220,25 @@ class WorkflowDynamicResolverService
                 );
 
             case "OPERATOR":
+            case "PURCHASE_SERVICE":
+
+        // throw new Exception(    json_encode($rule, JSON_PRETTY_PRINT), 1);
+
+
                 $response = Http::acceptJson()
                     ->withToken(request()->bearerToken())
                     ->get(
                         config("services.department_service.base_url") .
                             "/by-responsibility",
                         [
-                            "responsibility" => ["OPERATOR"],
+                            "responsibility" => [$rule],
                         ]
                     );
 
                 // throw new Exception(json_encode(["ok"]), 1);
 
                 if ($response->ok()) {
-                // throw new Exception(json_encode(["ok"]), 1);
+                // throw new Exception(json_encode($response->json()), 1);
 
                     return $response->json("data");
                 }

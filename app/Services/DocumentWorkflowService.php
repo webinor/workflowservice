@@ -2350,6 +2350,8 @@ if (!$perm) {
         $doc["actor_type"] === "EMPLOYEE" &&
         $doc["actor_id"] === $employeeId;
 
+    
+
 
     /*
     |--------------------------------------------------------------------------
@@ -2481,6 +2483,10 @@ foreach ($steps as $instanceStep) {
         $responsibilities
     );
 
+   
+
+        // throw new Exception(json_encode($isPurchaseDoc), 1);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -2606,6 +2612,24 @@ return
     // }
 
     $permissions = $perm["permissions"];
+
+     $isUserFromPurchaseService = in_array(
+        "PURCHASE_SERVICE",
+        $responsibilities
+    );
+
+    $isPurchaseDoc = $doc['document_type']['code'] == 'PURCHASE_REQUEST';
+
+    if ($isPurchaseDoc && (!$isUserFromPurchaseService && !$permissions["view_all"] && !$permissions["view_department"])) {
+
+// throw new Exception($permissions["view_all"], 1);
+
+
+    return false;
+                
+        
+    
+    }
 
 
     // /*

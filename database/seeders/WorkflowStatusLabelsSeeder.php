@@ -38,6 +38,15 @@ class WorkflowStatusLabelsSeeder extends Seeder
     ],
 
     [
+    'code' => 'IN_PROGRESS',
+    'label' => 'En cours de traitement',
+    'emoji' => '🔄',
+    'color' => 'info',
+    'is_configurable' => true,
+    'status_type' => 'COMMON',
+],
+
+    [
         'code' => 'WAITING_REGULARIZATION',
         'label' => 'En attente de régularisation',
         'emoji' => '🛠️',

@@ -2,6 +2,7 @@
 
 namespace App\Services\Department;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 
 class DepartmentServiceClient
@@ -15,7 +16,7 @@ class DepartmentServiceClient
     }
 
     /**
-     * Headers gateway
+     * Headers gateway.
      */
     protected function headers(): array
     {
@@ -29,6 +30,7 @@ class DepartmentServiceClient
      * Responsable service
      * =========================================
      */
+
     public function serviceHead(
         string $serviceCode
     ): ?array {
@@ -44,5 +46,47 @@ class DepartmentServiceClient
         }
 
         return $response->json()['data'] ?? null;
+    }
+
+    /**
+     * =========================================
+     * Employés ayant des responsabilités effectives
+     * =========================================
+     *
+     * Récupère les employés possédant effectivement
+     * au moins une des responsabilités demandées.
+     *
+     * Le Department Service doit calculer les responsabilités
+     * effectives en tenant compte des exceptions GRANT et REVOKE.
+     *
+     * @param array $responsibilityCodes Codes des responsabilités
+     * @return array Liste des employés concernés
+     */
+    public function employeesByResponsibilities(
+        array $responsibilityCodes
+    )//: array
+     {
+
+        if (empty($responsibilityCodes)) {
+            return [];
+        }
+
+        $response = Http::withHeaders(
+            $this->headers()
+        )->get(
+            "{$this->baseUrl}/employees/responsibility-members-multiple",
+            [
+                'responsibilities' => $responsibilityCodes,
+            ]
+        );
+
+        if (!$response->successful()) {
+
+                              throw new Exception(json_encode($response->body()));
+
+            return [];
+        }
+
+        return $response->json()['data'] ?? [];
     }
 }

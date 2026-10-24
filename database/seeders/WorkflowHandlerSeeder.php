@@ -19,6 +19,7 @@ use App\Services\Workflow\Handlers\RegularizationSheetReadyForFinalizationHandle
 use App\Services\Workflow\Handlers\RegularizationSheetRegularizedHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
 use App\Services\Workflow\Handlers\TaxiPaperSignedHandler;
+use App\Services\Workflow\Handlers\UpdatePurchaseRequestStatusHandler;
 use Illuminate\Database\Seeder;
 
 class WorkflowHandlerSeeder extends Seeder
@@ -119,6 +120,19 @@ class WorkflowHandlerSeeder extends Seeder
                 'priority' => 1,
                 'is_async' => false,
             ],
+
+            /*
+|--------------------------------------------------------------------------
+| Demandes d'achat
+|--------------------------------------------------------------------------
+*/
+
+[
+    'event' => 'UPDATE_PURCHASE_REQUEST_STATUS',
+    'handler' => UpdatePurchaseRequestStatusHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+],
 
 
             /*

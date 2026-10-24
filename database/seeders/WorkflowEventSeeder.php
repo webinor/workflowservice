@@ -81,6 +81,11 @@ class WorkflowEventSeeder extends Seeder
 ],
 
 
+[
+    'code' => 'UPDATE_PURCHASE_REQUEST_STATUS',
+    'name' => 'Modification du statut de la demande d’achat',
+    'description' => 'Déclenché lorsqu’une demande d’achat est mise à jour pour changer son statut.',
+],
 
 
             /*

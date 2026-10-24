@@ -926,7 +926,8 @@ if ($instance->status === 'COMPLETE') {
             |--------------------------------------------------------------------------
             */
 
-                if ($oldStep) {
+                // if ($oldStep) {
+                if (false) {
                     // return $oldStep;
 
                     $oldActionSteps = WorkflowActionStep::with([

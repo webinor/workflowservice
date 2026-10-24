@@ -25,6 +25,7 @@ use App\Models\WorkflowStatusHistory;
 use App\Models\WorkflowStatusLabel;
 use App\Models\WorkflowStep;
 use App\Notifications\StepReminderNotification;
+use App\Services\Department\DepartmentServiceClient;
 use App\Services\Workflow\Event\WorkflowEventEngine;
 use App\Services\Workflow\Status\WorkflowStatusManager;
 use App\Services\Workflow\WorkflowCancellationService;
@@ -141,6 +142,7 @@ class WorkflowInstanceController extends Controller
     public function history(
         Request $request,
         WorkflowDynamicResolverService $resolver,
+        DepartmentServiceClient $departmentServiceClient,
         // int $documentId
         string $documentUuid
     ) {
@@ -261,7 +263,8 @@ class WorkflowInstanceController extends Controller
                 $users,
                 $roles,
                 $resolver,
-                $exceptiondUsers
+                $exceptiondUsers,
+                $departmentServiceClient
             ) {
                 $displayName = null;
 
@@ -384,11 +387,47 @@ class WorkflowInstanceController extends Controller
                             ->unique()
                             ->implode(" / ");
 
-                        if (
-                            $instanceStep->workflowStep->assignment_rule ==
-                            "OPERATOR"
-                        ) {
-                            //   throw new Exception(json_encode($displayName));
+                       
+
+                        // if (
+                        //     $instanceStep->workflowStep->assignment_rule ==
+                        //     "OPERATOR"
+                        // ) {
+
+                        if (in_array($instanceStep->workflowStep->assignment_rule , ["OPERATOR" , "PURCHASE_SERVICE"]) ) {
+
+                        $rule = $instanceStep->workflowStep->assignment_rule;
+
+                          $employees = $departmentServiceClient->employeesByResponsibilities([$rule]);
+
+                           $effectiveUserIds = collect($employees)
+        ->pluck('user_id')
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+         // Conserver uniquement les utilisateurs possédant
+    // effectivement la responsabilité $rule.
+    $usersByRoles = collect($usersByRoles)
+        ->map(function ($users) use ($effectiveUserIds) {
+            return collect($users)
+                ->filter(function ($user) use ($effectiveUserIds) {
+                    return in_array(
+                        $user['id'] ?? null,
+                        $effectiveUserIds
+                    );
+                })
+                ->values()
+                ->all();
+        })
+        ->filter(function ($users) {
+            return count($users) > 0;
+        })
+        ->toArray();
+
+
+                            //   throw new Exception(json_encode($employees));
                         }
                     }
                 } /**
@@ -1078,10 +1117,10 @@ class WorkflowInstanceController extends Controller
 }
 
     public function getStepRolesIds(
-        $step,
+        WorkflowStep $step,
         array $userConnected,
-        $resolver,
-        $documentData
+        WorkflowDynamicResolverService $resolver,
+        array $documentData
     ): array {
         //   throw new Exception(($step["id"]), 1);
 
@@ -1142,10 +1181,9 @@ class WorkflowInstanceController extends Controller
             } elseif ($step["assignment_rule"] === "HEAD_OF_DEPARTMENT") {
                 $actor = $resolver->resolveActor($documentData);
 
-                if (!$actor) {
-                    $stepRoles = [];
-                    return $stepRoles;
-                }
+
+
+               
 
                 /*
                     |--------------------------------------------------------------------------
@@ -1153,12 +1191,30 @@ class WorkflowInstanceController extends Controller
                     |--------------------------------------------------------------------------
                     */
 
-                $exceptionalApprovers = $resolver->resolveExceptionalApprovers(
+                     if (!$actor) {
+
+                // throw new Exception(json_encode($actor), 1);
+
+                
+                    $stepRoles = [];
+                    $exceptionalApprovers = null;
+                    // return $stepRoles;
+                }
+                else{
+
+
+                 $exceptionalApprovers = $resolver->resolveExceptionalApprovers(
                     $actor["id"],
                     $documentData
                 );
 
-                // throw new Exception(json_encode($exceptionalApprovers), 1);
+
+
+                }
+
+               
+
+                // throw new Exception(json_encode($actor), 1);
 
                 if ($exceptionalApprovers) {
                     $stepRoles = $resolver->formatExceptionalApprovers(
@@ -1185,7 +1241,7 @@ class WorkflowInstanceController extends Controller
 
                     // $validatorRole = $this->getRoleValidator($departmentId);
                     // $stepRoles = $documentData[$documentData["document_type"]["slug"]]["actor_details"]["employee"]["manager"]["user"]["role_ids"];
-                    // throw new Exception(json_encode($validatorRole), 1);
+                    // throw new Exception(json_encode($stepRoles), 1);
                 }
             } elseif ($step["assignment_rule"] === "MISSION_EXECUTOR") {
                 $missionExecutor = $resolver->resolveActor($documentData);
@@ -1265,7 +1321,7 @@ class WorkflowInstanceController extends Controller
                 //     ->toArray();
 
                 // throw new Exception(json_encode($stepRoles), 1);
-            } elseif ($step["assignment_rule"] === "OPERATOR") {
+            } elseif (in_array($step["assignment_rule"] , ["OPERATOR" , "PURCHASE_SERVICE"]) ) {
                 // throw new Exception(json_encode($step["assignment_rule"]), 1);
 
                 $dynamicUsers = $resolver->resolveHeadStepRole(
@@ -1275,7 +1331,7 @@ class WorkflowInstanceController extends Controller
 
                 // throw new Exception(json_encode($dynamicUsers), 1);
 
-                $CURRENT_OPERATOR_ROLE_ID = $documentData["user"]["roles"]; ////le signataire qui soumet la FR ASSISTANCE
+                // $CURRENT_OPERATOR_ROLE_ID = $documentData["user"]["roles"]; ////le signataire qui soumet la FR ASSISTANCE
 
                 // throw new Exception(json_encode($CURRENT_OPERATOR_ROLE_ID), 1);
 
@@ -1579,7 +1635,7 @@ class WorkflowInstanceController extends Controller
     */
 
         if (!isset($stepRoles["roles_ids"])) {
-            // throw new Exception(json_encode(collect($step)));
+            throw new Exception(json_encode(collect($stepRoles)));
         }
 
         foreach ($stepRoles["roles_ids"] as $roleId) {
@@ -3524,7 +3580,7 @@ public function markReceiptsReceivedWaitingClosure(
         array $user,
         string $documentUuid,
         ?string $actionStepId,
-        $WorkflowEventEngine,
+        WorkflowEventEngine $WorkflowEventEngine,
         array $documentData,
         WorkflowTransition $transition
     ): void {
