@@ -240,7 +240,126 @@ class DocumentServiceClient
 
 
 
-    public function fetchDocuments(
+public function fetchDocuments(
+    $documentIds,
+    array $documentTypes,
+    ?array $filters,
+    Request $request,
+    bool $isStat = false,
+    bool $shouldEnrich = true
+): array {
+
+    // Début de la mesure globale de la méthode.
+    $methodStart = microtime(true);
+
+    $ids = $documentIds->toArray();
+
+    $url = config("services.document_service.base_url") . "/by-ids";
+
+    $queryParams = [
+        "ids" => $ids,
+        "documentTypes" => $documentTypes,
+        "filters" => $filters,
+        "shouldEnrich" => $shouldEnrich,
+        "isStat" => $isStat,
+    ];
+
+    /*
+     * On conserve les informations utiles au diagnostic,
+     * sans journaliser les identifiants ni les filtres complets.
+     */
+    logger()->info("DOCUMENT CLIENT - REQUETE BY IDS", [
+        "url" => $url,
+        "ids_count" => count($ids),
+        "document_types" => $documentTypes,
+        "filters_count" => is_array($filters)
+            ? count($filters)
+            : 0,
+        "filter_keys" => is_array($filters)
+            ? array_keys($filters)
+            : [],
+        "is_stat" => $isStat,
+        "should_enrich" => $shouldEnrich,
+    ]);
+
+    /*
+     * Étape 1 : mesurer l'appel HTTP.
+     *
+     * Cette durée comprend notamment l'envoi de la requête,
+     * le traitement côté serveur et la réception de la réponse.
+     */
+    $httpStart = microtime(true);
+
+    $response = Http::withToken($request->bearerToken())
+        ->acceptJson()
+        ->get($url, $queryParams);
+
+    $httpDurationMs = round(
+        (microtime(true) - $httpStart) * 1000,
+        2
+    );
+
+    /*
+     * Étape 2 : mesurer le décodage JSON.
+     *
+     * On décode la réponse une seule fois afin d'éviter
+     * de répéter inutilement cet appel dans les logs et le retour.
+     */
+    $decodeStart = microtime(true);
+
+    $decodedResponse = $response->json();
+
+    $decodeDurationMs = round(
+        (microtime(true) - $decodeStart) * 1000,
+        2
+    );
+
+    $totalDurationMs = round(
+        (microtime(true) - $methodStart) * 1000,
+        2
+    );
+
+    /*
+     * Étape 3 : journaliser les mesures.
+     *
+     * Ne pas journaliser le corps complet de la réponse :
+     * il peut contenir des informations personnelles ou financières.
+     */
+    logger()->info("DOCUMENT CLIENT - PERF BY IDS", [
+        "http_status" => $response->status(),
+        "content_type" => $response->header("Content-Type"),
+
+        "ids_count" => count($ids),
+        "document_types" => $documentTypes,
+
+        "http_duration_ms" => $httpDurationMs,
+        "json_decode_duration_ms" => $decodeDurationMs,
+        "total_duration_ms" => $totalDurationMs,
+
+        "response_count" => is_countable($decodedResponse)
+            ? count($decodedResponse)
+            : null,
+
+        "response_size_bytes" => strlen($response->body()),
+
+        "is_stat" => $isStat,
+        "should_enrich" => $shouldEnrich,
+    ]);
+
+    /*
+     * Étape 4 : conserver le comportement existant.
+     */
+    if ($response->ok()) {
+        return $decodedResponse;
+    }
+
+    throw new Exception(
+        json_encode($response->body()),
+        1
+    );
+}
+
+    public function OldfetchDocuments(
     $documentIds,
     array $documentTypes,
     ?array $filters,
