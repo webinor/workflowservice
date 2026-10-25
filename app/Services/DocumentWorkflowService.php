@@ -59,11 +59,674 @@ class DocumentWorkflowService
         $this->responsibilityService = $responsibilityService;
     }
 
-    public function getDocuments(
+    
+public function getDocuments(
     array $params,
     Request $request,
     WorkflowPermissionService $permissionService
 ): array {
+
+    /*
+    |--------------------------------------------------------------------------
+    | 0. Initialisation des mesures de performance
+    |--------------------------------------------------------------------------
+    |
+    | step_ms  : durée depuis la dernière mesure.
+    | total_ms : durée cumulée depuis le début de getDocuments().
+    |
+    | Les logs ne contiennent que des indicateurs techniques et des nombres
+    | de documents. On évite de journaliser les données métier complètes.
+    |
+    */
+
+    $perfStart = microtime(true);
+    $perfLast = $perfStart;
+
+    $logPerf = function (
+        string $step,
+        array $context = []
+    ) use (&$perfLast, $perfStart) {
+
+        $now = microtime(true);
+
+        \Illuminate\Support\Facades\Log::debug(
+            'WORKFLOW - PERF',
+            array_merge([
+                'step' => $step,
+                'step_ms' => round(
+                    ($now - $perfLast) * 1000,
+                    2
+                ),
+                'total_ms' => round(
+                    ($now - $perfStart) * 1000,
+                    2
+                ),
+            ], $context)
+        );
+
+        $perfLast = $now;
+    };
+
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Initialisation des paramètres
+    |--------------------------------------------------------------------------
+    */
+
+    [
+        "employeeId" => $employeeId,
+        "userId" => $userId,
+        "roleId" => $roleId,
+        "document_type" => $document_type,
+        "validationContext" => $validationContext,
+        "filters" => $filters,
+        "filterContext" => $filterContext,
+        "currentPage" => $currentPage,
+        "per_page" => $per_page,
+        "isStat" => $isStat,
+    ] = $params;
+
+    $isExport = (bool) ($params["export"] ?? false);
+
+    $logPerf('01_INITIALISATION', [
+        'is_stat' => (bool) $isStat,
+        'is_export' => $isExport,
+        'validation_context' => $validationContext,
+        'document_type_count' => is_array($document_type)
+            ? count($document_type)
+            : 0,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Construction de la requête Workflow
+    |--------------------------------------------------------------------------
+    */
+
+    $baseQuery = $this->buildWorkflowQuery(
+        $validationContext
+    );
+
+    if (!empty($document_type)) {
+        $baseQuery->where(
+            "workflow_instances.document_type_relation_name",
+            $document_type
+        );
+    }
+
+    $logPerf('02_BUILD_WORKFLOW_QUERY');
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Contexte de l'employé et de l'utilisateur
+    |--------------------------------------------------------------------------
+    */
+
+    $currentEmployeeContext = $this
+        ->effectiveResponsibilityService
+        ->getContext($employeeId);
+
+    $logPerf('03_GET_EMPLOYEE_CONTEXT');
+
+    $currentUserContext = $this
+        ->effectiveResponsibilityService
+        ->getUserContext($employeeId);
+
+    $logPerf('04_GET_USER_CONTEXT');
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Responsabilités effectives
+    |--------------------------------------------------------------------------
+    */
+
+    $responsibilities = $this
+        ->effectiveResponsibilityService
+        ->getForEmployee(
+            $employeeId,
+            $currentEmployeeContext
+        );
+
+    $logPerf('05_GET_RESPONSIBILITIES', [
+        'responsibilities_count' => is_countable($responsibilities)
+            ? count($responsibilities)
+            : null,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Sélection des identifiants de workflow
+    |--------------------------------------------------------------------------
+    */
+
+    $documentIdsNotPaginated = $this->getDocumentIds(
+        $filterContext,
+        clone $baseQuery,
+        $roleId,
+        $userId,
+        $validationContext,
+        $document_type[0],
+        $employeeId,
+        $responsibilities,
+        $filters,
+        $filterContext['applyStatus'],
+        $filterContext['applyRole']
+    );
+
+    $logPerf('06_GET_DOCUMENT_IDS', [
+        'workflow_results_count' => is_countable(
+            $documentIdsNotPaginated
+        )
+            ? count($documentIdsNotPaginated)
+            : null,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Extraction des identifiants des documents
+    |--------------------------------------------------------------------------
+    */
+
+    $documentIds = collect($documentIdsNotPaginated)
+        ->pluck("document_id")
+        ->filter()
+        ->unique()
+        ->values();
+
+    $logPerf('07_EXTRACT_DOCUMENT_IDS', [
+        'document_ids_count' => $documentIds->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 7. Récupération des documents auprès du Document Service
+    |--------------------------------------------------------------------------
+    */
+
+    $flatDocuments = collect(
+        $this->documentClient->getDocumentTypesByIds(
+            $documentIds->toArray()
+        )
+    )
+        ->sortByDesc("id")
+        ->values()
+        ->all();
+
+    $logPerf('08_GET_DOCUMENTS_BY_IDS', [
+        'documents_count' => count($flatDocuments),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 8. Récupération des permissions par type de document
+    |--------------------------------------------------------------------------
+    */
+
+    $permissionsByDocType = $this->getPermissions(
+        $flatDocuments,
+        $userId,
+        $roleId,
+        $request,
+        $permissionService
+    );
+
+    $logPerf('09_GET_PERMISSIONS', [
+        'document_types_count' => count($permissionsByDocType),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 9. Préparation des départements des acteurs
+    |--------------------------------------------------------------------------
+    */
+
+    $actorIds = collect($flatDocuments)
+        ->pluck('actor_id')
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
+    $currentDepartmentId = data_get(
+        $currentEmployeeContext,
+        'active_position.department_id'
+    );
+
+    $sameDepartmentMap = $this->getSameDepartmentMap(
+        $actorIds,
+        $currentDepartmentId
+    );
+
+    $logPerf('10_GET_SAME_DEPARTMENT_MAP', [
+        'actor_ids_count' => count($actorIds),
+        'department_map_count' => is_countable($sameDepartmentMap)
+            ? count($sameDepartmentMap)
+            : null,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 10. Chargement des instances de workflow
+    |--------------------------------------------------------------------------
+    */
+
+    $workflowInstances = WorkflowInstance::query()
+        ->whereIn("document_id", $documentIds)
+        ->get()
+        ->keyBy("document_id");
+
+    $logPerf('11_LOAD_WORKFLOW_INSTANCES', [
+        'workflow_instances_count' => $workflowInstances->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 11. Chargement des étapes de workflow
+    |--------------------------------------------------------------------------
+    */
+
+    $workflowInstanceIds = $workflowInstances
+        ->pluck("id")
+        ->filter()
+        ->values()
+        ->toArray();
+
+    $workflowSteps = WorkflowInstanceStep::query()
+        ->whereIn(
+            "workflow_instance_id",
+            $workflowInstanceIds
+        )
+        ->with([
+            "workflowStep.workflowActionSteps.workflowAction"
+        ])
+        ->get()
+        ->groupBy("workflow_instance_id");
+
+    $logPerf('12_LOAD_WORKFLOW_STEPS', [
+        'workflow_instance_ids_count' => count(
+            $workflowInstanceIds
+        ),
+        'workflow_steps_count' => $workflowSteps->sum(
+            function ($steps) {
+                return $steps->count();
+            }
+        ),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 12. Contrôle des permissions de visibilité
+    |--------------------------------------------------------------------------
+    */
+
+    $filteredDocuments = collect($flatDocuments)
+        ->filter(
+            fn($doc) => $this->canView(
+                $doc,
+                $permissionsByDocType,
+                $employeeId,
+                $userId,
+                $validationContext,
+                $document_type,
+                $responsibilities,
+                $workflowInstances,
+                $workflowSteps,
+                $sameDepartmentMap,
+                $currentUserContext
+            )
+        )
+        ->values();
+
+    $logPerf('13_FILTER_CAN_VIEW', [
+        'documents_before' => count($flatDocuments),
+        'documents_authorized' => $filteredDocuments->count(),
+        'documents_rejected' => count($flatDocuments)
+            - $filteredDocuments->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 13. Mode statistiques
+    |--------------------------------------------------------------------------
+    */
+
+    if ($isStat) {
+
+        $authorizedDocumentIds = $filteredDocuments
+            ->pluck("id")
+            ->values();
+
+        $logPerf('14_STATS_PREPARATION', [
+            'authorized_ids_count' => $authorizedDocumentIds->count(),
+        ]);
+
+        $documentsCount = $this->documentClient->fetchDocuments(
+            $authorizedDocumentIds,
+            $document_type,
+            $filters,
+            $request,
+            true,
+            false
+        );
+
+        $logPerf('15_STATS_FETCH_DOCUMENTS');
+
+        $logPerf('END_GET_DOCUMENTS', [
+            'mode' => 'statistics',
+            'result_count' => $documentsCount,
+        ]);
+
+        return [
+            "count" => $documentsCount,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 14. Identifiants de tous les documents autorisés
+    |--------------------------------------------------------------------------
+    */
+
+    $authorizedDocumentIds = $filteredDocuments
+        ->pluck("id")
+        ->filter()
+        ->unique()
+        ->values();
+
+    $logPerf('14_PREPARE_AUTHORIZED_IDS', [
+        'authorized_ids_count' => $authorizedDocumentIds->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 15. Application des filtres avant la pagination
+    |--------------------------------------------------------------------------
+    */
+
+    $documentsAfterFilters = $this->documentClient->fetchDocuments(
+        $authorizedDocumentIds,
+        $document_type,
+        $filters,
+        $request,
+        false,
+        true
+    );
+
+    $logPerf('15_FETCH_DOCUMENTS_WITH_FILTERS', [
+        'authorized_ids_count' => $authorizedDocumentIds->count(),
+        'returned_type' => is_object($documentsAfterFilters)
+            ? get_class($documentsAfterFilters)
+            : gettype($documentsAfterFilters),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 16. Conversion du résultat en Collection
+    |--------------------------------------------------------------------------
+    */
+
+    $documentsAfterFilters = collect($documentsAfterFilters)
+        ->values();
+
+    $logPerf('16_NORMALIZE_DOCUMENTS', [
+        'documents_after_filters' => $documentsAfterFilters->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 17. Calcul du total après filtrage
+    |--------------------------------------------------------------------------
+    */
+
+    $total = $documentsAfterFilters->count();
+
+    $logPerf('17_COUNT_FILTERED_DOCUMENTS', [
+        'total' => $total,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 18. Préparation de la pagination
+    |--------------------------------------------------------------------------
+    */
+
+    $page = max((int) $currentPage, 1);
+
+    $perPage = max((int) $per_page, 1);
+
+    $lastPage = max(
+        1,
+        (int) ceil($total / $perPage)
+    );
+
+    $logPerf('18_PREPARE_PAGINATION', [
+        'requested_page' => (int) $currentPage,
+        'per_page' => $perPage,
+        'total' => $total,
+        'last_page' => $lastPage,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 19. Pagination / Export
+    |--------------------------------------------------------------------------
+    */
+
+    if ($isExport) {
+
+        $documentsToReturn = $documentsAfterFilters
+            ->values();
+
+    } else {
+
+        $page = min($page, $lastPage);
+
+        $documentsToReturn = $documentsAfterFilters
+            ->slice(($page - 1) * $perPage, $perPage)
+            ->values();
+    }
+
+    $logPerf('19_APPLY_PAGINATION', [
+        'is_export' => $isExport,
+        'current_page' => $page,
+        'documents_to_return' => $documentsToReturn->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 20. Préparation des documents de la page courante
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = $documentsToReturn
+        ->values()
+        ->all();
+
+    $filteredDocumentIds = collect($documents)
+        ->pluck("id")
+        ->filter()
+        ->unique()
+        ->values();
+
+    $logPerf('20_PREPARE_CURRENT_PAGE', [
+        'page_document_count' => count($documents),
+        'page_document_ids_count' => $filteredDocumentIds->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 21. Métadonnées de pagination
+    |--------------------------------------------------------------------------
+    */
+
+    $pagination = [
+        "current_page" => $page,
+        "per_page" => $perPage,
+        "total" => $total,
+        "last_page" => $lastPage,
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | 22. Retour anticipé si aucun document ne correspond
+    |--------------------------------------------------------------------------
+    */
+
+    if (empty($documents)) {
+
+        $logPerf('END_GET_DOCUMENTS', [
+            'mode' => $isExport ? 'export' : 'normal',
+            'result_count' => 0,
+            'total_filtered' => $total,
+        ]);
+
+        return [
+            "data" => [],
+            "pagination" => $pagination,
+        ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 23. Chargement des instances des documents retournés
+    |--------------------------------------------------------------------------
+    */
+
+    $workflowInstances = WorkflowInstance::query()
+        ->whereIn("document_id", $filteredDocumentIds)
+        ->get()
+        ->keyBy("document_id");
+
+    $logPerf('21_LOAD_PAGE_WORKFLOW_INSTANCES', [
+        'workflow_instances_count' => $workflowInstances->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 24. Récupération des contextes de disponibilité
+    |--------------------------------------------------------------------------
+    */
+
+    $availabilityContexts = $this->availabilityContexts(
+        $filteredDocumentIds->toArray()
+    );
+
+    $logPerf('22_GET_AVAILABILITY_CONTEXTS', [
+        'contexts_count' => is_countable($availabilityContexts)
+            ? count($availabilityContexts)
+            : null,
+    ]);
+
+    $contextsByDocId = collect($availabilityContexts)
+        ->keyBy("document_id");
+
+    /*
+    |--------------------------------------------------------------------------
+    | 25. Enrichissement individuel des documents
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = collect($documents)
+        ->map(function ($doc) use (
+            $contextsByDocId,
+            $workflowInstances,
+            $userId
+        ) {
+
+            $context = $contextsByDocId->get($doc["id"]);
+
+            $workflowInstance = $workflowInstances->get(
+                $doc["id"]
+            );
+
+            return $this->enrichDocument(
+                $doc,
+                $workflowInstance,
+                $userId,
+                $context
+            );
+
+        })
+        ->values()
+        ->toArray();
+
+    $logPerf('23_ENRICH_DOCUMENTS_INDIVIDUALLY', [
+        'documents_count' => count($documents),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 26. Chargement des étapes actionnables
+    |--------------------------------------------------------------------------
+    */
+
+    $actionableSteps = WorkflowInstanceStep::query()
+        ->whereHas("assignments", function ($q) use ($roleId) {
+
+            $q->where("role_id", $roleId)
+                ->where("decision", "PENDING");
+
+        })
+        ->where("status", "PENDING")
+        ->with("assignments")
+        ->get()
+        ->keyBy("workflow_instance_id");
+
+    $logPerf('24_LOAD_ACTIONABLE_STEPS', [
+        'actionable_steps_count' => $actionableSteps->count(),
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 27. Enrichissement final
+    |--------------------------------------------------------------------------
+    */
+
+    $documents = $this->enrichDocuments(
+        $documents,
+        $permissionsByDocType,
+        $workflowInstances,
+        $actionableSteps,
+        $employeeId,
+        $userId,
+        $validationContext
+    );
+
+    $logPerf('25_ENRICH_DOCUMENTS_FINAL', [
+        'documents_count' => is_countable($documents)
+            ? count($documents)
+            : null,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 28. Réponse finale
+    |--------------------------------------------------------------------------
+    */
+
+    $logPerf('END_GET_DOCUMENTS', [
+        'mode' => $isExport ? 'export' : 'normal',
+        'result_count' => is_countable($documents)
+            ? count($documents)
+            : null,
+        'total_filtered' => $total,
+        'current_page' => $page,
+    ]);
+
+    return [
+        "data" => $documents,
+        "pagination" => $pagination,
+    ];
+}
+
+    public function OldgetDocuments(
+    array $params,
+    Request $request,
+    WorkflowPermissionService $permissionService
+): array {
+
+
+
 
     /*
     |--------------------------------------------------------------------------
@@ -786,580 +1449,7 @@ class DocumentWorkflowService
     ];
 }
 
-  public function OldgetDocuments(
-    array $params,
-    Request $request,
-    WorkflowPermissionService $permissionService
-): array {
 
-    $benchmark = [];
-    // $start = microtime(true);
-
-    // $mark = function ($name) use (&$benchmark, &$start) {
-    //     $now = microtime(true);
-
-    //     $benchmark[$name] = [
-    //         'duration_ms' => round(($now - $start) * 1000, 2),
-    //     ];
-
-    //     $start = $now;
-    // };
-
-    // [
-    //     "employeeId" => $employeeId,
-    //     "userId" => $userId,
-    //     "roleId" => $roleId,
-    //     "document_type" => $document_type,
-    //     "validationContext" => $validationContext,
-    //     "filters" => $filters,
-    //     "filterContext" => $filterContext,
-    //     "currentPage" => $currentPage,
-    //     "per_page" => $per_page,
-    //     "isStat" => $isStat,
-    // ] = $params;
-
-    [
-    "employeeId" => $employeeId,
-    "userId" => $userId,
-    "roleId" => $roleId,
-    "document_type" => $document_type,
-    "validationContext" => $validationContext,
-    "filters" => $filters,
-    "filterContext" => $filterContext,
-    "currentPage" => $currentPage,
-    "per_page" => $per_page,
-    "isStat" => $isStat,
-] = $params;
-
-/*
-|--------------------------------------------------------------------------
-| Mode export
-|--------------------------------------------------------------------------
-|
-| L'export utilise exactement la même sélection que la liste.
-| La seule différence est qu'il ne doit pas appliquer la pagination.
-|
-*/
-$isExport = (bool) ($params["export"] ?? false);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Base Query
-    |--------------------------------------------------------------------------
-    */
-
-    $baseQuery = $this->buildWorkflowQuery($validationContext);
-
-    if (!empty($document_type)) {
-        $baseQuery->where(
-            "workflow_instances.document_type_relation_name",
-            $document_type
-        );
-    }
-
-    // $mark("build_base_query");
-
-
-    $currentEmployeeContext = $this->effectiveResponsibilityService
-        ->getContext($employeeId);
-
-    
-        $currentUserContext = 
-         $this->effectiveResponsibilityService
-        ->getUserContext($employeeId);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Responsibilities
-    |--------------------------------------------------------------------------
-    */
-
-    $responsibilities = $this->effectiveResponsibilityService
-        ->getForEmployee($employeeId , $currentEmployeeContext);
-
-    // $mark("get_responsibilities");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Document IDs
-    |--------------------------------------------------------------------------
-    */
-
-    // $documentIdsNotPaginated = $this->getDocumentIds(
-    //     $filterContext,
-    //     clone $baseQuery,
-    //     $roleId,
-    //     $userId,
-    //     $validationContext,
-    //     $document_type[0],
-    //     $employeeId,
-    //     $responsibilities,
-    //     $filters,
-    //     !empty($filters["statut"]),
-    //     !empty($filters["statut"]),
-    // );
-
-      $documentIdsNotPaginated = $this->getDocumentIds(
-        $filterContext,
-        clone $baseQuery,
-        $roleId,
-        $userId,
-        $validationContext,
-        $document_type[0],
-        $employeeId,
-        $responsibilities,
-        $filters,
-        $filterContext['applyStatus'],
-        $filterContext['applyRole'],
-    );
-
-    // $mark("get_document_ids");
-
-
-    $documentIds = collect($documentIdsNotPaginated)
-        ->pluck("document_id");
-
-    // $mark("pluck_document_ids");
-
-    // throw new Exception(json_encode($documentIds), 1);
-
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Document Service
-    |--------------------------------------------------------------------------
-    */
-
-    $flatDocuments = collect(
-        $this->documentClient->getDocumentTypesByIds(
-            $documentIds->toArray()
-        )
-    )
-        ->sortByDesc("id")
-        ->values()
-        ->all();
-
-    // $mark("get_documents_from_document_service");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Permissions
-    |--------------------------------------------------------------------------
-    */
-
-    $permissionsByDocType = $this->getPermissions(
-        $flatDocuments,
-        $userId,
-        $roleId,
-        $request,
-        $permissionService
-    );
-
-    // $mark("get_permissions");
-
-    $actorIds = collect($flatDocuments)
-    ->pluck('actor_id')
-    ->filter()
-    ->unique()
-    ->values()
-    ->toArray();
-
-
-
-$currentDepartmentId = data_get(
-    $currentEmployeeContext,
-    'active_position.department_id'
-);
-
-
-
-
-$sameDepartmentMap = $this->getSameDepartmentMap(
-    $actorIds,
-    $currentDepartmentId
-);
-
-    // throw new Exception(json_encode($sameDepartmentMap), 1);
-
-    
-
-    /*
-    |--------------------------------------------------------------------------
-    | Visibility
-    |--------------------------------------------------------------------------
-    */
-    $workflowInstances = WorkflowInstance::query()
-    ->whereIn("document_id", $documentIds)
-    ->get()
-    ->keyBy("document_id");
-
-$workflowInstanceIds = $workflowInstances
-    ->pluck("id")
-    ->filter()
-    ->values()
-    ->toArray();
-
-$workflowSteps = WorkflowInstanceStep::query()
-    ->whereIn("workflow_instance_id", $workflowInstanceIds)
-    ->with([
-        "workflowStep.workflowActionSteps.workflowAction"
-    ])
-    ->get()
-    ->groupBy("workflow_instance_id");
-
-
-    // throw new Exception(json_encode(sizeof($flatDocuments)), 1);
-
-    $filteredDocuments = collect($flatDocuments)
-        ->filter(
-            fn($doc) => $this->canView(
-            $doc,
-            $permissionsByDocType,
-            $employeeId,
-            $userId,
-            $validationContext,
-            $document_type,
-            $responsibilities,
-            $workflowInstances,
-            $workflowSteps,
-            $sameDepartmentMap,
-            $currentUserContext
-            )
-        )
-        ->values();
-
-    // throw new Exception(json_encode($filteredDocuments), 1);
-
-    // $mark("can_view_filter");
-
-
-      /*
-    |--------------------------------------------------------------------------
-    | Stat
-    |--------------------------------------------------------------------------
-    */
-
-    if ($isStat) {
-
-        $filteredDocumentIds = $filteredDocuments->pluck("id");
-
-        $documentsCount = $this->documentClient->fetchDocuments(
-            $filteredDocumentIds,
-            $document_type,
-            $filters,
-            $request,
-            $isStat,
-            false
-        );
-
-        // $mark("fetch_documents_stat");
-
-        // logger()->info("GET DOCUMENTS BENCHMARK", [
-        //     "employee_id" => $employeeId,
-        //     "document_count" => $documentIds->count(),
-        //     "filtered_count" => $filteredDocuments->count(),
-        //     "benchmark" => $benchmark,
-        // ]);
-
-        return [
-            "count" =>$documentsCount// collect($documents)->count(),
-        ];
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Pagination
-    |--------------------------------------------------------------------------
-    */
-
-    // $page = max((int) $currentPage, 1);
-    // $perPage = max((int) $per_page, 1);
-
-    // $total = $filteredDocuments->count();
-
-    // $pagedDocuments = $filteredDocuments
-    //     ->slice(($page - 1) * $perPage, $perPage)
-    //     ->values();
-
-    // // $mark("pagination");
-
-
-
-    // $filteredDocumentIds = $pagedDocuments->pluck("id");
-    /*
-|--------------------------------------------------------------------------
-| Pagination / Export
-|--------------------------------------------------------------------------
-|
-| En mode normal :
-|     on applique la pagination.
-|
-| En mode export :
-|     on conserve TOUS les documents autorisés et filtrés.
-|
-| Aucune autre logique métier n'est modifiée.
-|
-*/
-
-// $page = max((int) $currentPage, 1);
-// $perPage = max((int) $per_page, 1);
-
-// $total = $filteredDocuments->count();
-
-// if ($isExport) {
-
-// /*
-//      * Export :
-//      * aucune pagination.
-//      *
-//      * On transmet tous les documents autorisés
-//      * au document-service.
-//      */ 
-
-//     $documentsToFetch = $filteredDocuments
-//         ->values();
-
-// } else {
-
-// /*
-//      * Liste normale :
-//      * comportement actuel strictement conservé.
-//      */
-
-//     $documentsToFetch = $filteredDocuments
-//         ->slice(($page - 1) * $perPage, $perPage)
-//         ->values();
-// }
-
-// $filteredDocumentIds = $documentsToFetch->pluck("id");
-
-/*
-|--------------------------------------------------------------------------
-| Pagination / Export
-|--------------------------------------------------------------------------
-*/
-
-$page = max((int) $currentPage, 1);
-$perPage = max((int) $per_page, 1);
-
-$total = $filteredDocuments->count();
-
-$lastPage = max(
-    1,
-    (int) ceil($total / $perPage)
-);
-
-/*
- * En mode liste, on empêche une page courante
- * de dépasser la dernière page disponible.
- *
- * Exemple :
- * - 2 documents ;
- * - 10 documents par page ;
- * - page demandée : 3 ;
- * - page corrigée : 1.
- *
- * En mode export, aucune pagination n'est appliquée.
- */
-if (!$isExport) {
-    $page = min($page, $lastPage);
-
-    $documentsToFetch = $filteredDocuments
-        ->slice(($page - 1) * $perPage, $perPage)
-        ->values();
-} else {
-    $documentsToFetch = $filteredDocuments->values();
-}
-
-$filteredDocumentIds = $documentsToFetch->pluck('id');
-
-/*
- * Diagnostic temporaire.
- */
-logger()->info('GET DOCUMENTS - DIAGNOSTIC PAGINATION', [
-    'current_page_received' => $currentPage,
-    'current_page_used' => $page,
-    'per_page' => $perPage,
-    'total_filtered_documents' => $total,
-    'last_page' => $lastPage,
-    'is_export' => $isExport,
-    'filtered_document_ids' => $filteredDocuments->pluck('id')->values()->all(),
-    'document_ids_after_pagination' => $filteredDocumentIds->values()->all(),
-]);
-    // $mark("prepare_filtered_ids");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Fetch Documents
-    |--------------------------------------------------------------------------
-    */
-
-    $documents = $this->documentClient->fetchDocuments(
-        $filteredDocumentIds,
-        $document_type,
-        $filters,
-        $request
-    );
-
-    // $mark("fetch_documents");Impossible de récupérer le solde de congés de l'employe
-
-
-    $pagination = [
-        "current_page" => $page,
-        "per_page" => $perPage,
-        "total" => $total,
-        "last_page" => max(1, (int) ceil($total / $perPage)),
-    ];
-
-
-    if (collect($documents)->isEmpty()) {
-
-        // logger()->info("GET DOCUMENTS BENCHMARK", [
-        //     "employee_id" => $employeeId,
-        //     "document_count" => $documentIds->count(),
-        //     "filtered_count" => $filteredDocuments->count(),
-        //     "benchmark" => $benchmark,
-        // ]);
-
-        return [
-            "data" => [],
-            "pagination" => $pagination,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Workflow Instances
-    |--------------------------------------------------------------------------
-    */
-
-    $workflowInstances = WorkflowInstance::query()
-        ->whereIn("document_id", $documentIds)
-        ->get()
-        ->keyBy("document_id");
-
-    // $mark("get_workflow_instances");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Availability
-    |--------------------------------------------------------------------------
-    */
-
-    $availabilityContexts = $this->availabilityContexts(
-        $filteredDocumentIds->toArray()
-    );
-
-    // $mark("availability_contexts");
-
-
-    $contextsByDocId = collect($availabilityContexts)
-        ->keyBy("document_id");
-
-    // $mark("key_by_contexts");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Enrichment
-    |--------------------------------------------------------------------------
-    */
-
-    $documents = collect($documents)
-        ->map(function ($doc) use (
-            $contextsByDocId,
-            $workflowInstances,
-            $userId
-        ) {
-
-            $context = $contextsByDocId->get($doc["id"]);
-
-            return $this->enrichDocument(
-                $doc,
-                $workflowInstances[$doc["id"]],
-                $userId,
-                $context
-            );
-
-        })
-        ->values()
-        ->toArray();
-
-    // $mark("enrich_document");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Actionable Steps
-    |--------------------------------------------------------------------------
-    */
-
-    $actionableSteps = WorkflowInstanceStep::query()
-        ->whereHas("assignments", function ($q) use ($roleId) {
-            $q->where("role_id", $roleId)
-                ->where("decision", "PENDING");
-        })
-        ->where("status", "PENDING")
-        ->with("assignments")
-        ->get()
-        ->keyBy("workflow_instance_id");
-
-    // $mark("get_actionable_steps");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Final Enrichment
-    |--------------------------------------------------------------------------
-    */
-
-    $documents = $this->enrichDocuments(
-        $documents,
-        $permissionsByDocType,
-        $workflowInstances,
-        $actionableSteps,
-        $employeeId,
-        $userId,
-        $validationContext
-    );
-
-    // $mark("enrich_documents_final");
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Benchmark
-    |--------------------------------------------------------------------------
-    */
-
-    $totalTime = array_sum(
-        array_column($benchmark, "duration_ms")
-    );
-
-    // logger()->info("GET DOCUMENTS BENCHMARK", [
-    //     "employee_id" => $employeeId,
-    //     "user_id" => $userId,
-    //     "document_count" => $documentIds->count(),
-    //     "filtered_count" => $filteredDocuments->count(),
-    //     "returned_count" => count($documents),
-    //     "total_ms" => round($totalTime, 2),
-    //     "benchmark" => $benchmark,
-    // ]);
-
-
-    return [
-        "data" => $documents,
-        "pagination" => $pagination,
-    ];
-}
 
 
 
@@ -1815,220 +1905,6 @@ $query = $policy->apply(
 
 
 
-      private function OldgetDocumentIds(
-        string $filterContext,
-        Builder $query,
-        int $roleId,
-        int $userId,
-        string $validationContext,
-        string $document_type,
-        int $employeeId,
-        array $responsibilities,
-        array $filters = [],
-        bool $applyStatusFilter = true,
-        bool $applyRoleFilter = true
-    ) {
-        // $filterContext = $filters["statut"];
-        $statut = $filters["statut"] ?? null;
-
-        // $applyStatusFilter = false;
-        // $applyRoleFilter = false;
-
-                // throw new Exception($applyStatusFilter, 1);
-                // throw new Exception($applyRoleFilter, 1);
-
-
-        if ($validationContext === self::CONTEXT_MY_DOCUMENTS) {
-            if ($filterContext === self::FILTER_PENDING) {
-                // throw new Exception($filterContext, 1);
-
-                /*
-    |--------------------------------------------------------------------------
-    | FILTRE ROLE (OPTIONNEL)
-    |--------------------------------------------------------------------------
-    */
-
-                if ($applyRoleFilter) {
-                    $query->whereHas("assignments", function ($q) use (
-                        $roleId,
-                        $statut
-                    ) {
-                        $q->where("role_id", $roleId)->where(
-                            "decision",
-                            "PENDING"
-                            // $statut != "COMPLETE" ? $statut : "APPROVED"
-                        );
-                    });
-                }
-
-                /*
-    |--------------------------------------------------------------------------
-    | FILTRE STATUT
-    |--------------------------------------------------------------------------
-    */
-                if ($applyStatusFilter && !empty($statut)) {
-                    $query->where(function ($q) use ($roleId, $statut) {
-                        $q->whereHas("assignments", function ($a) use (
-                            $roleId,
-                            $statut
-                        ) {
-                            $a->where("role_id", $roleId)->where(
-                                "decision",
-                                "PENDING"
-                                // $statut != "COMPLETE" ? $statut : "APPROVED"
-                            );
-                        })->where("status", "PENDING");
-                    });
-                }
-            }
-
-            if ($filterContext === self::FILTER_IN_PROGRESS) {
-                if ($applyStatusFilter && !empty($statut)) {
-                    // throw new Exception($filterContext, 1);
-
-                    $query->whereHas("workflowInstance", function ($q) use (
-                        $statut
-                    ) {
-                        $q->where("status", "PENDING");
-                    });
-                }
-            }
-
-            if ($filterContext === self::FILTER_COMPLETE) {
-                // throw new Exception($filterContext, 1);
-
-                $query->whereHas("workflowInstance", function ($q) use (
-                    $statut
-                ) {
-                    $q->where("status", $statut);
-                });
-            }
-        }
-
-        if ($validationContext === self::CONTEXT_VALIDATION) {
-            // throw new Exception($validationContext, 1);
-
-
-            $policy = $this->visibilityPolicyResolver->resolve(
-    $document_type
-);
-
-$query = $policy->apply(
-    $query,
-    $roleId,
-    $userId,
-    $employeeId,
-    $responsibilities
-);
-
-
-
-            if ($filterContext === self::FILTER_PENDING) {
-                // if ($applyStatusFilter && !empty($statut)) {
-                //     $query->whereHas("workflowInstance", function ($q) use (
-                //         $statut
-                //     ) {
-                //         $q->where("status", "PENDING");
-                //     });
-                // }
-
-                /*
-    |--------------------------------------------------------------------------
-    | FILTRE ROLE (OPTIONNEL)
-    |--------------------------------------------------------------------------
-    */
-
-                if ($applyRoleFilter) {
-                    // throw new Exception($applyRoleFilter, 1);
-
-                    $query
-                        ->where("workflow_instance_steps.status", "PENDING")
-                        ->whereHas("assignments", function ($q) use (
-                            $roleId,
-                            $statut
-                        ) {
-                            $q->where("role_id", $roleId)->where(
-                                "decision",
-                                "PENDING"
-                            );
-                        });
-                }
-
-                /*
-    |--------------------------------------------------------------------------
-    | FILTRE STATUT
-    |--------------------------------------------------------------------------
-    */
-
-                // if ($applyStatusFilter && !empty($statut)) {
-                //     $query->where(function ($q) use ($roleId, $statut) {
-                //         $q->whereHas("assignments", function ($a) use (
-                //             $roleId,
-                //             $statut
-                //         ) {
-                //             $a->where("role_id", $roleId)->where("decision","PENDING");
-                //         })->where("status", $statut);
-                //     });
-                // }
-            }
-
-            if ($filterContext === self::FILTER_IN_PROGRESS) {
-                if ($applyStatusFilter && !empty($statut)) {
-                    // throw new Exception($filterContext, 1);
-
-                    $query->whereHas("workflowInstance", function ($q) use (
-                        $statut
-                    ) {
-                        $q->where("status", "PENDING");
-                    });
-                }
-            }
-
-                    // throw new Exception($filterContext, 1);
-
-
-              if ($filterContext === self::FILTER_WAITING_CLOSURE) {
-
-                if ($applyStatusFilter && !empty($statut)) {
-                 
-                    
-                    $status_label = WorkflowStatusLabel::whereCode($statut)->first();
-                    
-                    // throw new Exception($status_label, 1);
-
-                    $query->where( 'workflow_instance_steps.workflow_status_label_id', $status_label->id);
-                }
-            }
-
-            //COMPLETE
-
-            if ($filterContext === self::FILTER_COMPLETE) {
-                // throw new Exception($filterContext, 1);
-
-                $query->whereHas("workflowInstance", function ($q) use (
-                    $statut
-                ) {
-                    $q->where("status", $statut);
-                });
-            }
-
-            if ($filterContext === self::FILTER_ALL_DOCUMENTS) {
-            }
-        }
-
-        return $query
-            ->select("workflow_instances.document_id")
-            ->distinct()
-            ->get();
-        // ->paginate($count);
-
-        // return $query
-        //     ->get()
-        //     ->pluck("workflowInstance.document_id")
-        //     ->filter()
-        //     ->unique()
-        //     ->values();
-    }
 
     private function getDocumentStats(
         array $documentTypes,
@@ -2730,147 +2606,7 @@ return
     return false;
 }
 
-    protected function OldcaneView(
-        array $doc,
-        object $permissionsByDocType,
-        int $employeeId,
-        int $userId,
-        string $context,
-        array $currentDocTypeSlug,
-        array $responsibilities
-    ): bool {
-        if (
-            !in_array(
-                $doc["document_type"]["relation_name"],
-                $currentDocTypeSlug
-            )
-        ) {
-            return false;
-        }
-
-        $workflowInstance = WorkflowInstance::where(
-            "document_id",
-            $doc["id"]
-        )->first();
-
-        $completedSteps = WorkflowInstanceStep::query()
-            ->where("workflow_instance_id", $workflowInstance->id)
-            ->where("status", "COMPLETE")
-            ->with(["workflowStep.workflowActionSteps.workflowAction"])
-            ->get()
-            ->toArray();
-
-        $steps = WorkflowInstanceStep::query()
-            ->where("workflow_instance_id", $workflowInstance->id)
-            // ->where("status", "COMPLETE")
-            ->with(["workflowStep.workflowActionSteps.workflowAction"])
-            ->get()
-            ->toArray();
-
-        $completedStepWithSignPermission = $this->getStepsByPermissions(
-            $completedSteps,
-            ["sign"]
-        );
-
-        $stepWithSignPermission = $this->getStepsByPermissions($steps, [
-            "sign",
-        ]);
-
-        $user = request()->get("user");
-
-       
-        
-
-        $hasSignStep = !empty($stepWithSignPermission);
-
-        $hasCompletedSignStep = !empty($completedStepWithSignPermission);
-
-        $isAccounting = in_array("ACCOUNTING", $responsibilities);
-
-        $isSignatory = in_array("SIGNATORY", $responsibilities);
-
-
-        // throw new Exception(json_encode($responsibilities), 1);
-
-      
-        
-
-        if (
-    $hasSignStep &&
-    !$hasCompletedSignStep &&
-    $isAccounting &&
-    !$isSignatory
-) {
-    return false;
-}
-
-        // throw new Exception(json_encode($doc["document_type"]["relation_name"]), 1);
-
-        $perm = $permissionsByDocType[$doc["document_type_id"]] ?? null;
-
-        if (!$perm) {
-            return false;
-        }
-
-        $permissions = $perm["permissions"];
-
-        $isOwner = $doc["created_by"] === $userId;
-
-        $isActor =
-            $doc["actor_type"] == "EMPLOYEE" && $doc["actor_id"] == $employeeId;
-
-        // isset($doc["actor_type"]) && isset($doc["actor_id"])
-        //     ? $doc["beneficiary"]["id"] === $userId
-        //     : $doc["actor"]["id"] === $userId;
-
-        if ($doc["actor_id"] == 0 || $doc["actor_id"] == null) {
-            // throw new Exception(json_encode($doc["actor_id"]), 1);
-            // return false;
-        }
-
-        // throw new Exception(json_encode($context), 1);
-
-        $isSameDepartment = $this->checkSameDepartment(
-            $doc["actor_id"], //employee_id
-            $employeeId
-        );
-
-        /**
-         * =========================
-         * 📁 MES DOCUMENTS
-         * =========================
-         */
-        if ($context === "MY_DOCUMENTS") {
-            return $isOwner || $isActor;
-        }
-
-        /**
-         * =========================
-         * 🧾 À VALIDER
-         * =========================
-         */
-        if (
-            $context === "TO_VALIDATE" ||
-            $context === "IN_PROGRESS" ||
-            $context === "COMPLETE"
-        ) {
-            return ($permissions["view_department"] && $isSameDepartment) ||
-                $permissions["view_all"];
-        }
-
-        /**
-         * =========================
-         * 🌍 ALL DOCUMENTS
-         * =========================
-         */
-        if ($context === "ALL_DOCUMENTS") {
-            return $permissions["view_all"] ||
-                ($permissions["view_department"] && $isSameDepartment) ||
-                ($permissions["view_own"] && $isOwner);
-        }
-
-        return false;
-    }
+ 
 
     protected function checkSameDepartment(
         ?int $employee1,

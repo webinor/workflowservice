@@ -124,6 +124,10 @@ class WorkflowActionController extends Controller
 
                 "action_step_message" => $validated["action_step_message"],
                 "transaction_type_code" => $validated["transaction_type_code"] ?? null,
+
+                     // Conditions d'activation et de visibilité.
+    'requirements' => $validated['requirements'] ?? null,
+    'visibility_requirements' => $validated['visibility_requirements'] ?? null,
             ]);
 
             DB::commit();
@@ -176,7 +180,7 @@ class WorkflowActionController extends Controller
     WorkflowAction $workflowAction
     
 ) {
-    // return $workflowAction;
+    // return 
     $validated = $request->validated();
 
     try {
@@ -196,12 +200,24 @@ class WorkflowActionController extends Controller
             $workflowAction->id
         )->firstOrFail();
 
-        $workflowActionStep->update([
-            'workflow_step_id' => $validated['workflow_step_id'],
-            'permission_required' => $validated['permission_required'],
-            'action_step_message' => $validated['action_step_message'],
-            'transaction_type_code' => $validated['transaction_type_code'] ?? null,
-        ]);
+        $stepData = [
+    'workflow_step_id' => $validated['workflow_step_id'],
+    'permission_required' => $validated['permission_required'],
+    'action_step_message' => $validated['action_step_message'],
+    'transaction_type_code' => $validated['transaction_type_code'] ?? null,
+];
+
+// Ne modifier les conditions que si les champs sont présents
+// dans les données validées.
+if (array_key_exists('requirements', $validated)) {
+    $stepData['requirements'] = $validated['requirements'];
+}
+
+if (array_key_exists('visibility_requirements', $validated)) {
+    $stepData['visibility_requirements'] = $validated['visibility_requirements'];
+}
+
+$workflowActionStep->update($stepData);
 
         DB::commit();
 
