@@ -261,6 +261,7 @@ public function fetchDocuments(
         "documentTypes" => $documentTypes,
         "filters" => $filters,
         "shouldEnrich" => $shouldEnrich,
+        "shouldEnrichBatch" => true,
         "isStat" => $isStat,
     ];
 

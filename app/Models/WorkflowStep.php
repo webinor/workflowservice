@@ -25,6 +25,7 @@ class WorkflowStep extends Model
         "workflow_status_label_id",
             'completion_rule',
     'completion_rule_config',
+    'config',
     'is_bypassable'
     ];
 
@@ -35,6 +36,10 @@ class WorkflowStep extends Model
         'completion_rule_config' => 'array',
 'is_regularization_start' => 'boolean',
     'check_before' => 'boolean',
+
+  
+    'config' => 'array',
+
         
     ];
 

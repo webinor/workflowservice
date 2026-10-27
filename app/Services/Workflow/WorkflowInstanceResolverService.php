@@ -21,28 +21,48 @@ class WorkflowInstanceResolverService
 //     }
 
 
-    public function getCurrentStep(
-        WorkflowInstance $instance
-    ): ?WorkflowInstanceStep {
+  public function getCurrentStep(
+    WorkflowInstance $instance
+): ?WorkflowInstanceStep {
 
+    // Colonnes significatives des affectations de l'étape.
+    $assignmentColumns = [
+        'id',
+        'instance_step_id',
+        'role_id',
+        'assigned_user_id',
+        'source_type',
+        'source_value',
+    ];
 
-        if ($instance->status === 'COMPLETE') {
+    if ($instance->status === 'COMPLETE') {
         return $instance
             ->instance_steps()
-            ->with(['workflowStep.workflowActionSteps',
-            'workflowStatusLabel'])
+            ->with([
+                'workflowStep.workflowActionSteps',
+                'workflowStatusLabel',
+                'assignments' => function ($query) use ($assignmentColumns) {
+                    $query->select($assignmentColumns);
+                },
+            ])
             ->orderByDesc('position')
             ->first();
     }
 
-        return $instance
-            ->instance_steps()
-            ->with(["workflowInstance" , "workflowStep.workflowActionSteps",
-            'workflowStatusLabel'])
-            ->where("status", "PENDING")
-            ->orderBy("position", "asc")
-            ->first();
-    }
+    return $instance
+        ->instance_steps()
+        ->with([
+            'workflowInstance',
+            'workflowStep.workflowActionSteps',
+            'workflowStatusLabel',
+            'assignments' => function ($query) use ($assignmentColumns) {
+                $query->select($assignmentColumns);
+            },
+        ])
+        ->where('status', 'PENDING')
+        ->orderBy('position', 'asc')
+        ->first();
+}
 
     public function OldgetCurrentStep(
     WorkflowInstance $instance

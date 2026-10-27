@@ -335,6 +335,9 @@ class WorkflowController extends Controller
         WorkflowInstanceResolverService $resolver,
         $documentId
     ) {
+
+   
+    
         if (Str::isUuid($documentId)) {
             $documentKey = "document_uuid";
         } else {

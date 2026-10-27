@@ -113,7 +113,7 @@ Route::post(
 
             Route::get('/documents/{documentId}/status', 'status');
 
-               Route::get(
+            Route::get(
     '/documents/{documentId}/availability-context',
     'getAvailabilityContext'
 );

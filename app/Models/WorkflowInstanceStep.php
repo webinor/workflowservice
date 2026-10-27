@@ -14,8 +14,8 @@ class WorkflowInstanceStep extends Model
     protected $fillable = [
         "workflow_instance_id",
         "workflow_step_id",
-        "role_id",
-        "user_id",
+        // "role_id",
+        // "user_id",
         "status",
         "executed_at",
         "position",
@@ -41,6 +41,19 @@ class WorkflowInstanceStep extends Model
             'workflow_instance_step_id'
         );
     }
+
+    /**
+ * Vérifie si un rôle est affecté à l'étape courante.
+ *
+ * @param int $roleId
+ * @return bool
+ */
+public function hasAssignedRole(int $roleId): bool
+{
+    return $this->assignments()
+        ->where('role_id', $roleId)
+        ->exists();
+}
     /**
      * Get the workflowInstance that owns the WorkflowInstanceStep
      *
