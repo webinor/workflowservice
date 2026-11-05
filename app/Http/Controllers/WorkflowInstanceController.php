@@ -3338,7 +3338,7 @@ public function markReceiptsReceivedWaitingClosure(
         if (!$default_transition) {
             //    throw new Exception("Aucune transition par défaut définie");
         }
-        // throw new Exception($default_transition, 1);
+        // throw new Exception(json_encode($currentStep), 1);
 
         $pathtransitions = WorkflowTransition::whereHas("conditions")
             ->with([
@@ -3992,7 +3992,6 @@ private function confirmPhysicalDocuments(
                 //         continue;
                 //     }
 
-                // return    $this->get_step($instance , $pathtransition , $isDynamic);
 
                 // throw new Exception($tempWorkflowInstanceStep, 1);
             }
@@ -4000,7 +3999,6 @@ private function confirmPhysicalDocuments(
 
         // throw new Exception("aucune satisfaite", 1);
 
-        // throw new Exception(json_encode($this->get_step($instance, $default_transition, $isDynamic)), 1);
 
         return $this->getWorkflowStep($default_transition);
 
