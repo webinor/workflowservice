@@ -1349,7 +1349,7 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 );
 
-                // throw new Exception(json_encode($dynamicUsers), 1);
+                throw new Exception(json_encode($dynamicUsers), 1);
 
                 // $CURRENT_OPERATOR_ROLE_ID = $documentData["user"]["roles"]; ////le signataire qui soumet la FR ASSISTANCE
 
