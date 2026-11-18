@@ -16,5 +16,8 @@ class DocumentTypeCode
 
     const DEMANDE_ACHAT = 'purchase_request';
 
+    const MISSION = 'mission';
+
+
 
 }

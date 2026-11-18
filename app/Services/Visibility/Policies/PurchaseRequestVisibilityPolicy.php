@@ -4,6 +4,7 @@ namespace App\Services\Visibility\Policies;
 
 use App\Services\Visibility\VisibilityPolicyInterface;
 use App\Services\Visibility\WorkflowVisibilityService;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
 
 class PurchaseRequestVisibilityPolicy
@@ -33,10 +34,12 @@ class PurchaseRequestVisibilityPolicy
         |--------------------------------------------------------------------------
         */
 
+// throw new Exception(json_encode($responsibilities), 1);
+
+
             if (array_intersect(
     [
         'VIEW_ALL_PURCHASE_REQUESTS',
-
         'VIEW_ALL_FINANCIAL_DOCUMENT_YAOUNDE',
         'VIEW_ALL_FINANCIAL_DOCUMENT_KRIBI',
         // 'VIEW_ALL_FINANCIAL_DOCUMENT_DOUALA'
@@ -47,6 +50,8 @@ class PurchaseRequestVisibilityPolicy
 )) {
     return $query;
 }
+
+
 
         /*
         |--------------------------------------------------------------------------

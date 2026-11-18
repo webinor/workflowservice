@@ -233,6 +233,9 @@ public function getDocuments(
         ->unique()
         ->values();
 
+    // throw new Exception(json_encode($documentIds), 1);
+    
+
     $logPerf('07_EXTRACT_DOCUMENT_IDS', [
         'document_ids_count' => $documentIds->count(),
     ]);
@@ -251,6 +254,9 @@ public function getDocuments(
         ->sortByDesc("id")
         ->values()
         ->all();
+
+    // throw new Exception(json_encode($flatDocuments), 1);
+    
 
     $logPerf('08_GET_DOCUMENTS_BY_IDS', [
         'documents_count' => count($flatDocuments),
@@ -273,6 +279,9 @@ public function getDocuments(
     $logPerf('09_GET_PERMISSIONS', [
         'document_types_count' => count($permissionsByDocType),
     ]);
+
+    // throw new Exception(json_encode($permissionsByDocType), 1);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -376,6 +385,9 @@ public function getDocuments(
             )
         )
         ->values();
+
+    // throw new Exception(json_encode($flatDocuments), 1);
+    
 
     $logPerf('13_FILTER_CAN_VIEW', [
         'documents_before' => count($flatDocuments),
@@ -2210,6 +2222,11 @@ $query = $policy->apply(
     $doc["document_type_id"]
 ] ?? null;
 
+
+    // throw new Exception(json_encode($perm), 1);
+
+
+
 if (!$perm) {
     return false;
 }
@@ -2238,11 +2255,16 @@ if (!$perm) {
     if ($context === "MY_DOCUMENTS") {
         return $isOwner || $isActor;
     }
+
+    // throw new Exception(json_encode($context), 1);
+
     /*
     |--------------------------------------------------------------------------
     | Document type
     |--------------------------------------------------------------------------
     */
+
+    // throw new Exception(json_encode($currentDocTypeSlug), 1);
 
     if (
         !in_array(
@@ -2379,6 +2401,9 @@ foreach ($steps as $instanceStep) {
         return false;
     }
 
+    // throw new Exception(json_encode($currentDocTypeSlug), 1);
+
+
 
 
 
@@ -2394,11 +2419,14 @@ foreach ($steps as $instanceStep) {
 // );
 
 
-        // throw new Exception(json_encode($currentUserContext), 1);
+        // throw new Exception(json_encode($currentDocTypeSlug), 1);
 
      
         
-        if ($this->hasFinancialDocumentCityResponsibility($currentUserContext)) {
+        if ($this->hasFinancialDocumentCityResponsibility($currentUserContext) && !in_array(
+            $doc["document_type"]["relation_name"],
+            $currentDocTypeSlug
+        )) {
     // Le user possède une responsabilité financière liée à une ville
 
        $assignmentPlace = strtoupper(
@@ -2443,9 +2471,7 @@ foreach ($steps as $instanceStep) {
 else{
 
 // throw new Exception("no", 1);
-return
-
-    false;
+return false;
 }
 
 
@@ -2506,6 +2532,8 @@ return
         
     
     }
+
+// throw new Exception($permissions["view_all"], 1);
 
 
     // /*

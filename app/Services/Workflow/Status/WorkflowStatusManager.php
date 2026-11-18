@@ -6,6 +6,7 @@ use App\Models\WorkflowInstanceStep;
 use App\Services\Workflow\Status\Contracts\WorkflowStatusHandlerInterface;
 use App\Services\Workflow\Status\Handlers\FeeNoteStatusHandler;
 use App\Services\Workflow\Status\Handlers\PaperTaxiStatusHandler;
+use App\Services\Workflow\Status\Handlers\PurchaseRequestStatusHandler;
 use App\Services\Workflow\Status\Handlers\RegularizationSheetStatusHandler;
 use RuntimeException;
 
@@ -19,7 +20,9 @@ class WorkflowStatusManager
     public function __construct(
         PaperTaxiStatusHandler $paperTaxiHandler,
         FeeNoteStatusHandler $feeNoteHandler,
-        RegularizationSheetStatusHandler $regularizationSheetHandler
+        RegularizationSheetStatusHandler $regularizationSheetHandler,
+        PurchaseRequestStatusHandler $purchaseRequestStatusHandler
+
     ) {
         $this->handlers = [
             'taxi_paper' =>
@@ -30,6 +33,9 @@ class WorkflowStatusManager
 
             'regularization_sheet' =>
                 $regularizationSheetHandler,
+
+            'purchase_request' =>
+                $purchaseRequestStatusHandler,
         ];
     }
 

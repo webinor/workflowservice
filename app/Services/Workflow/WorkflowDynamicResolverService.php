@@ -134,6 +134,9 @@ public function resolveActor($document)
         $url = $baseUrl . "/employee/{$actorId}/head-of-department";
     }
 
+    // throw new Exception(json_encode($actorType, JSON_PRETTY_PRINT), 1);
+
+
     $response = Http::acceptJson()->get($url);
 
     // 
@@ -188,6 +191,39 @@ public function resolveActor($document)
                 throw new Exception(json_encode($response->body()), 1);
 
                 return null;
+
+                  case "PURCHASE_AGENT":
+
+               
+             $assignedAgentId = $document['purchase_request']['request_order']['payment_agent_employee_id']?? null;
+        
+        
+
+                // throw new Exception(json_encode(config("services.user_service.base_url") .
+                //             "/employee/{$assignedAgentId}" ), 1);
+
+               
+
+                $response = Http::acceptJson() //withToken(request()->bearerToken())->
+                    ->get(
+                        config("services.user_service.base_url") .
+                            "/employee/{$assignedAgentId}"                    );
+
+                if ($response->ok()) {
+                    $assignedAgent = $response->json()["employee"];
+
+                    if (!$assignedAgent) {
+                        throw new Exception(json_encode($response->json()), 1);
+                    }
+
+                    $assignedAgentUser = $assignedAgent['user'] ?? null;
+
+                    return $assignedAgentUser;
+                }
+
+                throw new Exception(json_encode($response->body()), 1);
+
+               
 
             case "MISSION_EXECUTOR":
                 $userData = $document["actor_details"];

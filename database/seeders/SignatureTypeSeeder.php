@@ -58,6 +58,19 @@ class SignatureTypeSeeder extends Seeder
                 'name' => 'Régularisation de la fiche',
                 'description' => 'Signature attestant la régularisation définitive d\'une fiche à régulariser',
             ],
+
+            // ===== DEMANDE D'ACHAT =====
+
+[
+    'code' => 'PURCHASE_ADVANCE',
+    'name' => 'Décaissement de l\'avance fournisseur',
+    'description' => 'Signature attestant le decaissement de l\'avance liée au bon de commande',
+],
+[
+    'code' => 'PURCHASE_SETTLEMENT',
+    'name' => 'Règlement du bon de commande',
+    'description' => 'Signature attestant la réception du solde ou du remboursement lié au bon de commande',
+],
         ];
 
         foreach ($signatureTypes as $type) {

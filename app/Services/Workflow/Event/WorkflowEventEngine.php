@@ -86,6 +86,9 @@ $events = WorkflowTransitionEvent::query()
     ->where('is_active', true)
     ->get();
 
+    // throw new Exception(json_encode($events), 1);
+
+
 
 // --------------------------------------------------------------------------
 // 2. Si aucun événement de transition n'est configuré,

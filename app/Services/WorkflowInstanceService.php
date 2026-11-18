@@ -817,7 +817,7 @@ protected function resolveNotificationTargets(
         ->values()
         ->toArray();
 
-    // throw new Exception(json_encode($assignedUserIds), 1);
+    // throw new Exception(json_encode($assignments), 1);
     
 
     if (!empty($assignedUserIds)) {
