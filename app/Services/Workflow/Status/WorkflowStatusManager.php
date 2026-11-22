@@ -5,6 +5,7 @@ namespace App\Services\Workflow\Status;
 use App\Models\WorkflowInstanceStep;
 use App\Services\Workflow\Status\Contracts\WorkflowStatusHandlerInterface;
 use App\Services\Workflow\Status\Handlers\FeeNoteStatusHandler;
+use App\Services\Workflow\Status\Handlers\MissionStatusHandler;
 use App\Services\Workflow\Status\Handlers\PaperTaxiStatusHandler;
 use App\Services\Workflow\Status\Handlers\PurchaseRequestStatusHandler;
 use App\Services\Workflow\Status\Handlers\RegularizationSheetStatusHandler;
@@ -21,7 +22,8 @@ class WorkflowStatusManager
         PaperTaxiStatusHandler $paperTaxiHandler,
         FeeNoteStatusHandler $feeNoteHandler,
         RegularizationSheetStatusHandler $regularizationSheetHandler,
-        PurchaseRequestStatusHandler $purchaseRequestStatusHandler
+        PurchaseRequestStatusHandler $purchaseRequestStatusHandler,
+        MissionStatusHandler $missionStatusHandler
 
     ) {
         $this->handlers = [
@@ -36,6 +38,9 @@ class WorkflowStatusManager
 
             'purchase_request' =>
                 $purchaseRequestStatusHandler,
+
+              'mission' =>
+                $missionStatusHandler,
         ];
     }
 

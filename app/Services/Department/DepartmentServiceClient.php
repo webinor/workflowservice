@@ -49,6 +49,27 @@ class DepartmentServiceClient
     }
 
     /**
+ * Récupérer les informations d'un département.
+ */
+public function getDepartment(int $departmentId): ?array
+{
+    $response = Http::withHeaders(
+        $this->headers()
+    )->get(
+        "{$this->baseUrl}/{$departmentId}"
+    );
+
+    if (!$response->successful()) {
+        return null;
+    }
+
+    $data = $response->json();
+
+    // Accepter les deux formats de réponse courants.
+    return $data['data'] ?? $data['department'] ?? $data;
+}
+
+    /**
      * =========================================
      * Employés ayant des responsabilités effectives
      * =========================================

@@ -26,6 +26,9 @@ class BusinessSignatureResolverFactory
                  case 'demande-d-absence':
                 return new AbsenceBusinessSignatureResolver();
 
+                  case 'mission':
+                return new AbsenceBusinessSignatureResolver();
+
             default:
             // return new TaxiBusinessSignatureResolver();
 

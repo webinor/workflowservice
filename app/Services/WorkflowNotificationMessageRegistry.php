@@ -28,7 +28,9 @@ class WorkflowNotificationMessageRegistry
         }
 
         if ($type === 'demande-achat') {
-            return new PurchaseRequestMessageBuilder();
+            // return new PurchaseRequestMessageBuilder();
+            return app(PurchaseRequestMessageBuilder::class);
+
         }
 
         if ($type === 'note-de-frais') {
@@ -49,8 +51,8 @@ class WorkflowNotificationMessageRegistry
 
         if ($type === 'achat') {
 
-            return null;
-             new InvoiceProviderMessageBuilder();
+            // return new PurchaseRequestMessageBuilder();
+            return app(PurchaseRequestMessageBuilder::class);
         }
 
 

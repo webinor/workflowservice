@@ -188,6 +188,16 @@ class WorkflowStatusLabelsSeeder extends Seeder
 ],
 
 
+// [
+//     'code' => 'PAID_WAITING_MISSION_EXPENSE',
+//     'label' => 'Payé et en attente de justificatifs de mission',
+//     'emoji' => '🛠️',
+//     'color' => 'info',
+//     'is_configurable' => true,
+//     'status_type' => 'COMMON',
+// ],
+
+
 
 ];foreach ($statuses as $status) {
     DB::table('workflow_status_labels')->updateOrInsert(
