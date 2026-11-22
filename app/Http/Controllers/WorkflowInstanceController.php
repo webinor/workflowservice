@@ -1349,7 +1349,32 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 );
 
-                // throw new Exception(json_encode($dynamicUsers), 1);
+                  $assignments = [];
+
+    foreach ($dynamicUsers["users"] ?? [] as $user) {
+
+        $userId = $user["id"] ?? null;
+        $roleIds = $user["role_ids"] ?? [];
+
+        if (!$userId || empty($roleIds)) {
+            continue;
+        }
+
+        foreach ($roleIds as $roleId) {
+            $assignments[] = [
+                "user_id" => (int) $userId,
+                "role_id" => (int) $roleId,
+            ];
+        }
+    }
+
+    // throw new Exception(json_encode($assignments), 1);
+
+    return [
+        "roles_ids" => [],
+        "assignments" => $assignments,
+    ];
+
 
                 // $CURRENT_OPERATOR_ROLE_ID = $documentData["user"]["roles"]; ////le signataire qui soumet la FR ASSISTANCE
 
@@ -1405,7 +1430,8 @@ class WorkflowInstanceController extends Controller
                 // $stepRoles["assignments"]['role_id']=$dynamicUsers['role_ids'][0];
 
                 return [
-        "roles_ids" => $dynamicUsers["roles_ids"] ?? [],
+        // "roles_ids" => $dynamicUsers["roles_ids"] ?? [],
+        "roles_ids" => [],
         "assignments" => [['user_id'=>$dynamicUsers['id'] , 'role_id'=>$dynamicUsers['role_ids'][0]]],
     ];
 
