@@ -1369,7 +1369,7 @@ class WorkflowInstanceController extends Controller
         ];
     }
 
-    throw new Exception(json_encode($assignments), 1);
+    // throw new Exception(json_encode($assignments), 1);
 
 
     return [
