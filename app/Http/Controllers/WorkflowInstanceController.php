@@ -1349,26 +1349,28 @@ class WorkflowInstanceController extends Controller
                     $documentData
                 );
 
-                  $assignments = [];
+    // throw new Exception(json_encode($dynamicUsers), 1);
 
-    foreach ($dynamicUsers["users"] ?? [] as $user) {
+  $assignments = [];
 
-        $userId = $user["id"] ?? null;
-        $roleIds = $user["role_ids"] ?? [];
+    foreach ($dynamicUsers ?? [] as $employee) {
 
-        if (!$userId || empty($roleIds)) {
+        $userId = $employee["user_id"] ?? null;
+        $roleId = data_get($employee, "position.role_id");
+
+        if (!$userId || !$roleId) {
             continue;
         }
 
-        foreach ($roleIds as $roleId) {
-            $assignments[] = [
-                "user_id" => (int) $userId,
-                "role_id" => (int) $roleId,
-            ];
-        }
+        $assignments[] = [
+            "user_id" => (int) $userId,
+            "employee_id" => (int) $employee["employee_id"],
+            "role_id" => (int) $roleId,
+        ];
     }
 
-    // throw new Exception(json_encode($assignments), 1);
+    throw new Exception(json_encode($assignments), 1);
+
 
     return [
         "roles_ids" => [],

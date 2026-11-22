@@ -265,7 +265,7 @@ public function resolveActor($document)
                     ->withToken(request()->bearerToken())
                     ->get(
                         config("services.department_service.base_url") .
-                            "/by-responsibility",
+                            "/users-by-responsibility",
                         [
                             "responsibility" => [$rule],
                         ]
@@ -277,8 +277,8 @@ public function resolveActor($document)
                 // throw new Exception(json_encode($response->json()), 1);
 
                     return $response->json("data");
+                    
                 }
-                // throw new Exception(json_encode(["ok"]), 1);
 
 
                 throw new Exception(
