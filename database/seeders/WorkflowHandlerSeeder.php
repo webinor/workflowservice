@@ -20,6 +20,7 @@ use App\Services\Workflow\Handlers\RegularizationSheetRegularizedHandler;
 use App\Services\Workflow\Handlers\RegularizationSheetSignedHandler;
 use App\Services\Workflow\Handlers\TaxiPaperSignedHandler;
 use App\Services\Workflow\Handlers\UpdatePurchaseRequestStatusHandler;
+use App\Services\Workflow\Handlers\UpdateRequestOrderStatusHandler;
 use Illuminate\Database\Seeder;
 
 class WorkflowHandlerSeeder extends Seeder
@@ -133,6 +134,22 @@ class WorkflowHandlerSeeder extends Seeder
     'priority' => 1,
     'is_async' => false,
 ],
+
+            /*
+|--------------------------------------------------------------------------
+| Bon de commande
+|--------------------------------------------------------------------------
+*/
+
+[
+    'event' => 'UPDATE_REQUEST_ORDER_STATUS',
+    'handler' => UpdateRequestOrderStatusHandler::class,
+    'priority' => 1,
+    'is_async' => false,
+],
+
+
+
 
 
             /*

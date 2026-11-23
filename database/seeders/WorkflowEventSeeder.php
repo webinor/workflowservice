@@ -87,6 +87,12 @@ class WorkflowEventSeeder extends Seeder
     'description' => 'Déclenché lorsqu’une demande d’achat est mise à jour pour changer son statut.',
 ],
 
+[
+    'code' => 'UPDATE_REQUEST_ORDER_STATUS',
+    'name' => 'Modification du statut du bon de commande',
+    'description' => 'Déclenché lorsqu’un bon de commande est mis à jour pour changer son statut.',
+],
+
 
             /*
     |--------------------------------------------------------------------------

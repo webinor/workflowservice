@@ -86,6 +86,7 @@ $events = WorkflowTransitionEvent::query()
     ->where('is_active', true)
     ->get();
 
+    // throw new Exception(json_encode($context['transitionId']), 1);
     // throw new Exception(json_encode($events), 1);
 
 

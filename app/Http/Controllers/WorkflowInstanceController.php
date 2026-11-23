@@ -2611,39 +2611,7 @@ protected function advanceWorkflowAfterStep(
     return null;
 }
 
-    public function OldregisterPayment($instance, $currentStep, $request, $user)
-    {
-        if ($currentStep->workflowStep->is_payment_step) {
-            //  throw new Exception(json_encode($request->all()), 1);
-
-            $documentId = $instance->document_id;
-
-            $payload = [
-                "paid_amount" => $request->get("paid_amount"), // montant payé
-                "is_full_pay" => $request->get("is_full_pay"), // paiement total ou partiel
-                "payment_mode" => $request->get("payment_mode"),
-                "transaction_code" => $request->get("transaction_code"),
-                "user_id" => $user["id"], // qui effectue le paiement
-            ];
-
-            $response = Http::withToken($request->bearerToken())
-                ->acceptJson()
-                ->post(
-                    config("services.document_service.base_url") .
-                        "/{$documentId}/register-payment",
-                    $payload
-                );
-
-            if ($response->failed()) {
-                throw new \Exception(
-                    "Impossible d'enregistrer le paiement : " .
-                        $response->body()
-                );
-            }
-
-            return $updatedDocument = $response->json();
-        }
-    }
+  
 
     public function validateStep(
     Request $request,
@@ -4134,7 +4102,7 @@ protected function getNextStep(
      * =====================================================
      */
 
-    throw new Exception("Aucune transition par défaut définie");
+    throw new Exception("Aucune transition par défaut définie depuis l'etape : {$currentStep->workflow_step_id} ");
 
     return null;
 }
@@ -4159,7 +4127,7 @@ protected function getNextStep(
             ->first();
 
         if (!$default_transition) {
-               throw new Exception("Aucune transition par défaut définie");
+               throw new Exception("Aucunep transition par défaut définie");
         }
         // throw new Exception(json_encode($currentStep), 1);
 
@@ -4821,7 +4789,7 @@ protected function getReachableSteps(
             ->first();
 
         if (!$default_transition) {
-            //    throw new Exception("Aucune transition par défaut définie");
+            //    throw new Exception("Aucunep transition par défaut définie");
         }
         // throw new Exception($default_transition, 1);
 

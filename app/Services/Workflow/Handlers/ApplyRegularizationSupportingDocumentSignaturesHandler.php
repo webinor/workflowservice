@@ -44,7 +44,8 @@ class ApplyRegularizationSupportingDocumentSignaturesHandler
         
         $this->documentClientService
             ->applyRegularizationSupportingDocumentSignatures(
-                $documentUuid
+                $documentUuid,
+                $documentData
             );
     }
 }

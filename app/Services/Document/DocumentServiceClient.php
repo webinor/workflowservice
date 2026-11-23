@@ -141,14 +141,21 @@ class DocumentServiceClient
      * =========================================
      */
     public function applyRegularizationSupportingDocumentSignatures(
-        string $documentUuid
+        string $documentUuid,
+        array $document
     ) {
+
+        // throw new Exception(json_encode($document["document_type"]['slug']), 1);
+
+
+        $signatureType = $document["document_type"]['slug'] == "achat" ? "SUPPLIER_QUOTE" : "RECEIPT";
+        //"fiche-a-regulariser"
         $response = Http::withToken(request()->bearerToken())
             ->acceptJson()
             ->post(
                 config("services.document_service.base_url") .
                     "/{$documentUuid}/regularization/supporting-documents/apply-signatures"
-            );
+            ,["signatureType" => $signatureType]);
 
         if (!$response->successful()) {
             throw new Exception(
