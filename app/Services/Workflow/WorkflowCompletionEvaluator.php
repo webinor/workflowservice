@@ -206,7 +206,7 @@ class WorkflowCompletionEvaluator
                 $config["amount_source"]
             );
 
-        throw new Exception($amount, 1);
+        // throw new Exception($amount, 1);
 
 
         } elseif (!empty($config["field"])) {
