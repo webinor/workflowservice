@@ -17,7 +17,7 @@ class ResponsibilityService
         $codes = array_map('strtoupper', $codes);
 
         foreach ($responsibilities as $responsibility) {
-            $code = $responsibility['code'] ?? null;
+            $code = $responsibility['code'] ?? $responsibility ?? null;
 
             if ($code && in_array(strtoupper($code), $codes, true)) {
                 return true;

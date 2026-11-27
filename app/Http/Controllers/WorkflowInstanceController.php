@@ -1278,11 +1278,94 @@ class WorkflowInstanceController extends Controller
                 // $validatorRole = $this->getRoleValidator($departmentId);
                 // $stepRoles = $documentData[$documentData["document_type"]["slug"]]["actor_details"]["employee"]["manager"]["user"]["role_ids"];
                 // throw new Exception(json_encode($validatorRole), 1);
-            } elseif ($step["assignment_rule"] === "SIGNATORY") {
+            } 
+            elseif ($step["assignment_rule"] === "SIGNATORY") {
+
+    $dynamicUsers = $resolver->resolveHeadStepRole(
+        $step,
+        $documentData
+    );
+
+    /*
+     * =========================================================
+     * 1. Identification du soumissionnaire
+     * =========================================================
+     *
+     * On récupère son identifiant utilisateur.
+     * On ne compare surtout pas les rôles.
+     */
+    $currentUserId = $documentData["user"]["id"] ?? null;
+
+    /*
+     * =========================================================
+     * 2. Exclusion du soumissionnaire
+     * =========================================================
+     *
+     * On exclut uniquement l'utilisateur qui a soumis
+     * le document.
+     *
+     * Les autres utilisateurs sont conservés, même s'ils
+     * possèdent les mêmes rôles que le soumissionnaire.
+     */
+    $dynamicUsers = collect($dynamicUsers ?? [])
+        ->reject(function ($user) use ($currentUserId) {
+
+            return $currentUserId !== null
+                && (int) ($user["id"] ?? 0) === (int) $currentUserId;
+
+        })
+        ->values()
+        ->toArray();
+
+                // throw new Exception(json_encode($dynamicUsers), 1);
+
+    /*
+     * =========================================================
+     * 3. Construction des affectations explicites
+     * =========================================================
+     *
+     * Chaque utilisateur est associé à ses rôles.
+     */
+    $assignments = [];
+
+    foreach ($dynamicUsers as $user) {
+
+        $userId = $user["id"] ?? null;
+
+        foreach ($user["roles"] ?? [] as $role) {
+
+            $roleId = $role["id"] ?? null;
+
+            if (!$userId || !$roleId) {
+                continue;
+            }
+
+            $assignments[] = [
+                "user_id" => (int) $userId,
+                "role_id" => (int) $roleId,
+            ];
+        }
+    }
+
+                // throw new Exception(json_encode($assignments), 1);
+
+
+    return [
+        "roles_ids" => [],
+        "assignments" => $assignments,
+    ];
+}
+            
+            elseif ($step["assignment_rule"] === "OLDSIGNATORY") {
+
+                throw new Exception(json_encode($documentData["user"]), 1);
                 $dynamicUsers = $resolver->resolveHeadStepRole(
                     $step,
                     $documentData
                 );
+                
+                // throw new Exception(json_encode($dynamicUsers), 1);
+
 
                 $CURRENT_SIGNATORY_ROLE_ID = $documentData["user"]["roles"]; ////le signataire qui soumet le PT
 
@@ -1305,6 +1388,34 @@ class WorkflowInstanceController extends Controller
 
                     return true;
                 });
+
+
+                $assignments = [];
+
+foreach ($dynamicUsers ?? [] as $user) {
+
+    $userId = $user['id'] ?? null;
+
+    foreach ($user['roles'] ?? [] as $role) {
+
+        $roleId = $role['id'] ?? null;
+
+        if (!$userId || !$roleId) {
+            continue;
+        }
+
+        $assignments[] = [
+            'user_id' => (int) $userId,
+            'role_id' => (int) $roleId,
+        ];
+    }
+}
+
+return [
+        "roles_ids" => [],
+        "assignments" => $assignments,
+    ];
+
                 // throw new Exception(json_encode($dynamicUsers), 1);
                 // throw new Exception(json_encode($CURRENT_SIGNATORY_ROLE_ID), 1);
 
@@ -1568,100 +1679,7 @@ public function activateStep(
     return $stepInstance;
 }
 
-    public function OldactivateStep(
-        $step,
-        array $stepRoles,
-        string $initialStatus,
-        WorkflowInstance $workflowInstance,
-        int $index,
-        string $STATUS_COMPLETE,
-        array $userConnected
-    ): WorkflowInstanceStep 
-    {
-
-        /*
-    |--------------------------------------------------------------------------
-    | INSTANCE STEP
-    |--------------------------------------------------------------------------
-    */
-
-        $stepInstance = WorkflowInstanceStep::create([
-            "workflow_instance_id" => $workflowInstance->id,
-            "workflow_step_id" => $step["id"],
-            "status" => $initialStatus,
-            "due_date" => now()->addHours($step["delay_hours"] ?? 24),
-            "position" => $index,
-        ]);
-
-        $stepInstance->load("workflowStep.workflowStatusLabel");
-
-        /*
-    |--------------------------------------------------------------------------
-    | ASSIGNMENTS
-    |--------------------------------------------------------------------------
-    */
-
-        // throw new Exception(get_class($step), 1);
-
-        // throw new Exception(json_encode(collect($stepRoles)));
-
-        $assignments = $this->createStepAssignments(
-            $stepInstance,
-            $step,
-            $stepRoles,
-            $userConnected,
-            $index
-        );
-
-        /*
-    |--------------------------------------------------------------------------
-    | AUTO VALIDATION PREMIERE ETAPE
-    |--------------------------------------------------------------------------
-    |
-    | La première étape est la soumission.
-    |
-    | Elle doit être automatiquement approuvée
-    | par le user connecté, quel que soit le mécanisme
-    | d'assignation utilisé.
-    |
-    */
-
-        if ($step["position"] === 0) {
-            $assignment = $assignments[0] ?? null;
-
-            if ($assignment) {
-                $assignment->update([
-                    "user_id" => $userConnected["id"],
-                    "decision" => "APPROVED",
-                    "decided_at" => now(),
-                ]);
-            }
-        }
-
-        /*
-    |--------------------------------------------------------------------------
-    | COMPLETE SI LA PREMIERE ETAPE EST APPROUVEE
-    |--------------------------------------------------------------------------
-    */
-
-        if ($index === 0) {
-            $hasApproved = WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $stepInstance->id
-            )
-                ->where("decision", "APPROVED")
-                ->exists();
-
-            if ($hasApproved) {
-                $stepInstance->update([
-                    "status" => $STATUS_COMPLETE,
-                    "executed_at" => now(),
-                ]);
-            }
-        }
-
-        return $stepInstance;
-    }
+   
 
     protected function createStepAssignments(
         WorkflowInstanceStep $stepInstance,
@@ -2043,103 +2061,7 @@ protected function advanceWorkflowAfterStep(
 }
 
 
-    protected function OldadvanceWorkflowAfterStep(
-        WorkflowInstance $instance,
-        WorkflowInstanceStep $currentStep,
-        array $documentData,
-        array $user
-    ): array {
-        $nextStep = null;
-        $roleIdsToNotify = [];
-
-        // =====================================
-        // 1. Déterminer l'étape suivante
-        // =====================================
-
-        return
-        $stepData = $this->getNextStep($instance, $currentStep, $documentData);
-
-        $nextStep = $stepData["next_step"];
-        $transition = $stepData["transition"];
-
-        // =====================================
-        // 2. Résoudre le label
-        // =====================================
-
-        $label = $this->resolver->resolveWorkflowStatusLabel($instance);
-
-        // =====================================
-        // 3. Aucune étape suivante
-        // =====================================
-
-        if (!$nextStep) {
-            $instance->update([
-                "status" => "COMPLETE",
-                "workflow_status_label_id" => $label->id ?? null,
-            ]);
-
-            return [
-                "nextStep" => null,
-                "roleIdsToNotify" => [],
-            ];
-        }
-
-        // =====================================
-        // 4. Étape archivée / automatique
-        // =====================================
-
-        if ($nextStep->workflowStep->is_archived_step) {
-            $nextStep->update([
-                "status" => "COMPLETE",
-                "executed_at" => now(),
-            ]);
-
-            WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $nextStep->id
-            )->update([
-                "decision" => "APPROVED",
-                "decided_at" => now(),
-                "user_id" => $user["id"],
-            ]);
-
-            $instance->update([
-                "status" => "COMPLETE",
-                "workflow_status_label_id" => $label->id ?? null,
-            ]);
-
-            return [
-                "nextStep" => $nextStep,
-                "transition" => $transition,
-                "roleIdsToNotify" => [],
-            ];
-        }
-
-        // =====================================
-        // 5. Activer l'étape suivante
-        // =====================================
-
-        $roleIdsToNotify = $this->getRoleIdsToNotify($nextStep);
-
-        $nextStep->update([
-            "status" => "PENDING",
-            "due_date" => now()->addHours(
-                $nextStep->workflowStep->delay_hours ?? 24
-            ),
-        ]);
-
-        $instance->update([
-            "status" => "PENDING",
-            "current_step_id" => $nextStep->workflow_step_id,
-            "workflow_status_label_id" => $label->id ?? null,
-        ]);
-
-        return [
-            "nextStep" => $nextStep,
-            "transition" => $transition,
-            "roleIdsToNotify" => $roleIdsToNotify,
-        ];
-    }
+   
 
     protected function canAdvanceWorkflow(WorkflowInstanceStep $step): bool
     {
@@ -2708,7 +2630,9 @@ protected function advanceWorkflowAfterStep(
             "instance_step_id",
             $currentStep->id
         )
-            ->where("user_id", $user["id"])
+            // ->where("user_id", $user["id"])
+            ->where("assigned_user_id", $user["id"])
+            ->where("decision", "PENDING")
             ->first();
 
         if (!$assignment) {
@@ -2782,6 +2706,8 @@ protected function advanceWorkflowAfterStep(
          * de complétion autorise la progression.
          */
 
+        //  throw new Exception(json_encode($this->canAdvanceWorkflow($currentStep)), 1);
+
         if ($this->canAdvanceWorkflow($currentStep)) {
 
             $result = $this->advanceWorkflowAfterStep(
@@ -2797,6 +2723,13 @@ protected function advanceWorkflowAfterStep(
             $nextStep = $result["nextStep"];
             $transition = $result["transition"];
             $roleIdsToNotify = $result["roleIdsToNotify"];
+        }
+        else{
+
+
+
+
+
         }
 
             // throw new Exception(json_encode($nextStep), 1);
@@ -2914,262 +2847,6 @@ protected function advanceWorkflowAfterStep(
     }
 }
 
-    public function OldvalidateStep(
-        Request $request,
-        WorkflowEventEngine $WorkflowEventEngine,
-        WorkflowCompletionEvaluator $completionEvaluator,
-        string $documentUuid
-    ) {
-        DB::beginTransaction();
-
-        try {
-
-            // =====================================
-            // CONTEXTE UTILISATEUR
-            // =====================================
-            $user = $request->get("user");
-            $isTest = $request->get("isTest");
-            $actionStepId = (int)Str::lower($request->get("actionStepId"));
-
-                // =====================================
-                // WORKFLOW INSTANCE
-                // =====================================
-                $instance = WorkflowInstance::whereDocumentUuid(
-                    $documentUuid
-                )->firstOrFail();
-
-            $currentStep = $this->resolver->getCurrentStep($instance);
-
-            if (!$currentStep) {
-                return response()->json(
-                    [
-                        "success" => false,
-                        "message" => "Aucune étape en cours trouvée.",
-                    ],
-                    400
-                );
-            }
-
-            $oldStatus = $currentStep->status;
-            $historyDataArray = [];
-
-            $documentData = $this->getDocumentData($instance, $request);
-
-            // =====================================
-            // BLOCKING RULES
-            // =====================================
-
-            if (!$currentStep->workflowStep->check_before) {
-
-
-
-            
-            $blockingData = $this->checkBlockingRules(
-                $instance,
-                $currentStep,
-                $documentData
-            );
-
-
-                // throw new \Exception(json_encode($blockingData));
-
-            if (!$blockingData["isValid"]) {
-                return response()->json([
-                    "success" => false,
-                    "message" => $blockingData["data"]["message"],
-                    "currentStep" => $currentStep,
-                ]);
-            }
-        }
-
-            // =====================================
-            // VALIDATION VIA ASSIGNMENTS
-            // =====================================
-            $assignment = WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $currentStep->id
-            )
-                ->where("user_id", $user["id"])
-                ->first();
-
-            if (!$assignment) {
-                $assignment = WorkflowInstanceStepAssignment::where(
-                    "instance_step_id",
-                    $currentStep->id
-                )
-                    ->where("role_id", $user["role_id"])
-                    ->first();
-            }
-
-            if ($assignment) {
-                $assignment->update([
-                    "user_id" => $user["id"],
-                    "decision" => "APPROVED",
-                    "decided_at" => now(),
-                ]);
-            }
-
-            // =====================================
-            // RECALCUL STATUS STEP
-            // =====================================
-            $assignments = WorkflowInstanceStepAssignment::where(
-                "instance_step_id",
-                $currentStep->id
-            )->get();
-
-            // $hasApproved = $assignments
-            //     ->where("decision", "APPROVED")
-            //     ->isNotEmpty();
-
-            $isCompleted = $completionEvaluator->isReached(
-                $currentStep,
-                $assignments,
-                $documentData
-            );
-
-            $hasRejected = $assignments
-                ->where("decision", "REJECTED")
-                ->isNotEmpty();
-
-            if ($hasRejected) {
-                $currentStep->status = "REJECTED";
-                // } elseif ($hasApproved) {
-            } elseif ($isCompleted) {
-                $currentStep->status = "COMPLETE";
-                $currentStep->executed_at = now();
-            } else {
-                $currentStep->status = "PENDING";
-            }
-
-          
-
-            $currentStep->save();
-
-            // =====================================
-            // NEXT STEP LOGIC
-            // =====================================
-            $nextStep = null;
-            $transition = null;
-
-            //old logic
-            // if ($currentStep->status === "COMPLETE") {
-            //     $stepData = $this->getNextStep(
-            //         $instance,
-            //         $currentStep,
-            //         $documentData
-            //     );
-
-            //     $nextStep = $stepData["next_step"];
-            // }
-
-            // =====================================
-            // WORKFLOW LABEL
-            // =====================================
-            $label = $this->resolver->resolveWorkflowStatusLabel($instance);
-            $roleIdsToNotify = [];
-
-            if ($this->canAdvanceWorkflow($currentStep)) {
-            // return
-            $result = $this->advanceWorkflowAfterStep(
-                    $instance,
-                    $currentStep,
-                    $documentData,
-                    $user
-                );
-
-                $nextStep = $result["nextStep"];
-                $transition = $result["transition"];
-                $roleIdsToNotify = $result["roleIdsToNotify"];
-            }
-            else{
-                
-                throw new Exception(json_encode($transition), 1);
-
-            }
-
-
-            if (isset($isTest) && $isTest) {
-                
-
-            
-            }
-            
-
-            // =====================================
-            // HISTORY
-            // =====================================
-            $historyDataArray[] = [
-                "model_id" => $currentStep->id,
-                "model_type" => get_class($currentStep),
-                "changed_by" => $user["id"],
-                "old_status" => $oldStatus,
-                "new_status" => $currentStep->status,
-                "comment" => $request->get("comment"),
-            ];
-
-            $historyDataArray = array_map(
-                fn($data) => array_filter($data, fn($v) => !is_null($v)),
-                $historyDataArray
-            );
-
-            foreach ($historyDataArray as $historyData) {
-                WorkflowStatusHistory::create($historyData);
-            }
-
-
-             $this->executeBeforeCommit(
-                $instance,
-                $currentStep,
-                $nextStep,
-                $roleIdsToNotify,
-                $request,
-                $user,
-                $documentUuid,
-                $actionStepId,
-                $WorkflowEventEngine,
-                $documentData,
-                $transition
-            );
-
-            $this->registerWorkflowAfterCommit(
-                $instance,
-                $currentStep,
-                $nextStep,
-                $roleIdsToNotify,
-                $request,
-                $user,
-                $documentUuid,
-                $actionStepId,
-                $WorkflowEventEngine,
-                $documentData
-            );
-
-
-    
-            DB::commit();
-
-
-            
-
-            return response()->json([
-                "success" => true,
-                "message" => "",
-                "currentStep" => $currentStep,
-                "nextStep" => $nextStep,
-                "instance" => $instance,
-            ]);
-        } catch (\Throwable $th) {
-            DB::rollBack();
-
-            return response()->json(
-                [
-                    "success" => false,
-                    "message" => $th->getMessage(),
-                ],
-                500
-            );
-        }
-    }
 
     public function bypassStep(
         Request $request,
@@ -4107,72 +3784,7 @@ protected function getNextStep(
     return null;
 }
 
-    /**
-     * Retourne l'étape suivante selon les transitions et conditions
-     */
-    protected function OldgetNextStep(
-        WorkflowInstance $instance,
-        WorkflowInstanceStep $currentStep,
-        array $documentData
-    ) {
-        $isDynamic = false;
-
-        $default_transition = WorkflowTransition::whereDoesntHave(
-            "conditions",
-            function ($q) {
-                $q->where("condition_kind", "PATH");
-            }
-        )
-            ->where("from_step_id", $currentStep->workflow_step_id)
-            ->first();
-
-        if (!$default_transition) {
-               throw new Exception("Aucunep transition par défaut définie");
-        }
-        // throw new Exception(json_encode($currentStep), 1);
-
-        $pathtransitions = WorkflowTransition::whereHas("conditions")
-            ->with([
-                "conditions" => function ($q) {
-                    $q->where("condition_kind", "PATH");
-                },
-            ])
-            ->where("from_step_id", $currentStep->workflow_step_id)
-            ->get();
-
-        if ($documentData['uuid'] == "2e62a3c5-3bf3-40ae-924a-3cb5a29cfa1a") {
-
-
-            //    throw new Exception(json_encode($pathtransitions));
-            //    throw new Exception(json_encode($documentData));
-            
-        
-        }
-
-        foreach ($pathtransitions as $pathtransition) {
-            if (
-                $this->transitionConditionsAreSatisfied(
-                    $pathtransition,
-                    $documentData
-                )
-            ) {
-
-        //       if ($documentData['uuid'] == "8b04c1fe-7e26-4bc6-992b-515404918eb1") {
-
-
-        //        throw new Exception(json_encode($pathtransition));
-            
-        
-        // }
-
-                return $this->get_step($instance, $pathtransition, $isDynamic);
-            }
-        }
-
-        return $this->get_step($instance, $default_transition, $isDynamic);
-
    
-    }
 
     public function advance(
         WorkflowInstance $instance,
@@ -4372,13 +3984,13 @@ protected function getNextStep(
         ?string $actionStepId,
         WorkflowEventEngine $WorkflowEventEngine,
         array $documentData,
-        WorkflowTransition $transition
+        ?WorkflowTransition $transition
     ): void {
         // =====================================
         // PAYMENT
         // =====================================
 
-        $this->registerPayment($instance, $currentStep, $request, $user,$documentData,$transition);
+        $this->registerPayment($instance, $currentStep, $request, $user);//,$documentData,$transition);
 
         // =====================================
         // NOTIFICATION
@@ -4391,31 +4003,8 @@ protected function getNextStep(
             $nextStep->workflowStep->is_archived_step
         ) {
 
-            // $this->workflowInstanceService->notifyNextValidators(
-            //     $nextStep,
-            //     $request,
-            //     $instance->department_id ?? null
-            //     // $roleIdsToNotify
-            // );
-
-            // throw new Exception(json_encode($documentData), 1);
-            
-
-    //            $confirmationResult =
-    // $this->workflowStatusManager
-    //     ->confirmPhysicalDocumentsBeforeBeneficiarySignature(
-    //         $currentStep,
-    //         $instance->document_type_relation_name,
-    //         (int) $documentData['id'],
-    //         $documentData['uuid'],
-    //         [
-    //             'id' => (int)  $documentData['actor_id'],
-    //             'name' => $documentData['actor_details']['nom'].' '.$documentData['actor_details']['prenom'],
-    //             'type' => $request->actor_type,
-    //             'role' => $request->actor_role,
-    //         ],
-    //         "WORKFLOW_CLOSURE"
-    //     );
+         
+        
 
     $confirmationResult = $this->confirmPhysicalDocuments(
     $currentStep,
@@ -4434,16 +4023,19 @@ protected function getNextStep(
         // EVENTS
         // =====================================
 
-        $WorkflowEventEngine->handleActionStep(
-            $documentUuid,
-            $currentStep,
-            $actionStepId,
-             [
-        "validatorId" => $user["id"],
-        "actorId" => $documentData['actor_id'],
-        "transitionId" => $transition->id,
-    ]
-        );
+       if ($transition !== null) {
+
+    $WorkflowEventEngine->handleActionStep(
+        $documentUuid,
+        $currentStep,
+        $actionStepId,
+        [
+            "validatorId" => $user["id"],
+            "actorId" => $documentData["actor_id"],
+            "transitionId" => $transition->id,
+        ]
+    );
+}
 
         
     }
@@ -4663,46 +4255,7 @@ private function confirmPhysicalDocuments(
         return null;
     }
 
-    protected function OldgetReachableSteps(
-        array $steps,
-        array $documentData = []
-    ): array {
-        $reachable = [];
-        $visited = [];
-
-        $explore = function ($step) use (
-            &$explore,
-            &$reachable,
-            &$visited,
-            $documentData
-        ) {
-            // éviter les boucles
-            if (in_array($step["id"], $visited)) {
-                return;
-            }
-
-            $visited[] = $step["id"];
-
-            // Ajouter l'étape courante
-            $reachable[$step["id"]] = $step;
-
-            // Chercher la suivante
-            $nextStep = $this->findNextStep($step, $documentData);
-
-            // throw new Exception(json_encode($step), 1);
-            // throw new Exception(json_encode($nextStep), 1);
-
-            if ($nextStep) {
-                $explore($nextStep);
-            }
-        };
-
-        foreach ($steps as $step) {
-            $explore($step);
-        }
-
-        return array_values($reachable);
-    }
+   
 
     /**
  * Récupère les étapes accessibles à partir d'une liste
